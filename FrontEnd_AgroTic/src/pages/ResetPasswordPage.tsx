@@ -1,6 +1,6 @@
 import React from "react";
 import ResetPasswordCard from "../components/organisms/ResetPasswordCard";
-import logo from "../assets/AgroTic.png";
+import logo from "../assets/AgroTic_normal.png";
 
 const ResetPasswordPage: React.FC = () => {
   return (

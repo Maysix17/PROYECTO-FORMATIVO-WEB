@@ -22,7 +22,6 @@ interface LeafletMapProps {
   zonas: Zona[];
   selectedZona?: Zona;
   onZonaSelect?: (zona: Zona) => void;
-  height?: string;
   showSatellite?: boolean;
   modalOpen?: boolean;
 }
@@ -31,7 +30,6 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   zonas,
   selectedZona,
   onZonaSelect,
-  height = '400px',
   showSatellite = true,
   modalOpen = false,
 }) => {

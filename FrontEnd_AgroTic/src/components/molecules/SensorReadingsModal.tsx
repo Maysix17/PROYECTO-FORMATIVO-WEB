@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { MedicionSensor } from '../../services/zonasService';
 import { medicionSensorService } from '../../services/zonasService';
 import { useMqttSocket } from '../../hooks/useMqttSocket';
-import { Card, CardBody, CardHeader, Button, Spinner, Badge, Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
+import { Card, CardBody, CardHeader, Spinner, Badge, Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface SensorReadingsModalProps {
@@ -10,7 +10,6 @@ interface SensorReadingsModalProps {
   onClose: () => void;
   zonaId: string;
   zonaNombre: string;
-  mqttConfigId?: string;
 }
 
 interface SensorData {
@@ -27,11 +26,9 @@ const SensorReadingsModal: React.FC<SensorReadingsModalProps> = ({
   onClose,
   zonaId,
   zonaNombre,
-  mqttConfigId,
 }) => {
   const [sensorData, setSensorData] = useState<SensorData>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [liveUpdates, setLiveUpdates] = useState<MedicionSensor[]>([]);
 
   // Use MQTT socket hook for real-time updates
   const { lecturas } = useMqttSocket();

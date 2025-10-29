@@ -21,8 +21,7 @@ import {
   DocumentTextIcon,
   CurrencyDollarIcon,
   TruckIcon,
-  EyeIcon,
-  Cog6ToothIcon
+  EyeIcon
 } from "@heroicons/react/24/outline";
 
 const CultivosPage: React.FC = () => {
@@ -207,13 +206,6 @@ const CultivosPage: React.FC = () => {
           onManageTipoCultivo={() => setIsTipoCultivoModalOpen(true)}
           onManageVariedad={() => setIsVariedadModalOpen(true)}
           onManageEstados={() => setIsEstadosFenologicosModalOpen(true)}
-          onManageActions={[
-            {
-              label: "Gestionar MQTT",
-              icon: <Cog6ToothIcon className="w-4 h-4" />,
-              onClick: () => setIsMqttManagementModalOpen(true)
-            }
-          ]}
         />
 
         {/* Tabla escritorio */}

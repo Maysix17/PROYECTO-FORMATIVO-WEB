@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import RegisterCard from "../components/organisms/RegisterCard";
-import logo from "../assets/AgroTic.png";
+import logo from "../assets/AgroTic_normal.png";
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
 import CustomButton from '../atoms/Boton';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import apiClient from '../../lib/axios/axios';
 
 interface FinanzasCosecha {

@@ -72,9 +72,6 @@ const HarvestSellModal: React.FC<HarvestSellModalProps> = ({
   const isFinalizado = cultivo.estado === 0 || allSold;
   const hasCosechasAbiertas = cosechasDisponibles.some(c => !c.cerrado);
 
-  // Calculate totals for transient crops summary
-  const totalHarvested = cosechasDisponibles.reduce((sum, c) => sum + c.cantidad, 0);
-  const totalSold = cosechasDisponibles.reduce((sum, c) => sum + (c.cantidad - c.cantidadDisponible), 0);
 
   return (
     <Modal isOpen={isOpen} onOpenChange={onClose} size="lg">

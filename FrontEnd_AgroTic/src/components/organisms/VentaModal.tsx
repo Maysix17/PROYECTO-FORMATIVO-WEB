@@ -7,7 +7,6 @@ import { createVenta } from '../../services/ventaService';
 import type { Cultivo } from '../../types/cultivos.types';
 import { getCosechasAbiertasByCultivo } from '../../services/cosechasService';
 import type { Cosecha } from '../../types/cosechas.types';
-import { finalizeCultivo } from '../../services/cultivosService';
 
 interface VentaModalProps {
   isOpen: boolean;

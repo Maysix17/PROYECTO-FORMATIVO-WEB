@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { type MqttConfig, mqttConfigService } from '../../services/zonasService';
 import CustomButton from '../atoms/Boton';
-import TextInput from '../atoms/TextInput';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { PlusIcon, PencilIcon, TrashIcon, PlayIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import MqttConfigModal from './MqttConfigModal';
