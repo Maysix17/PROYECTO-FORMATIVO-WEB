@@ -18,6 +18,19 @@ export const zonaService = {
     const response = await apiClient.post('/zonas', zonaData);
     return response.data;
   },
+
+  async update(id: string, zonaData: {
+    nombre: string;
+    coordenadas: {
+      type: 'point' | 'polygon';
+      coordinates: { lat: number; lng: number } | Array<{ lat: number; lng: number }>;
+    };
+    areaMetrosCuadrados?: number;
+    fkMapaId?: string;
+  }) {
+    const response = await apiClient.put(`/zonas/${id}`, zonaData);
+    return response.data;
+  },
 };
 
 export default zonaService;

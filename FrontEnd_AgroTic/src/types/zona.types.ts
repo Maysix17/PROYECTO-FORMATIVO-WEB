@@ -11,6 +11,7 @@ export interface Zona {
   mqttConfig?: any;
   sensores?: any[];
   mediciones?: any[];
+  zonaMqttConfigs?: any[];
 }
 
 export interface CreateZonaData {

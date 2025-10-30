@@ -184,7 +184,7 @@ const MqttConfigModal: React.FC<MqttConfigModalProps> = ({
       <ModalContent>
         <ModalHeader>
           <h2 className="text-lg font-semibold">
-            {existingConfig ? 'Editar' : 'Crear'} Configuración MQTT
+            {existingConfig ? 'Editar' : 'Crear'} Configuración de Bróker
           </h2>
         </ModalHeader>
 

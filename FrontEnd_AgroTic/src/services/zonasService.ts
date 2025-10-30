@@ -11,6 +11,7 @@ export interface Zona {
   coordenadas?: any;
   fkMapaId: string;
   mqttConfig?: MqttConfig;
+  zonaMqttConfigs?: ZonaMqttConfig[];
 }
 
 export interface MqttConfig {

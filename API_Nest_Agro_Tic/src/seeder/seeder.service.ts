@@ -870,7 +870,8 @@ export class SeederService {
               lat: baseLat,
               lng: baseLng
             }
-          }
+          },
+          areaMetrosCuadrados: 1000
         },
         {
           nombre: 'Zona de Investigación',
@@ -880,7 +881,8 @@ export class SeederService {
               lat: baseLat + 0.0005, // ~55 metros al norte
               lng: baseLng + 0.0007  // ~55 metros al este
             }
-          }
+          },
+          areaMetrosCuadrados: 800
         },
         // 3 polígonos con distancia de 50-100 metros
         {
@@ -893,7 +895,8 @@ export class SeederService {
               { lat: baseLat + 0.0003, lng: baseLng + 0.0004 },
               { lat: baseLat + 0.0003, lng: baseLng - 0.0004 }
             ]
-          }
+          },
+          areaMetrosCuadrados: 2500
         },
         {
           nombre: 'Área de Siembra 2',
@@ -905,7 +908,8 @@ export class SeederService {
               { lat: baseLat - 0.0002, lng: baseLng - 0.0002 },
               { lat: baseLat - 0.0002, lng: baseLng - 0.0008 }
             ]
-          }
+          },
+          areaMetrosCuadrados: 1800
         },
         {
           nombre: 'Área de Siembra 3',
@@ -917,7 +921,8 @@ export class SeederService {
               { lat: baseLat + 0.0008, lng: baseLng + 0.0011 },
               { lat: baseLat + 0.0008, lng: baseLng + 0.0005 }
             ]
-          }
+          },
+          areaMetrosCuadrados: 3200
         }
       ];
 

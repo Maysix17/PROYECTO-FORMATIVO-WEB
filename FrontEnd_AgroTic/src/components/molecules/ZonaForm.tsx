@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import TextInput from "../atoms/TextInput";
 import NumberInput from "../atoms/NumberInput";
 import ButtonGroup from "../atoms/ButtonGroup";
@@ -7,6 +7,7 @@ import CustomButton from "../atoms/Boton";
 import { zonaService } from "../../services/zonaService";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import type { Zona } from "../../types/zona.types";
 
 // Fix for default markers in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -19,9 +20,10 @@ L.Icon.Default.mergeOptions({
 interface ZonaFormProps {
   onClose: () => void;
   onSave: () => void;
+  zona?: Zona | null;
 }
 
-const ZonaForm: React.FC<ZonaFormProps> = ({ onClose, onSave }) => {
+const ZonaForm: React.FC<ZonaFormProps> = ({ onClose, onSave, zona }) => {
   const [zonaData, setZonaData] = useState({
     nombre: "",
     coordenadas: null as {
@@ -31,6 +33,18 @@ const ZonaForm: React.FC<ZonaFormProps> = ({ onClose, onSave }) => {
     areaMetrosCuadrados: undefined as number | undefined,
     fkMapaId: undefined, // Sin mapa por defecto
   });
+
+  // Load zona data when editing
+  useEffect(() => {
+    if (zona) {
+      setZonaData({
+        nombre: zona.nombre,
+        coordenadas: zona.coordenadas || null,
+        areaMetrosCuadrados: zona.areaMetrosCuadrados,
+        fkMapaId: undefined,
+      });
+    }
+  }, [zona]);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [generalError, setGeneralError] = useState<string>("");
   const [isDrawing, setIsDrawing] = useState(false);
@@ -199,8 +213,15 @@ const ZonaForm: React.FC<ZonaFormProps> = ({ onClose, onSave }) => {
     console.log('Datos a enviar:', dataToSend);
 
     try {
-      const response = await zonaService.create(dataToSend);
-      console.log('Respuesta del servidor:', response);
+      if (zona) {
+        // Update existing zona
+        const response = await zonaService.update(zona.id, dataToSend);
+        console.log('Respuesta del servidor (update):', response);
+      } else {
+        // Create new zona
+        const response = await zonaService.create(dataToSend);
+        console.log('Respuesta del servidor (create):', response);
+      }
       onSave();
       onClose();
     } catch (error: any) {
@@ -364,7 +385,7 @@ const ZonaForm: React.FC<ZonaFormProps> = ({ onClose, onSave }) => {
               />
               <CustomButton
                 type="submit"
-                text="Registrar Zona"
+                text={zona ? "Actualizar Zona" : "Registrar Zona"}
                 color="primary"
                 size="sm"
               />

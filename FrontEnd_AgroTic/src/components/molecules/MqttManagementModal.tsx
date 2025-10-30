@@ -100,7 +100,7 @@ const MqttManagementModal: React.FC<{
         <ModalContent>
           <ModalHeader>
             <div className="flex items-center justify-between w-full">
-              <h2 className="text-lg font-semibold">Gestión de Configuraciones MQTT</h2>
+              <h2 className="text-lg font-semibold">Gestión de Configuraciones de Bróker</h2>
               <CustomButton
                 type="button"
                 text="Nueva Configuración"
@@ -119,7 +119,7 @@ const MqttManagementModal: React.FC<{
               </div>
             ) : mqttConfigs.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">No hay configuraciones MQTT</p>
+                <p className="text-gray-500">No hay configuraciones de bróker</p>
               </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">

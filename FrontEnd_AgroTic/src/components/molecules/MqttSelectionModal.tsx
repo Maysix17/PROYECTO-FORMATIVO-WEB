@@ -120,7 +120,7 @@ const MqttSelectionModal: React.FC<MqttSelectionModalProps> = ({
       <ModalContent>
         <ModalHeader>
           <h2 className="text-lg font-semibold">
-            Seleccionar Configuración MQTT
+            Seleccionar Configuración de Bróker
           </h2>
         </ModalHeader>
 
@@ -152,7 +152,7 @@ const MqttSelectionModal: React.FC<MqttSelectionModalProps> = ({
             </div>
           ) : mqttConfigs.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No hay configuraciones MQTT disponibles</p>
+              <p className="text-gray-500">No hay configuraciones de bróker disponibles</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">

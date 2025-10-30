@@ -21,7 +21,9 @@ export class ZonasService {
   }
 
   async findAll(): Promise<Zona[]> {
-    return await this.zonaRepository.find();
+    return await this.zonaRepository.find({
+      relations: ['zonaMqttConfigs']
+    });
   }
 
   async search(query: string, page: number = 1, limit: number = 10) {

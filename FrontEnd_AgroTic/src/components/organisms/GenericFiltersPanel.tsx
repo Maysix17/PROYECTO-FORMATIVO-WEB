@@ -208,11 +208,11 @@ const GenericFiltersPanel: React.FC<GenericFiltersPanelProps> = ({
             )}
 
             {onManageMqtt && (
-              <Tooltip content="Gestionar configuraciones MQTT">
+              <Tooltip content="Gestionar configuraciones de bróker">
                 <CustomButton
                   variant="light"
                   size="sm"
-                  label="MQTT"
+                  label="Bróker"
                   onClick={onManageMqtt}
                   className="rounded-lg px-3 py-1 h-8 text-gray-600"
                 />

@@ -20,6 +20,7 @@ const GestionZonasPage: React.FC = () => {
 
   // Zona creation modal
   const [showZonaModal, setShowZonaModal] = useState(false);
+  const [editingZona, setEditingZona] = useState<Zona | null>(null);
 
   // MQTT management modal
   const [showMqttManagementModal, setShowMqttManagementModal] = useState(false);
@@ -62,7 +63,7 @@ const GestionZonasPage: React.FC = () => {
     setSelectedZona(zona);
   };
 
-  const handleMqttConfig = (zona: Zona) => {
+  const handleBrokerConfig = (zona: Zona) => {
     setSelectedZona(zona);
     setShowMqttSelectionModal(true);
   };
@@ -72,7 +73,7 @@ const GestionZonasPage: React.FC = () => {
     setShowReadingsModal(true);
   };
 
-  const handleMqttSave = () => {
+  const handleBrokerSave = () => {
     loadData(); // Reload configs
     setShowMqttSelectionModal(false);
   };
@@ -85,6 +86,12 @@ const GestionZonasPage: React.FC = () => {
     loadData(); // Reload zones
     setShowZonaModal(false);
     setSelectedZona(null); // Clear selection to show all zones
+    setEditingZona(null); // Clear editing state
+  };
+
+  const handleEditZona = (zona: Zona) => {
+    setEditingZona(zona);
+    setShowZonaModal(true);
   };
 
 
@@ -179,14 +186,17 @@ const GestionZonasPage: React.FC = () => {
                   <table className="w-full">
                     <thead className="bg-gray-50/50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[25%]">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[20%]">
                           Zona
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[20%]">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[15%]">
                           Tipo
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[20%]">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[15%]">
                           Área (m²)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[15%]">
+                          Conexión
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[35%]">
                           Acciones
@@ -209,25 +219,55 @@ const GestionZonasPage: React.FC = () => {
                           <td className="px-6 py-3 text-sm text-gray-900">
                             {zona.areaMetrosCuadrados ? zona.areaMetrosCuadrados.toLocaleString() : '-'}
                           </td>
+                          <td className="px-6 py-3 text-sm text-gray-900">
+                            {zona.zonaMqttConfigs && zona.zonaMqttConfigs.length > 0 ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Conectado
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Desconectado
+                              </span>
+                            )}
+                          </td>
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleMqttConfig(zona);
+                                  handleBrokerConfig(zona);
                                 }}
-                                className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 whitespace-nowrap"
+                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                                title="Configuración de bróker"
                               >
-                                MQTT
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleViewReadings(zona);
                                 }}
-                                className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 whitespace-nowrap"
+                                className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded"
+                                title="Ver datos"
                               >
-                                Ver Datos
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditZona(zona);
+                                }}
+                                className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                                title="Editar zona"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
                               </button>
                             </div>
                           </td>
@@ -276,8 +316,12 @@ const GestionZonasPage: React.FC = () => {
         {showZonaModal && (
           <ZonaModal
             isOpen={showZonaModal}
-            onClose={() => setShowZonaModal(false)}
+            onClose={() => {
+              setShowZonaModal(false);
+              setEditingZona(null);
+            }}
             onSave={handleZonaSave}
+            zona={editingZona}
           />
         )}
 
@@ -287,7 +331,7 @@ const GestionZonasPage: React.FC = () => {
             onClose={() => setShowMqttSelectionModal(false)}
             zonaId={selectedZona.id}
             zonaNombre={selectedZona.nombre}
-            onSave={handleMqttSave}
+            onSave={handleBrokerSave}
           />
         )}
 
