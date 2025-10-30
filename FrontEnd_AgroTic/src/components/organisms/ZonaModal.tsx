@@ -16,7 +16,7 @@ interface ZonaModalProps {
 
 const ZonaModal: React.FC<ZonaModalProps> = ({ isOpen, onClose, onSave }) => {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onClose} placement="center" size="5xl">
+    <Modal isOpen={isOpen} onOpenChange={onClose} placement="center" size="5xl" className="max-w-[90vw] max-h-[90vh]">
       <ModalContent>
         {() => (
           <>
@@ -24,7 +24,7 @@ const ZonaModal: React.FC<ZonaModalProps> = ({ isOpen, onClose, onSave }) => {
               <h2 className="text-lg font-bold">Registrar Nueva Zona</h2>
             </ModalHeader>
 
-            <ModalBody>
+            <ModalBody className="p-0">
               <ZonaForm onClose={onClose} onSave={onSave} />
             </ModalBody>
           </>

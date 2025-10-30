@@ -53,8 +53,7 @@ const GestionZonasPage: React.FC = () => {
     }
 
     const filtered = zonas.filter(zona =>
-      zona.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      zona.tipoLote.toLowerCase().includes(searchTerm.toLowerCase())
+      zona.nombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredZonas(filtered);
   };
@@ -85,6 +84,7 @@ const GestionZonasPage: React.FC = () => {
   const handleZonaSave = () => {
     loadData(); // Reload zones
     setShowZonaModal(false);
+    setSelectedZona(null); // Clear selection to show all zones
   };
 
 
@@ -106,7 +106,7 @@ const GestionZonasPage: React.FC = () => {
       key: 'buscar',
       label: 'Zona',
       type: 'text' as const,
-      placeholder: 'Buscar por zona o tipo de lote...'
+      placeholder: 'Buscar por zona...'
     }
   ];
 
@@ -182,44 +182,50 @@ const GestionZonasPage: React.FC = () => {
                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[25%]">
                           Zona
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[25%]">
-                          Tipo Lote
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[20%]">
+                          Tipo
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[25%]">
-                          Estado MQTT
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[20%]">
+                          Área (m²)
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[25%]">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[35%]">
                           Acciones
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
                       {filteredZonas.map((zona, index) => (
-                        <tr key={`${zona.id}-${index}`} className="h-14 hover:bg-gray-50/50 transition-colors">
+                        <tr
+                          key={`${zona.id}-${index}`}
+                          className={`h-14 hover:bg-gray-50/50 transition-colors cursor-pointer ${selectedZona?.id === zona.id ? 'bg-blue-50' : ''}`}
+                          onClick={() => handleZonaSelect(zona)}
+                        >
                           <td className="px-6 py-3 text-sm text-gray-900 font-medium">
                             {zona.nombre}
                           </td>
                           <td className="px-6 py-3 text-sm text-gray-900">
-                            {zona.tipoLote}
+                            {zona.coordenadas.type === 'polygon' ? 'Lote' : 'Punto'}
                           </td>
-                          <td className="px-6 py-3 text-sm text-gray-600">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-gray-500">
-                                Desconectado
-                              </span>
-                            </div>
+                          <td className="px-6 py-3 text-sm text-gray-900">
+                            {zona.areaMetrosCuadrados ? zona.areaMetrosCuadrados.toLocaleString() : '-'}
                           </td>
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-1">
                               <button
-                                onClick={() => handleMqttConfig(zona)}
-                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 whitespace-nowrap"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMqttConfig(zona);
+                                }}
+                                className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 whitespace-nowrap"
                               >
                                 MQTT
                               </button>
                               <button
-                                onClick={() => handleViewReadings(zona)}
-                                className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200 whitespace-nowrap"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewReadings(zona);
+                                }}
+                                className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 whitespace-nowrap"
                               >
                                 Ver Datos
                               </button>
@@ -247,15 +253,11 @@ const GestionZonasPage: React.FC = () => {
                   zonas={filteredZonas.map(z => ({
                     id: z.id,
                     nombre: z.nombre,
-                    coorX: z.coorX,
-                    coorY: z.coorY,
                     coordenadas: z.coordenadas,
                   }))}
                   selectedZona={selectedZona ? {
                     id: selectedZona.id,
                     nombre: selectedZona.nombre,
-                    coorX: selectedZona.coorX,
-                    coorY: selectedZona.coorY,
                     coordenadas: selectedZona.coordenadas,
                   } : undefined}
                   onZonaSelect={(zona) => {

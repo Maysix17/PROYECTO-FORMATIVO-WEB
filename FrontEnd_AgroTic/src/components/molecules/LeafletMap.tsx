@@ -13,9 +13,10 @@ L.Icon.Default.mergeOptions({
 interface Zona {
   id: string;
   nombre: string;
-  coorX: number;
-  coorY: number;
-  coordenadas?: any;
+  coordenadas: {
+    type: 'point' | 'polygon';
+    coordinates: { lat: number; lng: number } | Array<{ lat: number; lng: number }>;
+  };
 }
 
 interface LeafletMapProps {
@@ -45,7 +46,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       zoomControl: true,
       maxZoom: 18,
       minZoom: 12,
-    }).setView([1.8920, -76.0890], 16);
+    }).setView([1.8920, -76.0890], 17);
 
     // Remove attribution
     map.attributionControl.remove();
@@ -98,20 +99,10 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
 
     // Add markers and polygons for zones
     zonas.forEach(zona => {
-      // Add marker at center coordinates
-      const marker = L.marker([zona.coorY, zona.coorX])
-        .addTo(map)
-        .bindPopup(`<strong>${zona.nombre}</strong>`);
-
-      if (onZonaSelect) {
-        marker.on('click', () => onZonaSelect(zona));
-      }
-
-      markersRef.current.set(zona.id, marker);
-
-      // Add polygon if coordinates exist
-      if (zona.coordenadas && Array.isArray(zona.coordenadas)) {
-        const latlngs = zona.coordenadas.map((coord: any) => [coord.lat, coord.lng]);
+      if (zona.coordenadas.type === 'polygon') {
+        // Add polygon
+        const coordinates = zona.coordenadas.coordinates as Array<{ lat: number; lng: number }>;
+        const latlngs: L.LatLngTuple[] = coordinates.map(coord => [coord.lat, coord.lng]);
         const polygon = L.polygon(latlngs, {
           color: selectedZona?.id === zona.id ? 'red' : 'blue',
           weight: 2,
@@ -119,7 +110,23 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
           fillOpacity: 0.1,
         }).addTo(map);
 
+        if (onZonaSelect) {
+          polygon.on('click', () => onZonaSelect(zona));
+        }
+
         polygonsRef.current.set(zona.id, polygon);
+      } else if (zona.coordenadas.type === 'point') {
+        // Add marker for point-based zones
+        const coordinates = zona.coordenadas.coordinates as { lat: number; lng: number };
+        const marker = L.marker([coordinates.lat, coordinates.lng])
+          .addTo(map)
+          .bindPopup(`<strong>${zona.nombre}</strong>`);
+
+        if (onZonaSelect) {
+          marker.on('click', () => onZonaSelect(zona));
+        }
+
+        markersRef.current.set(zona.id, marker);
       }
     });
   }, [zonas, selectedZona, onZonaSelect]);
@@ -129,7 +136,14 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     if (!mapInstanceRef.current || !selectedZona) return;
 
     const map = mapInstanceRef.current;
-    map.flyTo([selectedZona.coorY, selectedZona.coorX], 16, { duration: 0.8 });
+    if (selectedZona.coordenadas.type === 'point') {
+      const coordinates = selectedZona.coordenadas.coordinates as { lat: number; lng: number };
+      map.flyTo([coordinates.lat, coordinates.lng], 17, { duration: 0.8 });
+    } else if (selectedZona.coordenadas.type === 'polygon') {
+      const coordinates = selectedZona.coordenadas.coordinates as Array<{ lat: number; lng: number }>;
+      const center = coordinates[0]; // Use first point as center
+      map.flyTo([center.lat, center.lng], 17, { duration: 0.8 });
+    }
   }, [selectedZona]);
 
   return <div ref={mapRef} style={{ height: '100%', width: '90%', borderRadius: '8px', zIndex: modalOpen ? 0 : 1 }} />;

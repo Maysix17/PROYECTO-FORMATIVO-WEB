@@ -10,7 +10,7 @@ const TextInput: React.FC<TextInputProps> = ({
   disabled = false,
 }) => {
   return (
-    <div className="flex flex-col mb-4">
+    <div className="flex flex-col">
       {/* Label visible arriba del input */}
       <label className="text-gray-700 text-sm mb-1">{label}</label>
       <input

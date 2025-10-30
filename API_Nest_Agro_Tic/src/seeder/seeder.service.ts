@@ -853,66 +853,83 @@ export class SeederService {
   }
 
   private async seedZona() {
-    this.logger.log('Creando zonas base sin mapas...', 'Seeder');
+    this.logger.log('Creando zonas base en Tecnoparque Yamboro con coordenadas precisas...', 'Seeder');
     try {
+      // Coordenadas aproximadas del Tecnoparque Yamboro (basado en el iframe proporcionado)
+      // Centro aproximado: 1.89198666325594, -76.09094382831114
+      const baseLat = 1.89198666325594;
+      const baseLng = -76.09094382831114;
+
       const zonas = [
+        // 2 puntos con distancia de 50-100 metros
         {
-          nombre: 'Zona Norte',
-          tipoLote: 'Lote',
-          coorX: 10.5,
-          coorY: 20.3,
+          nombre: 'Zona Principal Tecnoparque',
+          coordenadas: {
+            type: 'point' as const,
+            coordinates: {
+              lat: baseLat,
+              lng: baseLng
+            }
+          }
         },
         {
-          nombre: 'Zona Sur',
-          tipoLote: 'Lote',
-          coorX: 15.2,
-          coorY: 25.7,
+          nombre: 'Zona de Investigación',
+          coordenadas: {
+            type: 'point' as const,
+            coordinates: {
+              lat: baseLat + 0.0005, // ~55 metros al norte
+              lng: baseLng + 0.0007  // ~55 metros al este
+            }
+          }
+        },
+        // 3 polígonos con distancia de 50-100 metros
+        {
+          nombre: 'Área de Siembra 1',
+          coordenadas: {
+            type: 'polygon' as const,
+            coordinates: [
+              { lat: baseLat - 0.0003, lng: baseLng - 0.0004 },
+              { lat: baseLat - 0.0003, lng: baseLng + 0.0004 },
+              { lat: baseLat + 0.0003, lng: baseLng + 0.0004 },
+              { lat: baseLat + 0.0003, lng: baseLng - 0.0004 }
+            ]
+          }
         },
         {
-          nombre: 'Lote N.1',
-          tipoLote: 'Lote',
-          coorX: 12.0,
-          coorY: 18.5,
+          nombre: 'Área de Siembra 2',
+          coordenadas: {
+            type: 'polygon' as const,
+            coordinates: [
+              { lat: baseLat - 0.0006, lng: baseLng - 0.0008 },
+              { lat: baseLat - 0.0006, lng: baseLng - 0.0002 },
+              { lat: baseLat - 0.0002, lng: baseLng - 0.0002 },
+              { lat: baseLat - 0.0002, lng: baseLng - 0.0008 }
+            ]
+          }
         },
         {
-          nombre: 'Lote N.2',
-          tipoLote: 'Lote',
-          coorX: 14.5,
-          coorY: 22.1,
-        },
-        {
-          nombre: 'Lote N.3',
-          tipoLote: 'Lote',
-          coorX: 16.8,
-          coorY: 19.9,
-        },
-        {
-          nombre: 'Lote S.1',
-          tipoLote: 'Lote',
-          coorX: 11.2,
-          coorY: 24.3,
-        },
-        {
-          nombre: 'Lote S.2',
-          tipoLote: 'Lote',
-          coorX: 13.7,
-          coorY: 26.8,
-        },
-        {
-          nombre: 'Lote S.3',
-          tipoLote: 'Lote',
-          coorX: 17.1,
-          coorY: 23.4,
-        },
+          nombre: 'Área de Siembra 3',
+          coordenadas: {
+            type: 'polygon' as const,
+            coordinates: [
+              { lat: baseLat + 0.0004, lng: baseLng + 0.0005 },
+              { lat: baseLat + 0.0004, lng: baseLng + 0.0011 },
+              { lat: baseLat + 0.0008, lng: baseLng + 0.0011 },
+              { lat: baseLat + 0.0008, lng: baseLng + 0.0005 }
+            ]
+          }
+        }
       ];
+
       for (const z of zonas) {
         let zona = await this.zonaRepository.findOne({
           where: { nombre: z.nombre },
         });
         if (!zona) {
-          zona = this.zonaRepository.create(z);
-          await this.zonaRepository.save(zona);
-          this.logger.log(`Zona "${z.nombre}" creada.`, 'Seeder');
+          zona = this.zonaRepository.create(z) as Zona;
+          await this.zonaRepository.save(zona as any);
+          const tipo = z.coordenadas.type === 'point' ? 'punto' : 'polígono';
+          this.logger.log(`Zona "${z.nombre}" (${tipo}) creada en Tecnoparque Yamboro.`, 'Seeder');
         }
       }
     } catch (error) {

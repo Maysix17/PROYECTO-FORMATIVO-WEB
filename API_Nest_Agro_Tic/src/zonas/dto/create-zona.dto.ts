@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, Length, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsOptional, IsNumber, IsObject } from 'class-validator';
 
 export class CreateZonaDto {
   @IsString()
@@ -6,21 +6,15 @@ export class CreateZonaDto {
   @Length(1, 50)
   nombre: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @Length(1, 8)
-  tipoLote: string;
+  @IsObject()
+  coordenadas: {
+    type: 'point' | 'polygon';
+    coordinates: { lat: number; lng: number } | Array<{ lat: number; lng: number }>;
+  };
 
   @IsNumber()
-  @IsNotEmpty()
-  coorX: number;
-
-  @IsNumber()
-  @IsNotEmpty()
-  coorY: number;
-
   @IsOptional()
-  coordenadas?: any;
+  areaMetrosCuadrados?: number;
 
   @IsString()
   @IsOptional()

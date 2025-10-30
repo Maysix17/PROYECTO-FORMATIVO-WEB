@@ -8,10 +8,11 @@ export const zonaService = {
 
   async create(zonaData: {
     nombre: string;
-    tipoLote: string;
-    coorX: number;
-    coorY: number;
-    coordenadas?: any;
+    coordenadas: {
+      type: 'point' | 'polygon';
+      coordinates: { lat: number; lng: number } | Array<{ lat: number; lng: number }>;
+    };
+    areaMetrosCuadrados?: number;
     fkMapaId?: string;
   }) {
     const response = await apiClient.post('/zonas', zonaData);
