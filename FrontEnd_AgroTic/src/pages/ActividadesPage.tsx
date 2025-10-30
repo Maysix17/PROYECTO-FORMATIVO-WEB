@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-datepicker/dist/react-datepicker.css';
+import Swal from 'sweetalert2';
 import ActividadModal from '../components/organisms/ActividadModal';
 import ActivityListModal from '../components/organisms/ActivityListModal';
 import ActivityDetailModal from '../components/organisms/ActivityDetailModal';
@@ -257,7 +258,12 @@ const ActividadesPage: React.FC = () => {
                  console.log('Reservation created for product:', mat.id);
                }
 
-            alert('Actividad guardada exitosamente');
+            Swal.fire({
+              title: 'Registro exitoso',
+              text: 'La actividad ha sido guardada correctamente.',
+              icon: 'success',
+              confirmButtonText: 'Aceptar'
+            });
 
             // Refresh calendar data and close modal
             await fetchEvents(selectedDate);
@@ -273,7 +279,12 @@ const ActividadesPage: React.FC = () => {
             setIsModalOpen(false);
           } catch (error) {
             console.error('Error saving actividad:', error);
-            alert('Error al guardar la actividad');
+            Swal.fire({
+              title: 'Error',
+              text: 'Error al guardar la actividad',
+              icon: 'error',
+              confirmButtonText: 'Aceptar'
+            });
           }
         }}
       />
@@ -307,7 +318,12 @@ const ActividadesPage: React.FC = () => {
         onDelete={async (id) => {
           try {
             await deleteActividad(id);
-            alert('Actividad eliminada');
+            Swal.fire({
+              title: 'Eliminación exitosa',
+              text: 'La actividad ha sido eliminada.',
+              icon: 'success',
+              confirmButtonText: 'Aceptar'
+            });
             setIsDetailModalOpen(false);
             // Update activity count for the deleted activity's date
             if (selectedActivity) {
@@ -316,7 +332,12 @@ const ActividadesPage: React.FC = () => {
             }
           } catch (error) {
             console.error('Error deleting:', error);
-            alert('Error al eliminar');
+            Swal.fire({
+              title: 'Error',
+              text: 'Error al eliminar',
+              icon: 'error',
+              confirmButtonText: 'Aceptar'
+            });
           }
         }}
       />
