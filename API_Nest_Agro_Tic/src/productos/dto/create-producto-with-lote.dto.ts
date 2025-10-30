@@ -50,4 +50,8 @@ export class CreateProductoWithLoteDto {
   @IsNumber()
   @IsOptional()
   vidaUtilPromedioPorUsos?: number;
+
+  @IsString()
+  @IsOptional()
+  imgUrl?: string;
 }

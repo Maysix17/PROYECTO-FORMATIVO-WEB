@@ -35,7 +35,7 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
     fechaVencimiento: '',
   });
 
-  const [, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [unidadesMedida, setUnidadesMedida] = useState<any[]>([]);
@@ -147,6 +147,7 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
         fkBodegaId: formData.fkBodegaId,
         stock: parseFloat(formData.stock),
         fechaVencimiento: formData.fechaVencimiento || undefined,
+        imgUrl: selectedFile || undefined,
       };
 
       console.log('DEBUG: editItem:', editItem);
@@ -364,6 +365,16 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-gray-800">Imagen del Producto</h3>
             <div>
+              {editItem?.producto?.imgUrl && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">Imagen actual:</p>
+                  <img
+                    src={`http://localhost:3000${editItem.producto.imgUrl}`}
+                    alt="Imagen actual del producto"
+                    className="w-32 h-32 object-cover rounded-lg border"
+                  />
+                </div>
+              )}
               <ImageUpload onFileSelect={handleFileSelect} />
             </div>
           </div>

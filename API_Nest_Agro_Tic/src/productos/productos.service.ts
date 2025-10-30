@@ -103,6 +103,7 @@ export class ProductosService {
         fkCategoriaId: createDto.fkCategoriaId,
         fkUnidadMedidaId: createDto.fkUnidadMedidaId,
         vidaUtilPromedioPorUsos: createDto.vidaUtilPromedioPorUsos,
+        imgUrl: createDto.imgUrl,
       });
       const savedProducto = await queryRunner.manager.save(Producto, producto);
 

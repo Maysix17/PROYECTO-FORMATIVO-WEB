@@ -209,6 +209,16 @@ export const inventoryService = {
   },
 
   createProductoWithLote: async (data: any): Promise<any> => {
+    if (data.imgUrl && data.imgUrl instanceof File) {
+      // First upload the image
+      const uploadResponse = await apiClient.post('/productos/upload-image', { imgUrl: data.imgUrl }, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      data.imgUrl = uploadResponse.data.url;
+    }
+
     const response = await apiClient.post('/productos/with-lote', data);
     return response.data;
   },
