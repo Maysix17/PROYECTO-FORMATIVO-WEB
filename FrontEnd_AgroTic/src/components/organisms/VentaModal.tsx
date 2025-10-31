@@ -275,6 +275,7 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
                 <TextInput
                   label="Cantidad"
                   type="number"
+                  min="0"
                   value={formData.cantidad ? formData.cantidad.toString() : ''}
                   onChange={(e) => handleChange('cantidad', parseFloat(e.target.value) || 0)}
                 />
@@ -293,6 +294,7 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
                 <TextInput
                   label={`Precio por ${formData.unidadMedida === 'kg' ? 'Kilo' : 'Libra'}`}
                   type="number"
+                  min="0"
                   value={formData.precioUnitario?.toString() || ''}
                   onChange={(e) => handleChange('precioUnitario', parseFloat(e.target.value))}
                 />

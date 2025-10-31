@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateLotesInventarioDto } from './create-lotes_inventario.dto';
-import { IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsNumber, Min } from 'class-validator';
 
 export class UpdateLotesInventarioDto extends PartialType(
   CreateLotesInventarioDto,
@@ -19,10 +19,12 @@ export class UpdateLotesInventarioDto extends PartialType(
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   precioCompra?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   capacidadPresentacion?: number;
 
   @IsOptional()
@@ -39,6 +41,7 @@ export class UpdateLotesInventarioDto extends PartialType(
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   stock?: number;
 
   @IsOptional()
@@ -47,5 +50,6 @@ export class UpdateLotesInventarioDto extends PartialType(
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   vidaUtilPromedioPorUsos?: number;
 }

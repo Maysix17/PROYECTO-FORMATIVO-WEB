@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsOptional,
   IsDateString,
+  Min,
 } from 'class-validator';
 
 export class CreateLotesInventarioDto {
@@ -14,6 +15,7 @@ export class CreateLotesInventarioDto {
   fkBodegaId: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   stock: number;
 
   @IsBoolean()

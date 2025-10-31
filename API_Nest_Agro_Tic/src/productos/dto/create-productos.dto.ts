@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsUUID,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 export class CreateProductosDto {
@@ -22,9 +23,11 @@ export class CreateProductosDto {
   sku?: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   precioCompra: number;
 
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   capacidadPresentacion: number;
 
   @IsUUID()
@@ -37,5 +40,6 @@ export class CreateProductosDto {
 
   @IsNumber()
   @IsOptional()
+  @Min(0)
   vidaUtilPromedioPorUsos?: number;
 }

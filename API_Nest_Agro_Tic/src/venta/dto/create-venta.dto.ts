@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsArray, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsArray, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class MultipleHarvestDto {
@@ -7,12 +7,15 @@ class MultipleHarvestDto {
   id: string;
 
   @IsNumber()
+  @IsNotEmpty()
+  @Min(0)
   cantidad: number;
 }
 
 export class CreateVentaDto {
   @IsNumber()
   @IsNotEmpty()
+  @Min(0)
   cantidad: number;
 
   @IsString()
@@ -29,6 +32,7 @@ export class CreateVentaDto {
 
   @IsNumber()
   @IsNotEmpty()
+  @Min(0)
   precioUnitario: number;
 
   @IsNumber()

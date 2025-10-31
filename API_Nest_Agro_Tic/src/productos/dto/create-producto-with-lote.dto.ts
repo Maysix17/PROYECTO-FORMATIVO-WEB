@@ -5,6 +5,7 @@ import {
   IsUUID,
   IsDateString,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 export class CreateProductoWithLoteDto {
@@ -23,9 +24,11 @@ export class CreateProductoWithLoteDto {
   sku?: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   precioCompra: number;
 
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   capacidadPresentacion: number;
 
   @IsUUID()
@@ -41,6 +44,7 @@ export class CreateProductoWithLoteDto {
   fkBodegaId: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   stock: number;
 
   @IsDateString()
@@ -49,6 +53,7 @@ export class CreateProductoWithLoteDto {
 
   @IsNumber()
   @IsOptional()
+  @Min(0)
   vidaUtilPromedioPorUsos?: number;
 
   @IsString()

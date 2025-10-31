@@ -189,6 +189,7 @@ const AdminUserForm: React.FC<AdminUserFormProps> = ({ isOpen, onClose, onUserCr
               <label className="block text-sm font-medium text-gray-700 mb-1">DNI</label>
               <input
                 type="number"
+                min="0"
                 name="dni"
                 value={formData.dni}
                 onChange={handleInputChange}
@@ -202,6 +203,7 @@ const AdminUserForm: React.FC<AdminUserFormProps> = ({ isOpen, onClose, onUserCr
               <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
               <input
                 type="number"
+                min="0"
                 name="telefono"
                 value={formData.telefono}
                 onChange={handleInputChange}

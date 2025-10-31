@@ -136,6 +136,7 @@ const CultivoForm: React.FC<CultivoFormProps> = ({ onSuccess }) => {
         <label className="block text-sm font-medium mb-1">Cantidad Inicial de Plantas</label>
         <input
           type="number"
+          min="0"
           className="w-full border border-gray-300 rounded-lg p-2"
           value={cultivoData.cantidad_plantas_inicial || ""}
           onChange={(e) =>

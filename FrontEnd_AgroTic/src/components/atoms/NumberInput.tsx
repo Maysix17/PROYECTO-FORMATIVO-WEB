@@ -11,6 +11,7 @@ interface NumberInputProps {
   disabled?: boolean;
   error?: string;
   required?: boolean;
+  allowNegative?: boolean;
 }
 
 const NumberInput: React.FC<NumberInputProps> = ({
@@ -24,10 +25,17 @@ const NumberInput: React.FC<NumberInputProps> = ({
   disabled = false,
   error,
   required = false,
+  allowNegative = false,
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     const numericValue = inputValue === "" ? undefined : parseFloat(inputValue);
+
+    // Validate non-negative if allowNegative is false
+    if (!allowNegative && numericValue !== undefined && numericValue < 0) {
+      return; // Don't update if negative and not allowed
+    }
+
     onChange(numericValue);
   };
 
@@ -42,7 +50,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
         value={value ?? ""}
         onChange={handleChange}
         placeholder={placeholder}
-        min={min}
+        min={allowNegative ? min : (min ?? 0)}
         max={max}
         step={step}
         disabled={disabled}

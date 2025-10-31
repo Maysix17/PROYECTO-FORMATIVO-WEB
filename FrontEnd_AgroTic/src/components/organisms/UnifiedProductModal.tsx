@@ -236,6 +236,7 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   name="precioCompra"
                   value={formData.precioCompra}
                   onChange={handleInputChange}
@@ -248,6 +249,7 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   name="capacidadPresentacion"
                   value={formData.capacidadPresentacion}
                   onChange={handleInputChange}
@@ -307,7 +309,7 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       placeholder="Ej: 1200"
-                      min="1"
+                      min="0"
                       required={!esDivisible}
                     />
                   </div>
@@ -341,6 +343,7 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   name="stock"
                   value={formData.stock}
                   onChange={handleInputChange}

@@ -5,4 +5,5 @@ export interface TextInputProps {
   type?: string;
   placeholder?: string;
   disabled?: boolean;
+  min?: string;
 }

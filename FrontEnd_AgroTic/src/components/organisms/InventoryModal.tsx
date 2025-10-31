@@ -301,6 +301,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ isOpen, onClose, onInve
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     name="precioCompra"
                     value={productFormData.precioCompra}
                     onChange={handleProductInputChange}
@@ -313,6 +314,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ isOpen, onClose, onInve
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     name="precioVenta"
                     value={productFormData.precioVenta}
                     onChange={handleProductInputChange}
@@ -370,6 +372,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ isOpen, onClose, onInve
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     name="capacidadPresentacion"
                     value={productFormData.capacidadPresentacion}
                     onChange={handleProductInputChange}
@@ -452,6 +455,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ isOpen, onClose, onInve
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     name="stock"
                     value={loteFormData.stock}
                     onChange={handleLoteInputChange}
