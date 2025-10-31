@@ -267,40 +267,32 @@ const InventoryPage: React.FC = () => {
         </ModalContent>
       </Modal>
 
-      <Modal isOpen={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen} size="4xl">
-        <ModalContent className="bg-white p-6 max-h-[90vh] overflow-y-auto">
-          <h2 className="text-2xl font-bold mb-6">Detalles del Producto</h2>
+      <Modal isOpen={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen} size="5xl" className="overflow-hidden">
+        <ModalContent className="bg-white p-6 max-h-[90vh] overflow-hidden flex flex-col">
+          <h2 className="text-2xl font-bold mb-6 flex-shrink-0">Detalles del Producto</h2>
+          <div className="flex-1 overflow-y-auto">
           {selectedItem && (
-            <div className="space-y-6">
-              {/* Imagen del producto */}
-              <div className="flex justify-center">
-                {selectedItem.producto.imgUrl ? (
-                  <img
-                    src={`${import.meta.env.VITE_API_URL}/uploads/${selectedItem.producto.imgUrl}`}
-                    alt={selectedItem.producto.nombre}
-                    className="w-full max-w-md h-auto max-h-64 object-contain rounded-lg shadow-md"
-                  />
-                ) : (
-                  <div className="w-full max-w-md h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-500">Sin imagen</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Información detallada */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Información detallada - Lado izquierdo */}
+              <div className="flex-1 space-y-6">
+                {/* Información del Producto */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800">Información del Producto</h3>
                   <div className="space-y-2">
+                    <p><span className="font-medium">Nombre:</span> {selectedItem.producto.nombre}</p>
+                    <p><span className="font-medium">Código (SKU):</span> {selectedItem.producto.sku || 'No especificado'}</p>
                     <p><span className="font-medium">Descripción:</span> {selectedItem.producto.descripcion || 'No disponible'}</p>
                     <p><span className="font-medium">Precio de Compra:</span> ${parseFloat(selectedItem.producto.precioCompra).toFixed(2)}</p>
                     <p><span className="font-medium">Capacidad de Presentación:</span> {selectedItem.producto.capacidadPresentacion || 'No especificada'}</p>
                     {selectedItem.producto.vidaUtilPromedioPorUsos && (
                       <p><span className="font-medium">Vida Útil Promedio por Usos:</span> {selectedItem.producto.vidaUtilPromedioPorUsos} usos</p>
                     )}
+                    <p><span className="font-medium">Categoría:</span> {selectedItem.producto.categoria?.nombre || 'No especificada'}</p>
+                    <p><span className="font-medium">Unidad de Medida:</span> {selectedItem.producto.unidadMedida?.nombre || 'No especificada'}</p>
                   </div>
                 </div>
 
+                {/* Información del Lote */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800">Información del Lote</h3>
                   <div className="space-y-2">
@@ -312,30 +304,65 @@ const InventoryPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Información de stock */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Información de Stock</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">{selectedItem.stock || '0.00'} </p>
-                    <p className="text-sm text-gray-600">Stock</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">{selectedItem.stockTotal?.toFixed(2) || '0.00'} {selectedItem.unidadAbreviatura || ''}</p>
-                    <p className="text-sm text-gray-600">Cantidad Disponible Total</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-primary-600">{selectedItem.cantidadDisponibleParaReservar?.toFixed(2) || '0.00'} {selectedItem.unidadAbreviatura || ''}</p>
-                    <p className="text-sm text-gray-600">Disponible para Reservar</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-orange-600">{selectedItem.cantidadReservada?.toFixed(2) || '0.00'} {selectedItem.unidadAbreviatura || ''}</p>
-                    <p className="text-sm text-gray-600">Reservado</p>
+              {/* Imagen del producto y stock - Lado derecho */}
+              <div className="flex-shrink-0 flex flex-col items-center lg:items-start space-y-4 w-full max-w-md">
+                {/* Imagen del producto - Más grande */}
+                <div className="flex justify-center w-full">
+                  {selectedItem.producto.imgUrl ? (
+                    (() => {
+                      const imageUrl = `${import.meta.env.VITE_API_URL}${selectedItem.producto.imgUrl}`;
+                      console.log('DEBUG: Product image URL:', imageUrl);
+                      console.log('DEBUG: VITE_API_URL:', import.meta.env.VITE_API_URL);
+                      console.log('DEBUG: imgUrl from data:', selectedItem.producto.imgUrl);
+                      return (
+                        <img
+                          src={imageUrl}
+                          alt={selectedItem.producto.nombre}
+                          className="w-full h-auto max-h-80 object-contain rounded-lg shadow-md"
+                          onError={(e) => {
+                            console.error('DEBUG: Image failed to load:', imageUrl);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      );
+                    })()
+                  ) : (
+                    <div className="w-full h-80 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <span className="text-gray-500">Sin imagen</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Información de stock - Layout horizontal optimizado */}
+                <div className="bg-gray-50 p-4 rounded-lg w-full">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Información del Stock</h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-xs text-gray-600 mb-1">Stock</div>
+                      <div className="text-lg font-bold text-blue-600">{selectedItem.stock || '0.00'}</div>
+                      <div className="text-xs text-gray-500">{selectedItem.unidadAbreviatura || ''}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-600 mb-1">Total Disp.</div>
+                      <div className="text-lg font-bold text-purple-600">{selectedItem.stockTotal?.toFixed(2) || '0.00'}</div>
+                      <div className="text-xs text-gray-500">{selectedItem.unidadAbreviatura || ''}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-600 mb-1">Disponible</div>
+                      <div className="text-lg font-bold text-primary-600">{selectedItem.cantidadDisponibleParaReservar?.toFixed(2) || '0.00'}</div>
+                      <div className="text-xs text-gray-500">{selectedItem.unidadAbreviatura || ''}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-600 mb-1">Reservado</div>
+                      <div className="text-lg font-bold text-orange-600">{selectedItem.cantidadReservada?.toFixed(2) || '0.00'}</div>
+                      <div className="text-xs text-gray-500">{selectedItem.unidadAbreviatura || ''}</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
+          </div>
         </ModalContent>
       </Modal>
     </div>
