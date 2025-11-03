@@ -14,6 +14,7 @@ import { EstadoReserva } from '../estados_reserva/entities/estados_reserva.entit
 import { LotesInventario } from '../lotes_inventario/entities/lotes_inventario.entity';
 import { MovimientosInventario } from '../movimientos_inventario/entities/movimientos_inventario.entity';
 import { TipoMovimiento } from '../tipos_movimiento/entities/tipos_movimiento.entity';
+import { UsuariosXActividadesService } from '../usuarios_x_actividades/usuarios_x_actividades.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -32,6 +33,7 @@ export class ReservasXActividadService {
     private readonly movimientosInventarioRepo: Repository<MovimientosInventario>,
     @InjectRepository(TipoMovimiento)
     private readonly tipoMovimientoRepo: Repository<TipoMovimiento>,
+    private readonly usuariosXActividadesService: UsuariosXActividadesService,
   ) {}
 
   async create(
@@ -222,6 +224,10 @@ export class ReservasXActividadService {
 
     console.log(`[${new Date().toISOString()}] 💾 SERVICE: Saving updated activity ${finalizeDto.actividadId} with image URL: ${actividad.imgUrl || 'No image'}`);
     await this.actividadRepo.save(actividad);
+
+    // Update usuarios_x_actividades to set activo = false for this activity
+    await this.usuariosXActividadesService.finalizarByActividad(finalizeDto.actividadId);
+
     console.log(`[${new Date().toISOString()}] ✅ SERVICE: Activity ${finalizeDto.actividadId} finalized successfully with image evidence saved`);
   }
 
