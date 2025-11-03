@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, Button } from '@heroui/react';
+import CustomButton from '../atoms/Boton';
 import InputSearch from '../atoms/buscador';
 import DateRangeInput from '../atoms/DateRangeInput';
 import Table from '../atoms/Table';
@@ -159,20 +160,20 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
                     onChange={(e) => setCategoriaFilter(e.target.value)}
                   />
                 </div>
-                <div>
+                <div className="flex items-center">
                   <DateRangeInput
                     label="Rango de Fechas"
                     onChange={setDateRange}
                   />
                 </div>
                 <div className="flex gap-2 items-center mt-6">
-                  <Button
-                    color="success"
+                  <CustomButton
+                    label="Limpiar"
                     onClick={clearFilters}
-                    className="w-full txs"
-                  >
-                    Limpiar
-                  </Button>
+                    size="sm"
+                    variant="light"
+                    color="secondary"
+                  />
                 </div>
               </div>
             </div>
@@ -229,13 +230,12 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
                           </span>
                         </td>
                         <td className="px-4 py-2">
-                          <Button
-                            size="sm"
-                            color="success"
+                          <CustomButton
+                            label="Ver Detalles"
                             onClick={() => handleViewDetails(activity)}
-                          >
-                            Ver Detalles
-                          </Button>
+                            size="sm"
+                            color="primary"
+                          />
                         </td>
                       </tr>
                     ))}
