@@ -47,6 +47,9 @@ export class Actividad {
   @Column({ name: 'fk_id_categoria_actividad', type: 'uuid' })
   fkCategoriaActividadId: string;
 
+  @Column({ name: 'act_dni_responsable', type: 'bigint' })
+  dniResponsable: number;
+
   @ManyToOne(() => CultivosVariedadXZona, (cvz) => cvz.actividades)
   @JoinColumn({ name: 'fk_id_cultivo_variedad_x_zona' })
   cultivoVariedadZona?: CultivosVariedadXZona;

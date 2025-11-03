@@ -57,9 +57,11 @@ export class LotesInventarioService {
   async update(
     id: string,
     updateDto: UpdateLotesInventarioDto,
+    userDni?: number,
   ): Promise<LotesInventario> {
     console.log('DEBUG: update called with ID:', id);
     console.log('DEBUG: updateDto:', updateDto);
+    console.log('DEBUG: userDni:', userDni);
 
     const entity = await this.findOne(id);
     console.log('DEBUG: found entity:', entity);
@@ -68,8 +70,13 @@ export class LotesInventarioService {
     const originalStock = entity.stock;
     const originalCantidadDisponible = entity.cantidadDisponible;
 
+    // Check if any data was modified (for AJUSTE movement)
+    const hasProductUpdates = updateDto.nombre || updateDto.descripcion || updateDto.sku || updateDto.precioCompra || updateDto.capacidadPresentacion || updateDto.fkCategoriaId || updateDto.fkUnidadMedidaId || updateDto.vidaUtilPromedioPorUsos !== undefined;
+    const hasLoteUpdates = updateDto.fkBodegaId || updateDto.stock || updateDto.fechaVencimiento !== undefined;
+    const hasAnyUpdates = hasProductUpdates || hasLoteUpdates;
+
     // Handle product updates if provided
-    if (updateDto.nombre || updateDto.descripcion || updateDto.sku || updateDto.precioCompra || updateDto.capacidadPresentacion || updateDto.fkCategoriaId || updateDto.fkUnidadMedidaId || updateDto.vidaUtilPromedioPorUsos !== undefined) {
+    if (hasProductUpdates) {
       const producto = await entity.producto;
       if (producto) {
         if (updateDto.nombre) producto.nombre = updateDto.nombre;
@@ -101,11 +108,14 @@ export class LotesInventarioService {
     const savedEntity = await this.lotesInventarioRepo.save(entity);
     console.log('DEBUG: lote updated:', savedEntity);
 
-    // Create movement record for AJUSTE if stock was modified
-    if (updateDto.stock && updateDto.stock !== originalStock) {
+    // Create movement record for AJUSTE if any data was modified
+    if (hasAnyUpdates) {
       const cantidadAjuste = savedEntity.cantidadDisponible - originalCantidadDisponible;
       if (cantidadAjuste !== 0) {
-        await this.createMovementRecord(savedEntity.id, 'Ajuste', Math.abs(cantidadAjuste), `Ajuste manual de inventario: ${cantidadAjuste > 0 ? 'incremento' : 'decremento'} de ${Math.abs(cantidadAjuste)} unidades`);
+        await this.createMovementRecord(savedEntity.id, 'Ajuste', Math.abs(cantidadAjuste), `Ajuste manual de inventario: ${cantidadAjuste > 0 ? 'incremento' : 'decremento'} de ${Math.abs(cantidadAjuste)} unidades`, userDni);
+      } else {
+        // If no quantity change but other fields were updated, still create AJUSTE movement
+        await this.createMovementRecord(savedEntity.id, 'Ajuste', 0, `Ajuste manual de inventario: modificación de datos del producto`, userDni);
       }
     }
 
@@ -122,6 +132,7 @@ export class LotesInventarioService {
     tipoMovimientoNombre: string,
     cantidad: number,
     observacion: string,
+    userDni?: number,
   ): Promise<void> {
     try {
       // Find the movement type
@@ -134,6 +145,18 @@ export class LotesInventarioService {
         return;
       }
 
+      // Get responsable information if userDni provided
+      let responsable: string | undefined;
+      if (userDni) {
+        const { Usuario } = await import('../usuarios/entities/usuario.entity');
+        const usuario = await this.lotesInventarioRepo.manager.findOne(Usuario, {
+          where: { dni: userDni },
+        });
+        if (usuario) {
+          responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
+        }
+      }
+
       // Create the movement record
       const movimiento = this.movimientosInventarioRepo.create({
         fkLoteId: loteId,
@@ -141,6 +164,7 @@ export class LotesInventarioService {
         cantidad: cantidad,
         fechaMovimiento: new Date(),
         observacion: observacion,
+        responsable: responsable,
       });
 
       await this.movimientosInventarioRepo.save(movimiento);

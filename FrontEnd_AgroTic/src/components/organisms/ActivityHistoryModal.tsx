@@ -119,12 +119,12 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getUserNames = (activity: ExtendedActividad) => {
-    if (!activity.usuariosAsignados || activity.usuariosAsignados.length === 0) return 'Sin asignar';
-    return activity.usuariosAsignados
-      .filter((u: any) => u.activo)
-      .map((u: any) => `${u.usuario.nombres} ${u.usuario.apellidos}`)
-      .join(', ');
+  const getResponsibleUser = (activity: ExtendedActividad) => {
+    // Show the main responsible user (the one who created/initiated the activity)
+    if ((activity as any).responsableNombre) {
+      return (activity as any).responsableNombre;
+    }
+    return 'Sin responsable';
   };
 
   const getInventoryUsed = (activity: ExtendedActividad) => {
@@ -211,7 +211,7 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
                           {activity.categoriaActividad?.nombre || 'Sin categoría'}
                         </td>
                         <td className="px-4 py-2">
-                          {getUserNames(activity)}
+                          {getResponsibleUser(activity)}
                         </td>
                         <td className="px-4 py-2">
                           {getInventoryUsed(activity)}

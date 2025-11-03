@@ -10,6 +10,7 @@ export interface Actividad {
   fkCultivoVariedadZonaId: string;
   fkCategoriaActividadId: string;
   imgUrl?: string;
+  dniResponsable?: number;
 }
 
 export interface CreateActividadData {

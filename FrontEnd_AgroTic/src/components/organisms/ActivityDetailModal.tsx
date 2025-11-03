@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-   import { Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
-   import CustomButton from '../atoms/Boton';
-   import { getReservationsByActivity, confirmUsage } from '../../services/actividadesService';
-   import apiClient from '../../lib/axios/axios';
-   import FinalizeActivityModal from './FinalizeActivityModal';
+    import { Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
+    import CustomButton from '../atoms/Boton';
+    import { getReservationsByActivity, confirmUsage } from '../../services/actividadesService';
+    import apiClient from '../../lib/axios/axios';
+    import FinalizeActivityModal from './FinalizeActivityModal';
+    import { usePermission } from '../../contexts/PermissionContext';
 
 interface Reservation {
   id: string;
@@ -41,6 +42,7 @@ interface Activity {
          };
        };
      }[];
+     dniResponsable?: number;
    }
 
 interface ActivityDetailModalProps {
@@ -51,17 +53,18 @@ interface ActivityDetailModalProps {
   }
 
 const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
-   isOpen,
-   onClose,
-   activity,
-   onDelete,
-  }) => {
-  const [categoria, setCategoria] = useState('');
-   const [ubicacion, setUbicacion] = useState('');
-   const [descripcion, setDescripcion] = useState('');
-   const [isEditing, setIsEditing] = useState(false);
-   const [reservations, setReservations] = useState<Reservation[]>([]);
-    const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+    isOpen,
+    onClose,
+    activity,
+    onDelete,
+   }) => {
+   const { user } = usePermission();
+   const [categoria, setCategoria] = useState('');
+    const [ubicacion, setUbicacion] = useState('');
+    const [descripcion, setDescripcion] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+    const [reservations, setReservations] = useState<Reservation[]>([]);
+     const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
 
   useEffect(() => {
      if (activity) {
@@ -176,6 +179,11 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
                     </div>
                   )) || <p className="text-gray-500">No hay aprendices</p>}
                 </div>
+                {activity.dniResponsable && (
+                  <div className="mt-2 p-2 bg-blue-50 border rounded">
+                    <strong>Responsable de la Actividad:</strong> {activity.dniResponsable}
+                  </div>
+                )}
               </div>
 
               {/* Reservas */}
@@ -264,7 +272,9 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
                 <div className="flex justify-end gap-2">
                   <CustomButton variant="ghost" onClick={() => setIsEditing(!isEditing)} label={isEditing ? 'Cancelar' : 'Actualizar'} />
                   <CustomButton color="danger" onClick={handleDelete} label="Eliminar" />
-                  <CustomButton color="success" onClick={() => setIsFinalizeModalOpen(true)} label="Finalizar Actividad" />
+                  {activity?.dniResponsable === user?.dni && (
+                    <CustomButton color="success" onClick={() => setIsFinalizeModalOpen(true)} label="Finalizar Actividad" />
+                  )}
                 </div>
               </div>
             </div>

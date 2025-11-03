@@ -81,71 +81,123 @@ const ActivityHistoryDetailModal: React.FC<ActivityHistoryDetailModalProps> = ({
           <h2 className="text-2xl font-semibold">Detalles de Actividad Finalizada</h2>
         </ModalHeader>
         <ModalBody className="max-h-[70vh] overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {/* Usuarios */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">Usuarios Responsables</h3>
-              <div className="space-y-2 max-h-40 overflow-auto">
-                {activity.usuariosAsignados?.filter(u => u.activo).map((uxa, idx) => (
-                  <div key={idx} className="p-2 border rounded">
-                    <div className="font-medium">{uxa.usuario.nombres} {uxa.usuario.apellidos}</div>
-                    <div className="text-sm text-gray-600">DNI: {uxa.usuario.dni}</div>
-                    {uxa.usuario.ficha && (
-                      <div className="text-sm text-gray-600">Ficha: {uxa.usuario.ficha.numero}</div>
-                    )}
-                  </div>
-                )) || <p className="text-gray-500">No hay aprendices asignados</p>}
+          {/* Información Principal */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Columna Izquierda - Usuarios */}
+            <div className="space-y-4">
+              {/* Usuario Responsable */}
+              <div className="border rounded-lg p-4 bg-blue-50">
+                <h3 className="font-semibold mb-3 text-blue-800 flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                  Usuario Responsable
+                </h3>
+                <div className="space-y-2">
+                  {(activity as any).responsableNombre ? (
+                    <div className="p-3 bg-white rounded border">
+                      <div className="font-medium text-gray-900">{(activity as any).responsableNombre}</div>
+                      <div className="text-sm text-gray-600">DNI: {(activity as any).responsableDni}</div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic">Sin responsable asignado</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Usuarios Asignados */}
+              <div className="border rounded-lg p-4 bg-green-50">
+                <h3 className="font-semibold mb-3 text-green-800 flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Usuarios Asignados
+                </h3>
+                <div className="space-y-2 max-h-32 overflow-auto">
+                  {activity.usuariosAsignados?.filter(u => u.activo).map((uxa, idx) => (
+                    <div key={idx} className="p-3 bg-white rounded border">
+                      <div className="font-medium text-gray-900">{uxa.usuario.nombres} {uxa.usuario.apellidos}</div>
+                      <div className="text-sm text-gray-600">DNI: {uxa.usuario.dni}</div>
+                      {uxa.usuario.ficha && (
+                        <div className="text-sm text-gray-600">Ficha: {uxa.usuario.ficha.numero}</div>
+                      )}
+                    </div>
+                  )) || <p className="text-gray-500 italic">No hay usuarios asignados</p>}
+                </div>
               </div>
             </div>
 
-            {/* Reservas */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">Reservas de Insumos</h3>
-              <div className="space-y-2 max-h-40 overflow-auto">
-                {reservations.map((res, idx) => (
-                  <div key={idx} className="p-2 border rounded">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{res.lote?.producto?.nombre}</span>
-                      <div className="text-sm">
-                        <div>Reservado: {res.cantidadReservada} {res.lote?.producto?.unidadMedida?.abreviatura}</div>
-                        <div>Usado: {res.cantidadUsada || 0} {res.lote?.producto?.unidadMedida?.abreviatura}</div>
-                        <div>Estado: {res.estado?.nombre}</div>
-                      </div>
+            {/* Columna Derecha - Información y Reservas */}
+            <div className="space-y-4">
+              {/* Información de la Actividad */}
+              <div className="border rounded-lg p-4 bg-purple-50">
+                <h3 className="font-semibold mb-3 text-purple-800 flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  Información de la Actividad
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 uppercase tracking-wide">Fecha Asignación</label>
+                    <div className="text-sm text-gray-900 font-medium">
+                      {new Date(activity.fechaAsignacion).toLocaleDateString()}
                     </div>
                   </div>
-                )) || <p className="text-gray-500">No hay reservas</p>}
-              </div>
-            </div>
-
-            {/* Información adicional */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">Información Adicional</h3>
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-sm font-medium">Fecha de Asignación</label>
-                  <div className="text-sm text-gray-600">
-                    {new Date(activity.fechaAsignacion).toLocaleDateString()}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Estado</label>
-                  <div className="text-sm">
-                    <span className="px-2 py-1 rounded-full text-xs bg-primary-100 text-primary-800">
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 uppercase tracking-wide">Estado</label>
+                    <span className="inline-flex px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
                       Finalizada
                     </span>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Horas Dedicadas</label>
-                  <div className="text-sm text-gray-600">
-                    {activity.horasDedicadas ? `${activity.horasDedicadas} horas` : 'No especificado'}
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 uppercase tracking-wide">Horas Dedicadas</label>
+                    <div className="text-sm text-gray-900">
+                      {activity.horasDedicadas ? `${activity.horasDedicadas}h` : 'N/A'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 uppercase tracking-wide">Categoría</label>
+                    <div className="text-sm text-gray-900">
+                      {activity.categoriaActividad?.nombre || 'Sin categoría'}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium">Observación</label>
-                  <div className="text-sm text-gray-600">
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-purple-700 uppercase tracking-wide mb-1">Observación</label>
+                  <div className="text-sm text-gray-700 bg-white p-2 rounded border max-h-16 overflow-auto">
                     {activity.observacion || 'Sin observaciones'}
                   </div>
+                </div>
+              </div>
+
+              {/* Reservas de Insumos */}
+              <div className="border rounded-lg p-4 bg-orange-50">
+                <h3 className="font-semibold mb-3 text-orange-800 flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                  </svg>
+                  Reservas de Insumos
+                </h3>
+                <div className="space-y-2 max-h-32 overflow-auto">
+                  {reservations.map((res, idx) => (
+                    <div key={idx} className="p-3 bg-white rounded border">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-medium text-gray-900 text-sm">{res.lote?.producto?.nombre}</span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          res.estado?.nombre === 'Confirmada' ? 'bg-green-100 text-green-800' :
+                          res.estado?.nombre === 'En Uso' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {res.estado?.nombre}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                        <div>Reservado: <span className="font-medium">{res.cantidadReservada} {res.lote?.producto?.unidadMedida?.abreviatura}</span></div>
+                        <div>Usado: <span className="font-medium">{res.cantidadUsada || 0} {res.lote?.producto?.unidadMedida?.abreviatura}</span></div>
+                      </div>
+                    </div>
+                  )) || <p className="text-gray-500 italic">No hay reservas</p>}
                 </div>
               </div>
             </div>

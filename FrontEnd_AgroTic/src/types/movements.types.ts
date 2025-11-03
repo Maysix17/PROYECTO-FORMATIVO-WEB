@@ -11,6 +11,7 @@ export interface MovimientoInventario {
   cantidad: number;
   fechaMovimiento: string;
   observacion?: string;
+  responsable?: string;
   lote?: {
     id: string;
     producto: {

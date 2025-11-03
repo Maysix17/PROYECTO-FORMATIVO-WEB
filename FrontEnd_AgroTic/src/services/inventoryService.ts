@@ -219,7 +219,14 @@ export const inventoryService = {
       data.imgUrl = uploadResponse.data.url;
     }
 
-    const response = await apiClient.post('/productos/with-lote', data);
+    // Get current user DNI from localStorage or context
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userDni = user.dni;
+
+    const response = await apiClient.post('/productos/with-lote', {
+      ...data,
+      userDni: userDni,
+    });
     return response.data;
   },
 
@@ -237,7 +244,16 @@ export const inventoryService = {
   updateInventoryItem: async (id: string, data: any): Promise<any> => {
     console.log('DEBUG: updateInventoryItem called with ID:', id);
     console.log('DEBUG: updateInventoryItem data:', data);
-    const response = await apiClient.patch(`/inventario/${id}`, data);
+
+    // Get current user DNI from localStorage or context
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userDni = user.dni;
+    console.log('DEBUG: userDni from localStorage:', userDni);
+
+    const response = await apiClient.patch(`/inventario/${id}`, {
+      ...data,
+      userDni: userDni,
+    });
     console.log('DEBUG: updateInventoryItem response:', response);
     return response.data;
   },

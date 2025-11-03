@@ -317,6 +317,7 @@ export class ReservasXActividadService {
     tipoMovimientoNombre: string,
     cantidad: number,
     observacion: string,
+    userDni?: number,
   ): Promise<void> {
     try {
       // Find the movement type
@@ -329,6 +330,34 @@ export class ReservasXActividadService {
         return;
       }
 
+      // Get responsable from reserva -> actividad or from userDni parameter
+      let responsable: string | undefined;
+      if (userDni) {
+        // Direct from parameter (for cases where user context is available)
+        const { Usuario } = await import('../usuarios/entities/usuario.entity');
+        const usuario = await this.reservasXActividadRepo.manager.findOne(Usuario, {
+          where: { dni: userDni },
+        });
+        if (usuario) {
+          responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
+        }
+      } else {
+        // From reserva -> actividad (fallback for existing logic)
+        const reserva = await this.reservasXActividadRepo.findOne({
+          where: { id: reservaId },
+          relations: ['actividad'],
+        });
+        if (reserva?.actividad?.dniResponsable) {
+          const { Usuario } = await import('../usuarios/entities/usuario.entity');
+          const usuario = await this.reservasXActividadRepo.manager.findOne(Usuario, {
+            where: { dni: reserva.actividad.dniResponsable },
+          });
+          if (usuario) {
+            responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
+          }
+        }
+      }
+
       // Create the movement record
       const movimiento = this.movimientosInventarioRepo.create({
         fkLoteId: loteId,
@@ -337,6 +366,7 @@ export class ReservasXActividadService {
         cantidad: cantidad,
         fechaMovimiento: new Date(),
         observacion: observacion,
+        responsable: responsable,
       });
 
       await this.movimientosInventarioRepo.save(movimiento);

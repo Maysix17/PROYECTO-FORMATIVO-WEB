@@ -21,13 +21,15 @@ export class ActividadesService {
 
   async create(
     dto: CreateActividadeDto & { imgUrl: string },
+    dniResponsable: number,
   ): Promise<Actividad> {
+    console.log('ActividadesService create - dniResponsable:', dniResponsable);
     console.log('ActividadesService create - dto.fechaAsignacion:', dto.fechaAsignacion);
     console.log('ActividadesService create - dto.fechaAsignacion type:', typeof dto.fechaAsignacion);
     console.log('ActividadesService create - dto.fechaAsignacion ISO:', dto.fechaAsignacion.toISOString());
     console.log('ActividadesService create - dto.fechaAsignacion local:', dto.fechaAsignacion.toLocaleDateString());
 
-    const actividad: Actividad = this.actividadesRepo.create(dto);
+    const actividad: Actividad = this.actividadesRepo.create({ ...dto, dniResponsable });
     console.log('ActividadesService create - actividad.fechaAsignacion after create:', actividad.fechaAsignacion);
     console.log('ActividadesService create - actividad.fechaAsignacion ISO after create:', actividad.fechaAsignacion.toISOString());
 
@@ -48,7 +50,7 @@ export class ActividadesService {
   }
 
   async findByDate(date: string): Promise<Actividad[]> {
-    return await this.actividadesRepo.find({
+    const actividades = await this.actividadesRepo.find({
       where: { fechaAsignacion: new Date(date), estado: true },
       relations: [
         'categoriaActividad',
@@ -68,21 +70,27 @@ export class ActividadesService {
         'reservas.estado',
       ],
     });
+
+    // Enrich with responsable information
+    return await this.enrichActividadesWithResponsable(actividades);
   }
 
   async findByDateWithActive(date: string): Promise<Actividad[]> {
     const actividades = await this.findByDate(date);
     // Filter relations to only active
-    return actividades.map((act) => ({
+    const filtered = actividades.map((act) => ({
       ...act,
       usuariosAsignados:
         act.usuariosAsignados?.filter((u) => u.activo !== false) || [],
       reservas: act.reservas?.filter((r) => r.estado?.id === 1) || [], // Assuming 1 is 'Reservado' or active state
     }));
+
+    // Re-enrich with responsable information after filtering
+    return await this.enrichActividadesWithResponsable(filtered);
   }
 
   async findByDateRange(start: string, end: string): Promise<Actividad[]> {
-    return await this.actividadesRepo.find({
+    const actividades = await this.actividadesRepo.find({
       where: { fechaAsignacion: Between(new Date(start), new Date(end)), estado: true },
       relations: [
         'categoriaActividad',
@@ -102,6 +110,9 @@ export class ActividadesService {
         'reservas.estado',
       ],
     });
+
+    // Enrich with responsable information
+    return await this.enrichActividadesWithResponsable(actividades);
   }
 
   async findOne(id: string): Promise<Actividad> {
@@ -128,8 +139,12 @@ export class ActividadesService {
     imgUrl?: string,
     horas?: number,
     precioHora?: number,
+    userDni?: number,
   ): Promise<Actividad> {
     const actividad = await this.findOne(id);
+    if (userDni && actividad.dniResponsable !== userDni) {
+      throw new Error('Solo el responsable puede finalizar la actividad');
+    }
     actividad.estado = false;
     actividad.fechaFinalizacion = new Date();
     if (observacion) actividad.observacion = observacion;
@@ -195,6 +210,23 @@ export class ActividadesService {
         return;
       }
 
+      // Get responsable from reserva -> actividad
+      let responsable: string | undefined;
+      const reserva = await this.reservasXActividadRepo.findOne({
+        where: { id: reservaId },
+        relations: ['actividad'],
+      });
+      if (reserva?.actividad?.dniResponsable) {
+        // Get user details for responsable string
+        const { Usuario } = await import('../usuarios/entities/usuario.entity');
+        const usuario = await this.reservasXActividadRepo.manager.findOne(Usuario, {
+          where: { dni: reserva.actividad.dniResponsable },
+        });
+        if (usuario) {
+          responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
+        }
+      }
+
       // Create the movement record
       const movimiento = this.reservasXActividadRepo.manager.create(MovimientosInventario, {
         fkLoteId: loteId,
@@ -203,6 +235,7 @@ export class ActividadesService {
         cantidad: cantidad,
         fechaMovimiento: new Date(),
         observacion: observacion,
+        responsable: responsable,
       });
 
       await this.reservasXActividadRepo.manager.save(MovimientosInventario, movimiento);
@@ -293,7 +326,7 @@ export class ActividadesService {
     });
   }
   async findByCultivoVariedadZonaId(cvzId: string): Promise<Actividad[]> {
-    return await this.actividadesRepo.find({
+    const actividades = await this.actividadesRepo.find({
       where: { fkCultivoVariedadZonaId: cvzId },
       relations: [
         'categoriaActividad',
@@ -315,5 +348,43 @@ export class ActividadesService {
       ],
       order: { fechaAsignacion: 'DESC' },
     });
+
+    // Enrich with responsable information
+    return await this.enrichActividadesWithResponsable(actividades);
+  }
+
+  private async enrichActividadesWithResponsable(actividades: Actividad[]): Promise<Actividad[]> {
+    // Get all unique DNI responsables
+    const dniResponsables = [...new Set(actividades.map(act => act.dniResponsable).filter(dni => dni))];
+
+    if (dniResponsables.length === 0) {
+      return actividades;
+    }
+
+    // Fetch user information for responsables
+    const { Usuario } = await import('../usuarios/entities/usuario.entity');
+    const usuarios = await this.actividadesRepo.manager.find(Usuario, {
+      where: dniResponsables.map(dni => ({ dni })),
+    });
+
+    // Create a map of DNI to user info
+    const userMap = new Map<number, { nombres: string; apellidos: string }>();
+    usuarios.forEach(user => {
+      userMap.set(user.dni, { nombres: user.nombres, apellidos: user.apellidos });
+    });
+
+    // Enrich actividades with responsable info and reorder to show responsable first
+    const enriched = actividades.map(actividad => {
+      if (actividad.dniResponsable && userMap.has(actividad.dniResponsable)) {
+        const user = userMap.get(actividad.dniResponsable)!;
+        (actividad as any).responsableNombre = `${user.nombres} ${user.apellidos}`;
+        (actividad as any).responsableDni = actividad.dniResponsable;
+      }
+      return actividad;
+    });
+
+    // Sort to show responsable first (assuming current user is the responsable)
+    // For now, we'll keep the order but mark the responsable
+    return enriched;
   }
 }

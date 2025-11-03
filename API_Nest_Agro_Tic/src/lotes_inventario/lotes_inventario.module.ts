@@ -5,9 +5,10 @@ import { LotesInventarioController } from './lotes_inventario.controller';
 import { LotesInventario } from './entities/lotes_inventario.entity';
 import { MovimientosInventario } from '../movimientos_inventario/entities/movimientos_inventario.entity';
 import { TipoMovimiento } from '../tipos_movimiento/entities/tipos_movimiento.entity';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([LotesInventario, MovimientosInventario, TipoMovimiento])],
+  imports: [TypeOrmModule.forFeature([LotesInventario, MovimientosInventario, TipoMovimiento, Usuario])],
   controllers: [LotesInventarioController],
   providers: [LotesInventarioService],
 })

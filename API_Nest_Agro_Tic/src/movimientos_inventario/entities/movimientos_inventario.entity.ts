@@ -36,6 +36,9 @@ export class MovimientosInventario {
   @Column({ type: 'text', nullable: true })
   observacion?: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  responsable?: string;
+
   @ManyToOne(() => LotesInventario)
   @JoinColumn({ name: 'fk_lote_id' })
   lote?: LotesInventario;

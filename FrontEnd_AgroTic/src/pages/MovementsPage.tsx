@@ -96,7 +96,8 @@ const MovementsPage: React.FC = () => {
     'Categoría',
     'Bodega',
     'Cantidad',
-    'Observación'
+    'Observación',
+    'Responsable'
   ];
 
   return (
@@ -157,6 +158,9 @@ const MovementsPage: React.FC = () => {
                 <td className="px-4 py-2">
                   {movement.observacion || '-'}
                 </td>
+                <td className="px-4 py-2">
+                  {movement.responsable || '-'}
+                </td>
               </tr>
             ))}
           </Table>
@@ -205,6 +209,10 @@ const MovementsPage: React.FC = () => {
               {
                 label: 'Observación',
                 value: movement.observacion || '-'
+              },
+              {
+                label: 'Responsable',
+                value: movement.responsable || '-'
               },
             ];
 

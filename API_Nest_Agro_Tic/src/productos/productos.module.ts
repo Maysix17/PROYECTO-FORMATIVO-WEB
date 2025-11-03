@@ -5,9 +5,10 @@ import { ProductosController } from './productos.controller';
 import { Producto } from './entities/productos.entity';
 import { MovimientosInventario } from '../movimientos_inventario/entities/movimientos_inventario.entity';
 import { TipoMovimiento } from '../tipos_movimiento/entities/tipos_movimiento.entity';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Producto, MovimientosInventario, TipoMovimiento])],
+  imports: [TypeOrmModule.forFeature([Producto, MovimientosInventario, TipoMovimiento, Usuario])],
   controllers: [ProductosController],
   providers: [ProductosService],
 })

@@ -25,4 +25,9 @@ export class CreateMovimientosInventarioDto {
   @IsOptional()
   @MaxLength(255)
   observacion?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(255)
+  responsable?: string;
 }

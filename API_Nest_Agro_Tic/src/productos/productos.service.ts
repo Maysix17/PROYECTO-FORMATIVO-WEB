@@ -41,10 +41,31 @@ export class ProductosService {
     return entity;
   }
 
-  async update(id: string, updateDto: UpdateProductosDto): Promise<Producto> {
+  async update(id: string, updateDto: UpdateProductosDto, userDni?: number): Promise<Producto> {
     const entity = await this.findOne(id);
     Object.assign(entity, updateDto);
-    return await this.productoRepo.save(entity);
+    const savedEntity = await this.productoRepo.save(entity);
+
+    // Create movement record for AJUSTE when product is updated
+    if (userDni) {
+      // Get all lotes for this product to create adjustment movements
+      const lotes = await this.productoRepo.manager.find(LotesInventario, {
+        where: { fkProductoId: id },
+      });
+
+      for (const lote of lotes) {
+        await this.createMovementRecord(
+          { manager: this.productoRepo.manager },
+          lote.id,
+          'Ajuste',
+          0, // No quantity change for product data updates
+          `Ajuste manual de inventario: modificación de datos del producto ${savedEntity.nombre}`,
+          userDni
+        );
+      }
+    }
+
+    return savedEntity;
   }
 
   async remove(id: string): Promise<void> {
@@ -58,6 +79,7 @@ export class ProductosService {
     tipoMovimientoNombre: string,
     cantidad: number,
     observacion: string,
+    userDni?: number,
   ): Promise<void> {
     try {
       // Find the movement type
@@ -70,6 +92,18 @@ export class ProductosService {
         return;
       }
 
+      // Get responsable information if userDni provided
+      let responsable: string | undefined;
+      if (userDni) {
+        const { Usuario } = await import('../usuarios/entities/usuario.entity');
+        const usuario = await queryRunner.manager.findOne(Usuario, {
+          where: { dni: userDni },
+        });
+        if (usuario) {
+          responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
+        }
+      }
+
       // Create the movement record
       const movimiento = queryRunner.manager.create(MovimientosInventario, {
         fkLoteId: loteId,
@@ -77,6 +111,7 @@ export class ProductosService {
         cantidad: cantidad,
         fechaMovimiento: new Date(),
         observacion: observacion,
+        responsable: responsable,
       });
 
       await queryRunner.manager.save(MovimientosInventario, movimiento);
@@ -86,7 +121,7 @@ export class ProductosService {
     }
   }
 
-  async createWithLote(createDto: CreateProductoWithLoteDto): Promise<Producto> {
+  async createWithLote(createDto: CreateProductoWithLoteDto, userDni?: number): Promise<Producto> {
     // Start transaction
     const queryRunner = this.productoRepo.manager.connection.createQueryRunner();
     await queryRunner.connect();
@@ -123,7 +158,7 @@ export class ProductosService {
       const savedLote = await queryRunner.manager.save(LotesInventario, loteInventario);
 
       // Create movement record for ENTRADA
-      await this.createMovementRecord(queryRunner, savedLote.id, 'Entrada', cantidadDisponible, `Entrada de producto: ${savedProducto.nombre}`);
+      await this.createMovementRecord(queryRunner, savedLote.id, 'Entrada', cantidadDisponible, `Entrada de producto: ${savedProducto.nombre}`, userDni);
 
       // Commit transaction
       await queryRunner.commitTransaction();

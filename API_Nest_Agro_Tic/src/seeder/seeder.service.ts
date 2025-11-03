@@ -1174,6 +1174,10 @@ export class SeederService {
           const fechaAsignacion = new Date(
             `2025-10-${dia.toString().padStart(2, '0')}`,
           );
+          // Get a random user to assign as responsible
+          const usuarios = await this.usuarioRepository.find();
+          const usuarioResponsable = usuarios[Math.floor(Math.random() * usuarios.length)];
+
           const actividad = this.actividadRepository.create({
             descripcion: `Actividad de ${categoria.nombre}`,
             fechaAsignacion,
@@ -1182,6 +1186,7 @@ export class SeederService {
             imgUrl: isFinished ? '/uploads/evidencias/evidence.jpg' : undefined,
             fkCultivoVariedadZonaId: cvz.id,
             fkCategoriaActividadId: categoria.id,
+            dniResponsable: usuarioResponsable.dni,
           });
           await this.actividadRepository.save(actividad);
           this.logger.log(

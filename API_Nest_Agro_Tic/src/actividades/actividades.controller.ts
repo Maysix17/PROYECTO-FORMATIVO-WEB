@@ -9,19 +9,30 @@ import {
   UploadedFile,
   UseInterceptors,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
+import { AuthenticationGuard } from '../common/guards/authentication.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ActividadesService } from './actividades.service';
 import { CreateActividadeDto } from './dto/create-actividade.dto';
 import { UpdateActividadeDto } from './dto/update-actividade.dto';
+import { Usuario } from '../usuarios/entities/usuario.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Controller('actividades')
 export class ActividadesController {
-  constructor(private readonly actividadesService: ActividadesService) {}
+  constructor(
+    private readonly actividadesService: ActividadesService,
+    @InjectRepository(Usuario)
+    private readonly usuarioRepository: Repository<Usuario>,
+  ) {}
 
   @Post()
+  @UseGuards(AuthenticationGuard)
   @UseInterceptors(
     FileInterceptor('imgUrl', {
       storage: diskStorage({
@@ -34,7 +45,8 @@ export class ActividadesController {
       }),
     }),
   )
-  create(
+  async create(
+    @Req() req: any,
     @Body() dto: CreateActividadeDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
@@ -43,7 +55,13 @@ export class ActividadesController {
     console.log('ActividadesController create - dto.fechaAsignacion ISO:', dto.fechaAsignacion.toISOString());
 
     const imgUrl = file ? `/uploads/actividades/${file.filename}` : '';
-    return this.actividadesService.create({ ...dto, imgUrl });
+    // Load user from database using userId from guard
+    const usuario = await this.usuarioRepository.findOne({ where: { id: req.userId } });
+    if (!usuario) {
+      throw new Error('Usuario no encontrado');
+    }
+    const dniResponsable = usuario.dni;
+    return this.actividadesService.create({ ...dto, imgUrl }, dniResponsable);
   }
 
   @Get()
@@ -92,6 +110,7 @@ export class ActividadesController {
   }
 
   @Patch(':id/finalizar')
+  @UseGuards(AuthenticationGuard)
   @UseInterceptors(
     FileInterceptor('imgUrl', {
       storage: diskStorage({
@@ -104,7 +123,8 @@ export class ActividadesController {
       }),
     }),
   )
-  finalizar(
+  async finalizar(
+    @Req() req: any,
     @Param('id') id: string,
     @Body() body: { observacion?: string; horas?: number; precioHora?: number },
     @UploadedFile() file?: Express.Multer.File,
@@ -112,12 +132,19 @@ export class ActividadesController {
     const imgUrl = file ? `/uploads/evidencias/${file.filename}` : undefined;
     console.log(`[${new Date().toISOString()}] 📡 CONTROLLER: Finalizing activity ${id} - Generated image URL: ${imgUrl || 'No image'}`);
     console.log(`[${new Date().toISOString()}] 📡 CONTROLLER: File details:`, file ? { filename: file.filename, originalname: file.originalname, size: file.size } : 'No file');
+    // Load user from database using userId from guard
+    const usuario = await this.usuarioRepository.findOne({ where: { id: req.userId } });
+    if (!usuario) {
+      throw new Error('Usuario no encontrado');
+    }
+    const userDni = usuario.dni;
     return this.actividadesService.finalizar(
       id,
       body.observacion,
       imgUrl,
       body.horas,
       body.precioHora,
+      userDni,
     );
   }
 
