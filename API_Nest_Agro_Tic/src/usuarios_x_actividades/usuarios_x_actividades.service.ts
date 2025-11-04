@@ -22,10 +22,7 @@ export class UsuariosXActividadesService {
     const savedEntity = await this.uxActRepo.save(entity);
 
     // Emit notification to the assigned user
-    const responsable = savedEntity.actividad?.responsable;
-    const assignedBy = responsable
-      ? `${responsable.nombres} ${responsable.apellidos} / ${responsable.rol?.nombre || 'Sin rol'}`
-      : 'Sistema';
+    const assignedBy = 'Sistema';
 
     const notification = {
       id: savedEntity.id,
@@ -42,14 +39,14 @@ export class UsuariosXActividadesService {
 
   async findAll(): Promise<UsuarioXActividad[]> {
     return await this.uxActRepo.find({
-      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona', 'actividad.responsable', 'actividad.responsable.rol']
+      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona']
     });
   }
 
   async findOne(id: string): Promise<UsuarioXActividad> {
     const entity = await this.uxActRepo.findOne({
       where: { id },
-      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona', 'actividad.responsable', 'actividad.responsable.rol'],
+      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona'],
     });
     if (!entity)
       throw new NotFoundException(
@@ -94,7 +91,7 @@ export class UsuariosXActividadesService {
   async findByUser(userId: string): Promise<UsuarioXActividad[]> {
     return await this.uxActRepo.find({
       where: { fkUsuarioId: userId, activo: true },
-      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona', 'actividad.responsable', 'actividad.responsable.rol'],
+      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona'],
       order: { fechaAsignacion: 'DESC' },
     });
   }

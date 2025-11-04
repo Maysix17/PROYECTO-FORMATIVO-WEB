@@ -11,7 +11,6 @@ import { CultivosVariedadXZona } from '../../cultivos_variedad_x_zona/entities/c
 import { UsuarioXActividad } from '../../usuarios_x_actividades/entities/usuarios_x_actividades.entity';
 import { CategoriaActividad } from '../../categoria_actividad/entities/categoria_actividad.entity';
 import { ReservasXActividad } from '../../reservas_x_actividad/entities/reservas_x_actividad.entity';
-import { Usuario } from '../../usuarios/entities/usuario.entity';
 
 @Entity('actividades')
 export class Actividad {
@@ -65,7 +64,4 @@ export class Actividad {
   @OneToMany(() => ReservasXActividad, (r) => r.actividad)
   reservas?: ReservasXActividad[];
 
-  @ManyToOne(() => Usuario, { nullable: true })
-  @JoinColumn({ name: 'act_dni_responsable', referencedColumnName: 'dni' })
-  responsable?: Usuario;
 }
