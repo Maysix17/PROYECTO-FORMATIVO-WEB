@@ -22,16 +22,12 @@ import { useNotificationsSocket } from '../hooks/useNotificationsSocket';
 // Removed unused import
 import { movementsService } from '../services/movementsService';
 import { getVentas } from '../services/ventaService';
-import { getCosechas, getCosechasToday } from '../services/cosechasService';
+import { getCosechasToday } from '../services/cosechasService';
+import { getProfile } from '../services/profileService';
 import type { Venta } from '../types/venta.types';
 import type { Cosecha } from '../types/cosechas.types';
 import type { MovimientoInventario } from '../types/movements.types';
-
-// Mock data for prototype
-const mockUser = {
-  name: 'Juan Pérez',
-  role: 'Administrador',
-};
+import type { User } from '../types/user';
 
 // Real data interfaces
 interface LastSaleData {
@@ -104,6 +100,14 @@ const environmentalMetrics = [
 // Pie chart data will be dynamically loaded
 
 const Dashboard: React.FC = () => {
+  // User state
+  const [user, setUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const [userError, setUserError] = useState<string | null>(null);
+
+  // Animation states
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
   const [currentMetricIndex, setCurrentMetricIndex] = useState(0);
   const [assignedActivities, setAssignedActivities] = useState<AssignedActivity[]>([]);
   const [currentActivityIndex, setCurrentActivityIndex] = useState(0);
@@ -400,6 +404,22 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const fetchUserProfile = async () => {
+    try {
+      setUserLoading(true);
+      setUserError(null);
+      console.log('[DEBUG] fetchUserProfile: Fetching user profile');
+      const userData = await getProfile();
+      console.log('[DEBUG] fetchUserProfile: User data received:', userData);
+      setUser(userData);
+    } catch (error) {
+      console.error('[DEBUG] fetchUserProfile: Error fetching user profile:', error);
+      setUserError('Error al cargar los datos del usuario');
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
   const itemsPerPage = 1;
   const totalPages = Math.ceil(assignedActivities.length / itemsPerPage);
   const startIndex = currentActivityIndex * itemsPerPage;
@@ -540,6 +560,14 @@ const Dashboard: React.FC = () => {
     fetchTodaysInventoryMovements();
     fetchTodaysSales();
     fetchTodaysHarvests();
+    fetchUserProfile();
+
+    // Trigger page load animation after a short delay
+    const timer = setTimeout(() => {
+      setIsPageLoaded(true);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Update pie chart when selected crop changes
@@ -560,13 +588,22 @@ const Dashboard: React.FC = () => {
         <div className="lg:col-span-2 flex flex-col gap-4 h-full">
           {/* Pending Activities Card */}
           <Card
-            className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
+            className={`shadow-lg hover:shadow-xl transition-all duration-700 ease-out flex-1 relative transform ${
+              isPageLoaded
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-8'
+            }`}
+            style={{ animationDelay: '0.1s' }}
             onMouseEnter={() => setIsActivitiesHovered(true)}
             onMouseLeave={() => setIsActivitiesHovered(false)}
           >
             <CardHeader className="flex items-center gap-3">
-              <ClockIcon className="w-8 h-8 text-orange-500" />
-              <h3 className="text-lg font-semibold">Actividades Programadas</h3>
+              <ClockIcon className={`w-8 h-8 text-orange-500 transition-all duration-500 ${
+                isPageLoaded ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              }`} style={{ animationDelay: '0.4s' }} />
+              <h3 className={`text-lg font-semibold transition-all duration-500 ${
+                isPageLoaded ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
+              }`} style={{ animationDelay: '0.6s' }}>Actividades Programadas</h3>
             </CardHeader>
             <CardBody className={`transition-transform duration-300 ease-in-out ${isAnimating ? 'transform -translate-y-2' : ''} flex flex-col justify-start`}>
               {assignedActivities.length === 0 ? (
@@ -628,13 +665,22 @@ const Dashboard: React.FC = () => {
 
           {/* Last Inventory Movement Card */}
           <Card
-            className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
+            className={`shadow-lg hover:shadow-xl transition-all duration-700 ease-out flex-1 relative transform ${
+              isPageLoaded
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-8'
+            }`}
+            style={{ animationDelay: '0.3s' }}
             onMouseEnter={() => setIsMovementsHovered(true)}
             onMouseLeave={() => setIsMovementsHovered(false)}
           >
             <CardHeader className="flex items-center gap-3">
-              <ChartBarIcon className="w-8 h-8 text-purple-500" />
-              <h3 className="text-lg font-semibold">Últimos Movimientos en Inventario</h3>
+              <ChartBarIcon className={`w-8 h-8 text-purple-500 transition-all duration-500 ${
+                isPageLoaded ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              }`} style={{ animationDelay: '0.6s' }} />
+              <h3 className={`text-lg font-semibold transition-all duration-500 ${
+                isPageLoaded ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
+              }`} style={{ animationDelay: '0.8s' }}>Últimos Movimientos en Inventario</h3>
             </CardHeader>
             <CardBody className={`transition-transform duration-300 ease-in-out ${isMovementAnimating ? 'transform -translate-y-2' : ''}`}>
               {inventoryMovements.length === 0 ? (
@@ -700,10 +746,19 @@ const Dashboard: React.FC = () => {
           {/* Welcome and Environmental Data Cards - Side by side with fixed height */}
           <div className="flex gap-3 flex-none h-36">
             {/* Environmental Data Card */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow flex-1 flex flex-col">
+            <Card className={`shadow-lg hover:shadow-xl transition-all duration-700 ease-out flex-1 flex flex-col transform ${
+              isPageLoaded
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-8'
+            }`}
+            style={{ animationDelay: '0.5s' }}>
               <CardHeader className="flex items-center gap-3">
-                <BeakerIcon className="w-8 h-8 text-green-500" />
-                <h3 className="text-lg font-semibold">
+                <BeakerIcon className={`w-8 h-8 text-green-500 transition-all duration-500 ${
+                  isPageLoaded ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+                }`} style={{ animationDelay: '0.8s' }} />
+                <h3 className={`text-lg font-semibold transition-all duration-500 ${
+                  isPageLoaded ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
+                }`} style={{ animationDelay: '1.0s' }}>
                   Datos del Ambiente<br />
                   Zona Actual
                 </h3>
@@ -723,16 +778,40 @@ const Dashboard: React.FC = () => {
             </Card>
 
             {/* Welcome Card */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow flex-1 flex flex-col">
+            <Card className={`shadow-lg hover:shadow-xl transition-all duration-700 ease-out flex-1 flex flex-col transform ${
+              isPageLoaded
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-8'
+            }`}
+            style={{ animationDelay: '0.7s' }}>
               <CardHeader className="flex items-center gap-3">
-                <UserIcon className="w-8 h-8 text-blue-500" />
+           
                 <div>
-                  <h3 className="text-lg font-semibold">¡Bienvenido, {mockUser.name}!</h3>
-                  <p className="text-sm text-gray-600">Rol: {mockUser.role}</p>
+                  {userLoading ? (
+                    <>
+                      <h3 className="text-lg font-semibold">Cargando...</h3>
+                      <p className="text-sm text-gray-600">Obteniendo datos del usuario</p>
+                    </>
+                  ) : userError ? (
+                    <>
+                      <h3 className="text-lg font-semibold">Error</h3>
+                      <p className="text-sm text-red-600">{userError}</p>
+                    </>
+                  ) : user ? (
+                    <>
+                      <h3 className="text-lg font-semibold">¡Bienvenido, {user.nombres} {user.apellidos}!</h3>
+                      <p className="text-sm text-gray-600">Rol: {user.rol.nombre}</p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-lg font-semibold">Usuario no encontrado</h3>
+                      <p className="text-sm text-gray-600">No se pudieron cargar los datos</p>
+                    </>
+                  )}
                 </div>
               </CardHeader>
-              <CardBody className="flex-1 flex flex-col items-center justify-center text-center">
-                <p className="text-gray-700">
+              <CardBody className="flex flex-col items-center justify-center text-center py-2">
+                <p className="text-gray-700 text-sm">
                   ¡Hola! Aquí tienes un resumen de tu actividad reciente.
                 </p>
               </CardBody>
@@ -741,13 +820,22 @@ const Dashboard: React.FC = () => {
 
           {/* Today's Sales Card - Compact layout */}
           <Card
-            className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
+            className={`shadow-lg hover:shadow-xl transition-all duration-700 ease-out flex-1 relative transform ${
+              isPageLoaded
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-8'
+            }`}
+            style={{ animationDelay: '0.9s' }}
             onMouseEnter={() => setIsSaleHovered(true)}
             onMouseLeave={() => setIsSaleHovered(false)}
           >
             <CardHeader className="flex items-center gap-3">
-              <CurrencyDollarIcon className="w-8 h-8 text-yellow-500" />
-              <h3 className="text-lg font-semibold">Ventas de Hoy</h3>
+              <CurrencyDollarIcon className={`w-8 h-8 text-yellow-500 transition-all duration-500 ${
+                isPageLoaded ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              }`} style={{ animationDelay: '1.2s' }} />
+              <h3 className={`text-lg font-semibold transition-all duration-500 ${
+                isPageLoaded ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
+              }`} style={{ animationDelay: '1.4s' }}>Ventas de Hoy</h3>
             </CardHeader>
             <CardBody className={`transition-transform duration-300 ease-in-out ${isMovementAnimating ? 'transform -translate-y-2' : ''} py-3`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 h-full">
@@ -828,13 +916,22 @@ const Dashboard: React.FC = () => {
 
           {/* Today's Harvests Card */}
           <Card
-            className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
+            className={`shadow-lg hover:shadow-xl transition-all duration-700 ease-out flex-1 relative transform ${
+              isPageLoaded
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-8'
+            }`}
+            style={{ animationDelay: '1.1s' }}
             onMouseEnter={() => setIsHarvestHovered(true)}
             onMouseLeave={() => setIsHarvestHovered(false)}
           >
             <CardHeader className="flex items-center gap-3">
-              <TruckIcon className="w-8 h-8 text-green-500" />
-              <h3 className="text-lg font-semibold">Cosechas de Hoy</h3>
+              <TruckIcon className={`w-8 h-8 text-green-500 transition-all duration-500 ${
+                isPageLoaded ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              }`} style={{ animationDelay: '1.4s' }} />
+              <h3 className={`text-lg font-semibold transition-all duration-500 ${
+                isPageLoaded ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
+              }`} style={{ animationDelay: '1.6s' }}>Cosechas de Hoy</h3>
             </CardHeader>
             <CardBody className={`transition-transform duration-300 ease-in-out ${isHarvestAnimating ? 'transform -translate-y-2' : ''} py-3`}>
               {todaysHarvests.length === 0 ? (
