@@ -50,6 +50,7 @@ interface LastHarvestData {
   cantidad: number;
   unidadMedida: string;
   cultivo: string;
+  zona?: string;
 }
 
 // Removed unused mock data
@@ -114,8 +115,10 @@ const Dashboard: React.FC = () => {
   const [isMovementAnimating, setIsMovementAnimating] = useState(false);
 
   // Real data states
-  const [lastSale, setLastSale] = useState<LastSaleData | null>(null);
-  const [lastHarvest, setLastHarvest] = useState<LastHarvestData | null>(null);
+  const [todaysSales, setTodaysSales] = useState<LastSaleData[]>([]);
+  const [currentSaleIndex, setCurrentSaleIndex] = useState(0);
+  const [isSaleAnimating, setIsSaleAnimating] = useState(false);
+  const [todaysHarvests, setTodaysHarvests] = useState<LastHarvestData[]>([]);
   const [selectedCropId, setSelectedCropId] = useState<string | null>(null);
   const [pieChartData, setPieChartData] = useState<any[]>([]);
 
@@ -212,144 +215,186 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const fetchLastSale = async () => {
+  const fetchTodaysSales = async () => {
     try {
-      console.log('[DEBUG] fetchLastSale: Starting to fetch last sale');
+      console.log('[DEBUG] fetchTodaysSales: Starting to fetch today\'s sales');
       const ventas = await getVentas();
-      console.log('[DEBUG] fetchLastSale: Retrieved ventas:', ventas.length, 'sales');
+      console.log('[DEBUG] fetchTodaysSales: Retrieved ventas:', ventas.length, 'sales');
 
       if (ventas.length > 0) {
-        // Get the most recent sale
-        const latestSale = ventas.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0];
-        console.log('[DEBUG] fetchLastSale: Latest sale:', latestSale);
+        // Get today's date
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-        // Fetch additional details from the sale's harvest with relations
-        console.log('[DEBUG] fetchLastSale: Fetching harvest details for cosechaId:', latestSale.fkCosechaId);
-        const harvestResponse = await axios.get(`/cosechas/${latestSale.fkCosechaId}`);
-        const harvest = harvestResponse.data;
-        console.log('[DEBUG] fetchLastSale: Harvest data:', harvest);
+        // Filter sales for today
+        const todaysVentas = ventas.filter(venta => {
+          const ventaDate = new Date(venta.fecha).toISOString().split('T')[0];
+          return ventaDate === todayString;
+        });
 
-        if (harvest && harvest.cultivosVariedadXZona) {
-          console.log('[DEBUG] fetchLastSale: Harvest has crop relations:', harvest.cultivosVariedadXZona);
+        console.log('[DEBUG] fetchTodaysSales: Today\'s sales:', todaysVentas.length);
 
-          const cvz = harvest.cultivosVariedadXZona;
-          const tipoCultivo = cvz.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo desconocido';
-          const variedad = cvz.cultivoXVariedad?.variedad?.nombre || 'Variedad desconocida';
-          const zona = cvz.zona?.nombre || 'Zona desconocida';
+        if (todaysVentas.length > 0) {
+          // Process each sale to get crop details
+          const salesData: LastSaleData[] = await Promise.all(
+            todaysVentas.map(async (venta) => {
+              try {
+                console.log('[DEBUG] fetchTodaysSales: Fetching harvest details for cosechaId:', venta.fkCosechaId);
+                const harvestResponse = await axios.get(`/cosechas/${venta.fkCosechaId}`);
+                const harvest = harvestResponse.data;
 
-          console.log('[DEBUG] fetchLastSale: Extracted crop details - tipoCultivo:', tipoCultivo, 'variedad:', variedad, 'zona:', zona);
+                if (harvest && harvest.cultivosVariedadXZona) {
+                  const cvz = harvest.cultivosVariedadXZona;
+                  const tipoCultivo = cvz.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo desconocido';
+                  const variedad = cvz.cultivoXVariedad?.variedad?.nombre || 'Variedad desconocida';
+                  const zona = cvz.zona?.nombre || 'Zona desconocida';
 
-          const saleData: LastSaleData = {
-            id: latestSale.id,
-            fecha: latestSale.fecha,
-            cantidad: parseFloat(latestSale.cantidad),
-            precioKilo: parseFloat(latestSale.precioKilo) || 0,
-            ingresoTotal: parseFloat(latestSale.cantidad) * (parseFloat(latestSale.precioKilo) || 0),
-            precioVenta: parseFloat(latestSale.precioUnitario) || 0,
-            producto: 'Producto', // Placeholder until API is fixed
-            cultivo: `${tipoCultivo}, ${variedad}`,
-            zona: zona,
-          };
+                  return {
+                    id: venta.id,
+                    fecha: venta.fecha,
+                    cantidad: parseFloat(venta.cantidad),
+                    precioKilo: parseFloat(venta.precioKilo) || 0,
+                    ingresoTotal: parseFloat(venta.cantidad) * (parseFloat(venta.precioKilo) || 0),
+                    precioVenta: parseFloat(venta.precioUnitario) || 0,
+                    producto: 'Producto',
+                    cultivo: `${tipoCultivo}, ${variedad}`,
+                    zona: zona,
+                  };
+                } else {
+                  return {
+                    id: venta.id,
+                    fecha: venta.fecha,
+                    cantidad: parseFloat(venta.cantidad),
+                    precioKilo: parseFloat(venta.precioKilo) || 0,
+                    ingresoTotal: parseFloat(venta.cantidad) * (parseFloat(venta.precioKilo) || 0),
+                    precioVenta: parseFloat(venta.precioUnitario) || 0,
+                    producto: 'Producto',
+                    cultivo: 'Cultivo desconocido',
+                    zona: 'Zona desconocida',
+                  };
+                }
+              } catch (error) {
+                console.error('[DEBUG] fetchTodaysSales: Error fetching harvest for sale:', venta.id, error);
+                return {
+                  id: venta.id,
+                  fecha: venta.fecha,
+                  cantidad: parseFloat(venta.cantidad),
+                  precioKilo: parseFloat(venta.precioKilo) || 0,
+                  ingresoTotal: parseFloat(venta.cantidad) * (parseFloat(venta.precioKilo) || 0),
+                  precioVenta: parseFloat(venta.precioUnitario) || 0,
+                  producto: 'Producto',
+                  cultivo: 'Cultivo desconocido',
+                  zona: 'Zona desconocida',
+                };
+              }
+            })
+          );
 
-          console.log('[DEBUG] fetchLastSale: Setting sale data:', saleData);
-          setLastSale(saleData);
-          setSelectedCropId(harvest.fkCultivosVariedadXZonaId);
+          console.log('[DEBUG] fetchTodaysSales: Setting sales data:', salesData);
+          setTodaysSales(salesData);
+          setCurrentSaleIndex(0); // Reset to first sale
+
+          // Set selected crop for pie chart from first sale
+          if (salesData.length > 0) {
+            const firstSale = todaysVentas[0];
+            const harvestResponse = await axios.get(`/cosechas/${firstSale.fkCosechaId}`);
+            const harvest = harvestResponse.data;
+            setSelectedCropId(harvest?.fkCultivosVariedadXZonaId || null);
+          }
         } else {
-          console.log('[DEBUG] fetchLastSale: Harvest missing crop relations');
-          // Fallback to basic data
-          const saleData: LastSaleData = {
-            id: latestSale.id,
-            fecha: latestSale.fecha,
-            cantidad: parseFloat(latestSale.cantidad),
-            precioKilo: parseFloat(latestSale.precioKilo) || 0,
-            ingresoTotal: parseFloat(latestSale.cantidad) * (parseFloat(latestSale.precioKilo) || 0),
-            precioVenta: parseFloat(latestSale.precioUnitario) || 0,
-            producto: 'Producto',
-            cultivo: 'Cultivo desconocido',
-            zona: 'Zona desconocida',
-          };
-          setLastSale(saleData);
-          setSelectedCropId(harvest.fkCultivosVariedadXZonaId);
+          console.log('[DEBUG] fetchTodaysSales: No sales today');
+          setTodaysSales([]);
         }
       } else {
-        console.log('[DEBUG] fetchLastSale: No sales found');
+        console.log('[DEBUG] fetchTodaysSales: No sales found');
+        setTodaysSales([]);
       }
     } catch (error) {
-      console.error('[DEBUG] fetchLastSale: Error:', error);
-      setLastSale(null);
+      console.error('[DEBUG] fetchTodaysSales: Error:', error);
+      setTodaysSales([]);
     }
   };
 
-  const fetchLastHarvest = async () => {
+  const fetchTodaysHarvests = async () => {
     try {
-      console.log('[DEBUG] fetchLastHarvest: Starting to fetch last harvest');
+      console.log('[DEBUG] fetchTodaysHarvests: Starting to fetch today\'s harvests');
       const cosechas = await getCosechas();
-      console.log('[DEBUG] fetchLastHarvest: Retrieved cosechas:', cosechas.length, 'harvests');
+      console.log('[DEBUG] fetchTodaysHarvests: Retrieved cosechas:', cosechas.length, 'harvests');
 
       if (cosechas.length > 0) {
-        // Get the most recent harvest
-        const latestHarvest = cosechas.sort((a, b) => new Date(b.fecha || '').getTime() - new Date(a.fecha || '').getTime())[0];
-        console.log('[DEBUG] fetchLastHarvest: Latest harvest:', latestHarvest);
+        // Get today's date
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-        if (latestHarvest && latestHarvest.fkCultivosVariedadXZonaId) {
-          console.log('[DEBUG] fetchLastHarvest: Harvest has crop ID:', latestHarvest.fkCultivosVariedadXZonaId);
+        // Filter harvests for today and take up to 2
+        const todaysCosechas = cosechas
+          .filter(cosecha => {
+            const cosechaDate = new Date(cosecha.fecha || '').toISOString().split('T')[0];
+            return cosechaDate === todayString;
+          })
+          .slice(0, 2); // Limit to 2 results
 
-          // Fetch harvest details with relations
-          console.log('[DEBUG] fetchLastHarvest: Fetching harvest details for cosechaId:', latestHarvest.id);
-          const harvestResponse = await axios.get(`/cosechas/${latestHarvest.id}`);
-          const harvestWithRelations = harvestResponse.data;
-          console.log('[DEBUG] fetchLastHarvest: Harvest with relations:', harvestWithRelations);
+        console.log('[DEBUG] fetchTodaysHarvests: Today\'s harvests:', todaysCosechas.length);
 
-          if (harvestWithRelations && harvestWithRelations.cultivosVariedadXZona) {
-            console.log('[DEBUG] fetchLastHarvest: Harvest has crop relations:', harvestWithRelations.cultivosVariedadXZona);
+        if (todaysCosechas.length > 0) {
+          // Process each harvest to get crop details
+          const harvestsData: LastHarvestData[] = await Promise.all(
+            todaysCosechas.map(async (cosecha) => {
+              try {
+                console.log('[DEBUG] fetchTodaysHarvests: Fetching harvest details for cosechaId:', cosecha.id);
+                const harvestResponse = await axios.get(`/cosechas/${cosecha.id}`);
+                const harvestWithRelations = harvestResponse.data;
 
-            const cvz = harvestWithRelations.cultivosVariedadXZona;
-            const tipoCultivo = cvz.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo desconocido';
-            const variedad = cvz.cultivoXVariedad?.variedad?.nombre || 'Variedad desconocida';
-            const zona = cvz.zona?.nombre || 'Zona desconocida';
+                if (harvestWithRelations && harvestWithRelations.cultivosVariedadXZona) {
+                  const cvz = harvestWithRelations.cultivosVariedadXZona;
+                  const tipoCultivo = cvz.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo desconocido';
+                  const variedad = cvz.cultivoXVariedad?.variedad?.nombre || 'Variedad desconocida';
+                  const zona = cvz.zona?.nombre || 'Zona desconocida';
 
-            console.log('[DEBUG] fetchLastHarvest: Extracted crop details - tipoCultivo:', tipoCultivo, 'variedad:', variedad, 'zona:', zona);
+                  return {
+                    id: cosecha.id,
+                    fecha: cosecha.fecha || '',
+                    cantidad: cosecha.cantidad,
+                    unidadMedida: cosecha.unidadMedida,
+                    cultivo: `${tipoCultivo}, ${variedad}`,
+                    zona: zona,
+                  };
+                } else {
+                  return {
+                    id: cosecha.id,
+                    fecha: cosecha.fecha || '',
+                    cantidad: cosecha.cantidad,
+                    unidadMedida: cosecha.unidadMedida,
+                    cultivo: 'Cultivo desconocido - Zona desconocida',
+                  };
+                }
+              } catch (error) {
+                console.error('[DEBUG] fetchTodaysHarvests: Error fetching harvest details for:', cosecha.id, error);
+                return {
+                  id: cosecha.id,
+                  fecha: cosecha.fecha || '',
+                  cantidad: cosecha.cantidad,
+                  unidadMedida: cosecha.unidadMedida,
+                  cultivo: 'Cultivo desconocido',
+                  zona: 'Zona desconocida',
+                };
+              }
+            })
+          );
 
-            const harvestData: LastHarvestData = {
-              id: latestHarvest.id,
-              fecha: latestHarvest.fecha || '',
-              cantidad: latestHarvest.cantidad,
-              unidadMedida: latestHarvest.unidadMedida,
-              cultivo: `${tipoCultivo}, ${variedad} - ${zona}`,
-            };
-
-            console.log('[DEBUG] fetchLastHarvest: Setting harvest data:', harvestData);
-            setLastHarvest(harvestData);
-          } else {
-            console.log('[DEBUG] fetchLastHarvest: Harvest missing crop relations after fetch');
-            // Fallback to basic data
-            const harvestData: LastHarvestData = {
-              id: latestHarvest.id,
-              fecha: latestHarvest.fecha || '',
-              cantidad: latestHarvest.cantidad,
-              unidadMedida: latestHarvest.unidadMedida,
-              cultivo: 'Cultivo desconocido - Zona desconocida',
-            };
-            setLastHarvest(harvestData);
-          }
+          console.log('[DEBUG] fetchTodaysHarvests: Setting harvests data:', harvestsData);
+          setTodaysHarvests(harvestsData);
         } else {
-          console.log('[DEBUG] fetchLastHarvest: Harvest missing crop ID');
-          // Fallback to basic data
-          const harvestData: LastHarvestData = {
-            id: latestHarvest.id,
-            fecha: latestHarvest.fecha || '',
-            cantidad: latestHarvest.cantidad,
-            unidadMedida: latestHarvest.unidadMedida,
-            cultivo: 'Cultivo desconocido - Zona desconocida',
-          };
-          setLastHarvest(harvestData);
+          console.log('[DEBUG] fetchTodaysHarvests: No harvests today');
+          setTodaysHarvests([]);
         }
       } else {
-        console.log('[DEBUG] fetchLastHarvest: No harvests found');
+        console.log('[DEBUG] fetchTodaysHarvests: No harvests found');
+        setTodaysHarvests([]);
       }
     } catch (error) {
-      console.error('[DEBUG] fetchLastHarvest: Error:', error);
-      setLastHarvest(null);
+      console.error('[DEBUG] fetchTodaysHarvests: Error:', error);
+      setTodaysHarvests([]);
     }
   };
 
@@ -403,6 +448,46 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const nextSalePage = () => {
+    if (currentSaleIndex < todaysSales.length - 1 && !isSaleAnimating) {
+      setIsSaleAnimating(true);
+      setTimeout(() => {
+        setCurrentSaleIndex(currentSaleIndex + 1);
+        setIsSaleAnimating(false);
+        // Update pie chart when sale changes
+        if (todaysSales[currentSaleIndex + 1]) {
+          // Fetch harvest for the new sale to get crop ID
+          axios.get(`/cosechas/${todaysSales[currentSaleIndex + 1].id}`)
+            .then(response => {
+              const harvest = response.data;
+              setSelectedCropId(harvest?.fkCultivosVariedadXZonaId || null);
+            })
+            .catch(error => console.error('Error updating crop ID:', error));
+        }
+      }, 150);
+    }
+  };
+
+  const prevSalePage = () => {
+    if (currentSaleIndex > 0 && !isSaleAnimating) {
+      setIsSaleAnimating(true);
+      setTimeout(() => {
+        setCurrentSaleIndex(currentSaleIndex - 1);
+        setIsSaleAnimating(false);
+        // Update pie chart when sale changes
+        if (todaysSales[currentSaleIndex - 1]) {
+          // Fetch harvest for the new sale to get crop ID
+          axios.get(`/cosechas/${todaysSales[currentSaleIndex - 1].id}`)
+            .then(response => {
+              const harvest = response.data;
+              setSelectedCropId(harvest?.fkCultivosVariedadXZonaId || null);
+            })
+            .catch(error => console.error('Error updating crop ID:', error));
+        }
+      }, 150);
+    }
+  };
+
   const movementsPerPage = 2;
   const totalMovementPages = Math.ceil(inventoryMovements.length / movementsPerPage);
   const startMovementIndex = currentMovementPage * movementsPerPage;
@@ -434,8 +519,8 @@ const Dashboard: React.FC = () => {
     console.log('[DEBUG] handleNewNotification: Received notification, refreshing data');
     fetchAssignedActivities();
     fetchTodaysInventoryMovements(); // Also fetch movements on notification
-    fetchLastSale(); // Fetch latest sale data
-    fetchLastHarvest(); // Fetch latest harvest data
+    fetchTodaysSales(); // Fetch today's sales data
+    fetchTodaysHarvests(); // Fetch today's harvests data
   };
 
   // Use the notifications socket hook
@@ -451,8 +536,8 @@ const Dashboard: React.FC = () => {
     console.log('[DEBUG] Dashboard: Initial useEffect - fetching all data');
     fetchAssignedActivities();
     fetchTodaysInventoryMovements();
-    fetchLastSale();
-    fetchLastHarvest();
+    fetchTodaysSales();
+    fetchTodaysHarvests();
   }, []);
 
   // Update pie chart when selected crop changes
@@ -644,58 +729,101 @@ const Dashboard: React.FC = () => {
             </Card>
           </div>
 
-          {/* Last Sale Card - Centered and slightly taller */}
-          <Card className="shadow-lg hover:shadow-xl transition-shadow flex-1 flex flex-col">
+          {/* Today's Sales Card - Centered and slightly taller */}
+          <Card
+            className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
+            onMouseEnter={() => setIsMovementsHovered(true)}
+            onMouseLeave={() => setIsMovementsHovered(false)}
+          >
             <CardHeader className="flex items-center gap-3">
               <CurrencyDollarIcon className="w-8 h-8 text-yellow-500" />
-              <h3 className="text-lg font-semibold">Última Venta</h3>
+              <h3 className="text-lg font-semibold">Ventas de Hoy</h3>
             </CardHeader>
-            <CardBody className="flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-                <div className="flex flex-col justify-center">
-                  {lastSale ? (
-                    <>
-                      <p className="text-gray-700"><strong>Fecha:</strong> {new Date(lastSale.fecha).toLocaleDateString()}</p>
-                      <p className="text-gray-700"><strong>Ingreso:</strong> ${lastSale.ingresoTotal.toFixed(2)}</p>
-                      <p className="text-gray-700"><strong>Cantidad Vendida:</strong> {lastSale.cantidad} kg</p>
-                      <p className="text-gray-700"><strong>Precio de Venta:</strong> ${lastSale.precioVenta.toFixed(2)}</p>
-                      <p className="text-gray-700"><strong>Cultivo - Zona:</strong> {lastSale.cultivo} - {lastSale.zona}</p>
-                    </>
-                  ) : (
-                    <p className="text-gray-700">No hay ventas registradas</p>
-                  )}
+            <CardBody className={`transition-transform duration-300 ease-in-out ${isMovementAnimating ? 'transform -translate-y-2' : ''}`}>
+              {todaysSales.length === 0 ? (
+                <p className="text-gray-700">No hay ventas registradas hoy</p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="border-l-4 border-yellow-500 pl-3 py-2">
+                    <p className="text-gray-700 font-medium">
+                      {todaysSales[currentSaleIndex].cultivo} - {todaysSales[currentSaleIndex].zona}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Fecha: {new Date(todaysSales[currentSaleIndex].fecha).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Ingreso: ${todaysSales[currentSaleIndex].ingresoTotal.toFixed(2)} | Cantidad: {todaysSales[currentSaleIndex].cantidad} kg
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Precio: ${todaysSales[currentSaleIndex].precioVenta.toFixed(2)}
+                    </p>
+                    {todaysSales.length > 1 && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        Venta {currentSaleIndex + 1} de {todaysSales.length}
+                      </p>
+                    )}
+                    <div className="mt-2 w-full h-px bg-gray-200"></div>
+                  </div>
                 </div>
-                <div className="flex justify-center items-center">
-                  <ResponsiveContainer width="100%" height={120}>
-                    <PieChart>
-                      <Pie data={pieChartData} dataKey="value" outerRadius={50}>
-                        {pieChartData.map((entry: any) => (
-                          <Cell key={`cell-${entry.name}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              )}
             </CardBody>
+
+            {/* Navigation Buttons - Only visible on hover when there are multiple sales */}
+            {isMovementsHovered && todaysSales.length > 1 && (
+              <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+                <button
+                  onClick={prevSalePage}
+                  disabled={currentSaleIndex === 0 || isSaleAnimating}
+                  className={`p-2 rounded-full text-white shadow-lg transition-all duration-200 ${
+                    currentSaleIndex === 0 || isSaleAnimating
+                      ? 'opacity-50 cursor-not-allowed bg-[#15A55A]'
+                      : 'hover:scale-110 bg-[#15A55A] hover:bg-[#128a4a]'
+                  }`}
+                  aria-label="Previous sale"
+                >
+                  <ChevronUpIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={nextSalePage}
+                  disabled={currentSaleIndex >= todaysSales.length - 1 || isSaleAnimating}
+                  className={`p-2 rounded-full text-white shadow-lg transition-all duration-200 ${
+                    currentSaleIndex >= todaysSales.length - 1 || isSaleAnimating
+                      ? 'opacity-50 cursor-not-allowed bg-[#15A55A]'
+                      : 'hover:scale-110 bg-[#15A55A] hover:bg-[#128a4a]'
+                  }`}
+                  aria-label="Next sale"
+                >
+                  <ChevronDownIcon className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </Card>
 
-          {/* Last Harvest Card */}
+          {/* Today's Harvests Card */}
           <Card className="shadow-lg hover:shadow-xl transition-shadow flex-1 flex flex-col">
             <CardHeader className="flex items-center gap-3">
               <TruckIcon className="w-8 h-8 text-green-500" />
-              <h3 className="text-lg font-semibold">Última Cosecha</h3>
+              <h3 className="text-lg font-semibold">Cosechas de Hoy</h3>
             </CardHeader>
             <CardBody className="flex-1 flex flex-col justify-center">
-              {lastHarvest ? (
-                <>
-                  <p className="text-gray-700"><strong>Fecha:</strong> {new Date(lastHarvest.fecha).toLocaleDateString()}</p>
-                  <p className="text-gray-700"><strong>Cantidad Cosechada:</strong> {lastHarvest.cantidad} {lastHarvest.unidadMedida}</p>
-                  <p className="text-gray-700"><strong>Cultivo:</strong> {lastHarvest.cultivo}</p>
-                </>
+              {todaysHarvests.length === 0 ? (
+                <p className="text-gray-700">No hay cosechas registradas hoy</p>
               ) : (
-                <p className="text-gray-700">No hay cosechas registradas</p>
+                <div className="space-y-2">
+                  {todaysHarvests.map((harvest, index) => (
+                    <div key={harvest.id} className="border-l-4 border-green-500 pl-3 py-2">
+                      <p className="text-gray-700 font-medium">
+                        {harvest.cultivo}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Fecha: {new Date(harvest.fecha).toLocaleDateString()}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Cantidad: {harvest.cantidad} {harvest.unidadMedida}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardBody>
           </Card>
