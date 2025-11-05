@@ -8,6 +8,7 @@ import { Cosecha } from '../cosechas/entities/cosecha.entity';
 import { CosechasVentas } from '../cosechas_ventas/entities/cosechas_ventas.entity';
 import { Cultivo } from '../cultivos/entities/cultivo.entity';
 import { convertirPrecioAKilo, convertirAKilos, convertirALibras } from '../utils/conversion-unidades.util';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class VentaService {
@@ -20,6 +21,7 @@ export class VentaService {
     private readonly cosechasVentasRepository: Repository<CosechasVentas>,
     @InjectRepository(Cultivo)
     private readonly cultivoRepository: Repository<Cultivo>,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async create(createVentaDto: CreateVentaDto): Promise<Venta> {
@@ -30,11 +32,17 @@ export class VentaService {
 
     // Handle multiple harvest sales
     if (createVentaDto.multipleHarvests && createVentaDto.multipleHarvests.length > 0) {
-      return this.createMultipleHarvestSale(createVentaDto);
+      const venta = await this.createMultipleHarvestSale(createVentaDto);
+      // Emit WebSocket notification for new sale
+      this.emitSaleNotification(venta);
+      return venta;
     }
 
     // Single harvest sale (existing logic)
-    return this.createSingleHarvestSale(createVentaDto);
+    const venta = await this.createSingleHarvestSale(createVentaDto);
+    // Emit WebSocket notification for new sale
+    this.emitSaleNotification(venta);
+    return venta;
   }
 
   private async createSingleHarvestSale(createVentaDto: CreateVentaDto): Promise<Venta> {
@@ -251,6 +259,15 @@ export class VentaService {
     }
 
     console.log(`[DEBUG] Distribución completada. Cantidad restante sin distribuir: ${remainingQuantity}`);
+  }
+
+  private emitSaleNotification(venta: Venta): void {
+    console.log(`[DEBUG] Emitting sale notification for venta: ${venta.id}`);
+    this.notificationsGateway.emitNotificationToAll({
+      type: 'new_sale',
+      data: venta,
+      message: 'Nueva venta registrada'
+    });
   }
 
   async findAll(): Promise<Venta[]> {

@@ -11,6 +11,11 @@ export const getCosechas = async (): Promise<Cosecha[]> => {
   return response.data;
 };
 
+export const getCosechasToday = async (): Promise<Cosecha[]> => {
+  const response = await apiClient.get('/cosechas/today');
+  return response.data;
+};
+
 export const getCosechasByCultivo = async (cvzId: string): Promise<Cosecha[]> => {
   const response = await apiClient.get(`/cosechas/cultivo/${cvzId}`);
   return response.data;

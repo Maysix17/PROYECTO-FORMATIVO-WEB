@@ -22,7 +22,12 @@ export class CosechasController {
 
   @Get()
   findAll() {
-    return this.cosechasService.findAllWithDisponible();
+    return this.cosechasService.findAll();
+  }
+
+  @Get('today')
+  findAllToday() {
+    return this.cosechasService.findAllToday();
   }
 
   @Get(':id')

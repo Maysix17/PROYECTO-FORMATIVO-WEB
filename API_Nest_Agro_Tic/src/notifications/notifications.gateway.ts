@@ -17,7 +17,7 @@ import { Cache } from 'cache-manager';
 @WebSocketGateway({
   namespace: '/notifications',
   cors: {
-    origin: 'http://localhost:5173',
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
     credentials: true,
   },
 })
@@ -94,6 +94,12 @@ export class NotificationsGateway
   emitNotificationToUser(userId: string, notification: any) {
     this.logger.log(`Emitting notification to user ${userId}: ${JSON.stringify(notification)}`);
     this.server.to(userId).emit('newNotification', notification);
+  }
+
+  // Method to emit notification to all users (for broadcast)
+  emitNotificationToAll(notification: any) {
+    this.logger.log(`Broadcasting notification to all users: ${JSON.stringify(notification)}`);
+    this.server.emit('newNotification', notification);
   }
 
   @SubscribeMessage('subscribeToNotifications')

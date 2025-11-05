@@ -14,8 +14,18 @@ export const useNotificationsSocket = (onNotification?: (notification: Notificat
     console.log('[DEBUG] useNotificationsSocket: Initializing socket connection');
     console.log('[DEBUG] useNotificationsSocket: API URL:', import.meta.env.VITE_API_URL);
 
+    // Get token from localStorage
+    const token = localStorage.getItem('access_token');
+    console.log('[DEBUG] useNotificationsSocket: Token available:', !!token);
+
     const socket: Socket = io(`${import.meta.env.VITE_API_URL}/notifications`, {
       withCredentials: true,
+      auth: {
+        token: token
+      },
+      query: {
+        token: token
+      }
     });
 
     socket.on('connect', () => {

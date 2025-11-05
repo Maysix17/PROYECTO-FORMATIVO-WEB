@@ -12,6 +12,9 @@ export interface Cosecha {
   // CAMPOS DE INVENTARIO
   cantidadDisponible: number;
   cerrado: boolean;
+
+  // RELATIONS
+  cultivosVariedadXZona?: any;
 }
 
 export interface CreateCosechaDto {

@@ -8,6 +8,7 @@ import { Cultivo } from '../cultivos/entities/cultivo.entity';
 import { CultivosVariedadXZona } from '../cultivos_variedad_x_zona/entities/cultivos_variedad_x_zona.entity';
 import { CultivosXVariedad } from '../cultivos_x_variedad/entities/cultivos_x_variedad.entity';
 import { Variedad } from '../variedad/entities/variedad.entity';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class CosechasService {
@@ -22,6 +23,7 @@ export class CosechasService {
     private readonly cxvRepository: Repository<CultivosXVariedad>,
     @InjectRepository(Variedad)
     private readonly variedadRepository: Repository<Variedad>,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async create(createCosechaDto: CreateCosechaDto): Promise<Cosecha> {
@@ -43,6 +45,9 @@ export class CosechasService {
     });
     const savedCosecha = await this.cosechaRepository.save(cosecha);
 
+    // Emit WebSocket notification for new harvest
+    this.emitHarvestNotification(savedCosecha);
+
     // NOTE: Transitorio crops are no longer auto-finalized on harvest.
     // They remain active until "Cerrar venta de cosecha actual" is pressed,
     // which will finalize the crop.
@@ -51,7 +56,33 @@ export class CosechasService {
   }
 
   async findAll(): Promise<Cosecha[]> {
-    return await this.cosechaRepository.find();
+    return await this.cosechaRepository.find({
+      relations: [
+        'cultivosVariedadXZona',
+        'cultivosVariedadXZona.cultivoXVariedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
+        'cultivosVariedadXZona.zona'
+      ],
+    });
+  }
+
+  async findAllToday(): Promise<Cosecha[]> {
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    return await this.cosechaRepository.find({
+      where: {
+        fecha: todayString
+      },
+      relations: [
+        'cultivosVariedadXZona',
+        'cultivosVariedadXZona.cultivoXVariedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
+        'cultivosVariedadXZona.zona'
+      ],
+    });
   }
 
   async findOne(id: string): Promise<Cosecha> {
@@ -259,5 +290,14 @@ export class CosechasService {
 
     // Guardar los cambios
     return await this.cosechaRepository.save(cosechasCerradas);
+  }
+
+  private emitHarvestNotification(cosecha: Cosecha): void {
+    console.log(`[DEBUG] Emitting harvest notification for cosecha: ${cosecha.id}`);
+    this.notificationsGateway.emitNotificationToAll({
+      type: 'new_harvest',
+      data: cosecha,
+      message: 'Nueva cosecha registrada'
+    });
   }
 }

@@ -22,7 +22,9 @@ import { useNotificationsSocket } from '../hooks/useNotificationsSocket';
 // Removed unused import
 import { movementsService } from '../services/movementsService';
 import { getVentas } from '../services/ventaService';
-import { getCosechas } from '../services/cosechasService';
+import { getCosechas, getCosechasToday } from '../services/cosechasService';
+import type { Venta } from '../types/venta.types';
+import type { Cosecha } from '../types/cosechas.types';
 import type { MovimientoInventario } from '../types/movements.types';
 
 // Mock data for prototype
@@ -114,11 +116,17 @@ const Dashboard: React.FC = () => {
   const [isMovementsHovered, setIsMovementsHovered] = useState(false);
   const [isMovementAnimating, setIsMovementAnimating] = useState(false);
 
+  // Sales hover state
+  const [isSaleHovered, setIsSaleHovered] = useState(false);
+
   // Real data states
   const [todaysSales, setTodaysSales] = useState<LastSaleData[]>([]);
   const [currentSaleIndex, setCurrentSaleIndex] = useState(0);
   const [isSaleAnimating, setIsSaleAnimating] = useState(false);
   const [todaysHarvests, setTodaysHarvests] = useState<LastHarvestData[]>([]);
+  const [currentHarvestIndex, setCurrentHarvestIndex] = useState(0);
+  const [isHarvestHovered, setIsHarvestHovered] = useState(false);
+  const [isHarvestAnimating, setIsHarvestAnimating] = useState(false);
   const [selectedCropId, setSelectedCropId] = useState<string | null>(null);
   const [pieChartData, setPieChartData] = useState<any[]>([]);
 
@@ -218,19 +226,22 @@ const Dashboard: React.FC = () => {
   const fetchTodaysSales = async () => {
     try {
       console.log('[DEBUG] fetchTodaysSales: Starting to fetch today\'s sales');
-      const ventas = await getVentas();
+      const ventas: Venta[] = await getVentas();
       console.log('[DEBUG] fetchTodaysSales: Retrieved ventas:', ventas.length, 'sales');
+      console.log('[DEBUG] fetchTodaysSales: Ventas data:', ventas);
 
       if (ventas.length > 0) {
         // Get today's date
         const today = new Date();
         const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-        // Filter sales for today
-        const todaysVentas = ventas.filter(venta => {
-          const ventaDate = new Date(venta.fecha).toISOString().split('T')[0];
-          return ventaDate === todayString;
-        });
+        // Filter sales for today and sort by ID (most recent first, assuming auto-incrementing IDs)
+        const todaysVentas = ventas
+          .filter(venta => {
+            const ventaDate = new Date(venta.fecha).toISOString().split('T')[0];
+            return ventaDate === todayString;
+          })
+          .sort((a, b) => b.id.localeCompare(a.id)); // Sort by ID descending (most recent first)
 
         console.log('[DEBUG] fetchTodaysSales: Today\'s sales:', todaysVentas.length);
 
@@ -252,10 +263,10 @@ const Dashboard: React.FC = () => {
                   return {
                     id: venta.id,
                     fecha: venta.fecha,
-                    cantidad: parseFloat(venta.cantidad),
-                    precioKilo: parseFloat(venta.precioKilo) || 0,
-                    ingresoTotal: parseFloat(venta.cantidad) * (parseFloat(venta.precioKilo) || 0),
-                    precioVenta: parseFloat(venta.precioUnitario) || 0,
+                    cantidad: parseFloat(String(venta.cantidad)),
+                    precioKilo: parseFloat(String(venta.precioKilo)) || 0,
+                    ingresoTotal: parseFloat(String(venta.cantidad)) * (parseFloat(String(venta.precioKilo)) || 0),
+                    precioVenta: parseFloat(String(venta.precioUnitario)) || 0,
                     producto: 'Producto',
                     cultivo: `${tipoCultivo}, ${variedad}`,
                     zona: zona,
@@ -264,10 +275,10 @@ const Dashboard: React.FC = () => {
                   return {
                     id: venta.id,
                     fecha: venta.fecha,
-                    cantidad: parseFloat(venta.cantidad),
-                    precioKilo: parseFloat(venta.precioKilo) || 0,
-                    ingresoTotal: parseFloat(venta.cantidad) * (parseFloat(venta.precioKilo) || 0),
-                    precioVenta: parseFloat(venta.precioUnitario) || 0,
+                    cantidad: parseFloat(String(venta.cantidad)),
+                    precioKilo: parseFloat(String(venta.precioKilo)) || 0,
+                    ingresoTotal: parseFloat(String(venta.cantidad)) * (parseFloat(String(venta.precioKilo)) || 0),
+                    precioVenta: parseFloat(String(venta.precioUnitario)) || 0,
                     producto: 'Producto',
                     cultivo: 'Cultivo desconocido',
                     zona: 'Zona desconocida',
@@ -278,10 +289,10 @@ const Dashboard: React.FC = () => {
                 return {
                   id: venta.id,
                   fecha: venta.fecha,
-                  cantidad: parseFloat(venta.cantidad),
-                  precioKilo: parseFloat(venta.precioKilo) || 0,
-                  ingresoTotal: parseFloat(venta.cantidad) * (parseFloat(venta.precioKilo) || 0),
-                  precioVenta: parseFloat(venta.precioUnitario) || 0,
+                  cantidad: parseFloat(String(venta.cantidad)),
+                  precioKilo: parseFloat(String(venta.precioKilo)) || 0,
+                  ingresoTotal: parseFloat(String(venta.cantidad)) * (parseFloat(String(venta.precioKilo)) || 0),
+                  precioVenta: parseFloat(String(venta.precioUnitario)) || 0,
                   producto: 'Producto',
                   cultivo: 'Cultivo desconocido',
                   zona: 'Zona desconocida',
@@ -318,78 +329,45 @@ const Dashboard: React.FC = () => {
   const fetchTodaysHarvests = async () => {
     try {
       console.log('[DEBUG] fetchTodaysHarvests: Starting to fetch today\'s harvests');
-      const cosechas = await getCosechas();
+      const cosechas: Cosecha[] = await getCosechasToday();
       console.log('[DEBUG] fetchTodaysHarvests: Retrieved cosechas:', cosechas.length, 'harvests');
+      console.log('[DEBUG] fetchTodaysHarvests: Cosechas data:', cosechas);
 
       if (cosechas.length > 0) {
-        // Get today's date
-        const today = new Date();
-        const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+        console.log('[DEBUG] fetchTodaysHarvests: Today\'s harvests:', cosechas.length);
 
-        // Filter harvests for today and take up to 2
-        const todaysCosechas = cosechas
-          .filter(cosecha => {
-            const cosechaDate = new Date(cosecha.fecha || '').toISOString().split('T')[0];
-            return cosechaDate === todayString;
-          })
-          .slice(0, 2); // Limit to 2 results
+        // Process each harvest to get crop details
+        const harvestsData: LastHarvestData[] = cosechas.map((cosecha) => {
+          if (cosecha.cultivosVariedadXZona) {
+            const cvz = cosecha.cultivosVariedadXZona;
+            const tipoCultivo = cvz.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo desconocido';
+            const variedad = cvz.cultivoXVariedad?.variedad?.nombre || 'Variedad desconocida';
+            const zona = cvz.zona?.nombre || 'Zona desconocida';
 
-        console.log('[DEBUG] fetchTodaysHarvests: Today\'s harvests:', todaysCosechas.length);
+            return {
+              id: cosecha.id,
+              fecha: cosecha.fecha || '',
+              cantidad: cosecha.cantidad,
+              unidadMedida: cosecha.unidadMedida,
+              cultivo: `${tipoCultivo}, ${variedad}`,
+              zona: zona,
+            };
+          } else {
+            return {
+              id: cosecha.id,
+              fecha: cosecha.fecha || '',
+              cantidad: cosecha.cantidad,
+              unidadMedida: cosecha.unidadMedida,
+              cultivo: 'Cultivo desconocido - Zona desconocida',
+            };
+          }
+        });
 
-        if (todaysCosechas.length > 0) {
-          // Process each harvest to get crop details
-          const harvestsData: LastHarvestData[] = await Promise.all(
-            todaysCosechas.map(async (cosecha) => {
-              try {
-                console.log('[DEBUG] fetchTodaysHarvests: Fetching harvest details for cosechaId:', cosecha.id);
-                const harvestResponse = await axios.get(`/cosechas/${cosecha.id}`);
-                const harvestWithRelations = harvestResponse.data;
-
-                if (harvestWithRelations && harvestWithRelations.cultivosVariedadXZona) {
-                  const cvz = harvestWithRelations.cultivosVariedadXZona;
-                  const tipoCultivo = cvz.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo desconocido';
-                  const variedad = cvz.cultivoXVariedad?.variedad?.nombre || 'Variedad desconocida';
-                  const zona = cvz.zona?.nombre || 'Zona desconocida';
-
-                  return {
-                    id: cosecha.id,
-                    fecha: cosecha.fecha || '',
-                    cantidad: cosecha.cantidad,
-                    unidadMedida: cosecha.unidadMedida,
-                    cultivo: `${tipoCultivo}, ${variedad}`,
-                    zona: zona,
-                  };
-                } else {
-                  return {
-                    id: cosecha.id,
-                    fecha: cosecha.fecha || '',
-                    cantidad: cosecha.cantidad,
-                    unidadMedida: cosecha.unidadMedida,
-                    cultivo: 'Cultivo desconocido - Zona desconocida',
-                  };
-                }
-              } catch (error) {
-                console.error('[DEBUG] fetchTodaysHarvests: Error fetching harvest details for:', cosecha.id, error);
-                return {
-                  id: cosecha.id,
-                  fecha: cosecha.fecha || '',
-                  cantidad: cosecha.cantidad,
-                  unidadMedida: cosecha.unidadMedida,
-                  cultivo: 'Cultivo desconocido',
-                  zona: 'Zona desconocida',
-                };
-              }
-            })
-          );
-
-          console.log('[DEBUG] fetchTodaysHarvests: Setting harvests data:', harvestsData);
-          setTodaysHarvests(harvestsData);
-        } else {
-          console.log('[DEBUG] fetchTodaysHarvests: No harvests today');
-          setTodaysHarvests([]);
-        }
+        console.log('[DEBUG] fetchTodaysHarvests: Setting harvests data:', harvestsData);
+        setTodaysHarvests(harvestsData);
+        setCurrentHarvestIndex(0); // Reset to first harvest when data changes
       } else {
-        console.log('[DEBUG] fetchTodaysHarvests: No harvests found');
+        console.log('[DEBUG] fetchTodaysHarvests: No harvests today');
         setTodaysHarvests([]);
       }
     } catch (error) {
@@ -422,7 +400,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const itemsPerPage = 2;
+  const itemsPerPage = 1;
   const totalPages = Math.ceil(assignedActivities.length / itemsPerPage);
   const startIndex = currentActivityIndex * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -514,12 +492,36 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const nextHarvestPage = () => {
+    if (currentHarvestIndex < todaysHarvests.length - 1 && !isHarvestAnimating) {
+      setIsHarvestAnimating(true);
+      setTimeout(() => {
+        setCurrentHarvestIndex(currentHarvestIndex + 1);
+        setIsHarvestAnimating(false);
+      }, 150);
+    }
+  };
+
+  const prevHarvestPage = () => {
+    if (currentHarvestIndex > 0 && !isHarvestAnimating) {
+      setIsHarvestAnimating(true);
+      setTimeout(() => {
+        setCurrentHarvestIndex(currentHarvestIndex - 1);
+        setIsHarvestAnimating(false);
+      }, 150);
+    }
+  };
+
   // Handler for new notifications
   const handleNewNotification = () => {
     console.log('[DEBUG] handleNewNotification: Received notification, refreshing data');
+    console.log('[DEBUG] handleNewNotification: Calling fetchAssignedActivities');
     fetchAssignedActivities();
+    console.log('[DEBUG] handleNewNotification: Calling fetchTodaysInventoryMovements');
     fetchTodaysInventoryMovements(); // Also fetch movements on notification
+    console.log('[DEBUG] handleNewNotification: Calling fetchTodaysSales');
     fetchTodaysSales(); // Fetch today's sales data
+    console.log('[DEBUG] handleNewNotification: Calling fetchTodaysHarvests');
     fetchTodaysHarvests(); // Fetch today's harvests data
   };
 
@@ -553,9 +555,9 @@ const Dashboard: React.FC = () => {
     <div className="bg-gray-50 w-full flex flex-col h-full">
 
       {/* Grid Layout for Cards - Optimized for no scroll */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Left Column - 2 cards */}
-        <div className="lg:col-span-2 flex flex-col gap-6 h-full">
+        <div className="lg:col-span-2 flex flex-col gap-4 h-full">
           {/* Pending Activities Card */}
           <Card
             className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
@@ -566,28 +568,31 @@ const Dashboard: React.FC = () => {
               <ClockIcon className="w-8 h-8 text-orange-500" />
               <h3 className="text-lg font-semibold">Actividades Programadas</h3>
             </CardHeader>
-            <CardBody className={`transition-transform duration-300 ease-in-out ${isAnimating ? 'transform -translate-y-2' : ''}`}>
-              <ul className="space-y-2">
-                {assignedActivities.length === 0 ? (
-                  <li className="border-l-4 border-orange-500 pl-3 py-2">
-                    <p className="text-gray-700">No tienes actividades asignadas</p>
-                  </li>
-                ) : (
-                  currentActivities.map((activity) => (
-                    <li key={activity.id} className="border-l-4 border-orange-500 pl-3 py-2">
-                      <p className="text-gray-700 font-medium">
-                        {activity.actividad?.categoriaActividad?.nombre || 'Sin categoría'}: {activity.actividad?.descripcion || 'Sin descripción'}
+            <CardBody className={`transition-transform duration-300 ease-in-out ${isAnimating ? 'transform -translate-y-2' : ''} flex flex-col justify-start`}>
+              {assignedActivities.length === 0 ? (
+                <div className="text-center">
+                  <p className="text-gray-700">No tienes actividades asignadas</p>
+                </div>
+              ) : (
+                <div>
+                  <div className="border-l-4 border-orange-500 pl-3 py-2 inline-block text-left">
+                    <p className="text-gray-700 font-medium">
+                      {currentActivities[0].actividad?.categoriaActividad?.nombre || 'Sin categoría'}: {currentActivities[0].actividad?.descripcion || 'Sin descripción'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Zona: {currentActivities[0].actividad?.cultivoVariedadZona?.zona?.nombre || 'Sin zona'} | Asignado por: {currentActivities[0].actividad?.responsable?.nombres || 'N/A'} {currentActivities[0].actividad?.responsable?.apellidos || ''} / {currentActivities[0].actividad?.responsable?.rol?.nombre || 'Sin rol'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Fecha de asignación: {new Date(currentActivities[0].fechaAsignacion).toLocaleDateString()}
+                    </p>
+                    {assignedActivities.length > itemsPerPage && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Actividad {currentActivityIndex + 1} de {assignedActivities.length}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        Zona: {activity.actividad?.cultivoVariedadZona?.zona?.nombre || 'Sin zona'} | Asignado por: {activity.actividad?.responsable?.nombres || 'N/A'} {activity.actividad?.responsable?.apellidos || ''} / {activity.actividad?.responsable?.rol?.nombre || 'Sin rol'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Fecha de asignación: {new Date(activity.fechaAsignacion).toLocaleDateString()}
-                      </p>
-                    </li>
-                  ))
-                )}
-              </ul>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardBody>
 
             {/* Navigation Buttons - Only visible on hover */}
@@ -636,7 +641,7 @@ const Dashboard: React.FC = () => {
                 <p className="text-gray-700">No hay movimientos registrados hoy</p>
               ) : (
                 <div className="space-y-2">
-                  {currentMovements.map((movement) => (
+                  {currentMovements.map((movement, index) => (
                     <div key={movement.id} className="border-l-4 border-purple-500 pl-3 py-2">
                       <p className="text-gray-700 font-medium">
                         {movement.type}: {movement.product}
@@ -647,6 +652,11 @@ const Dashboard: React.FC = () => {
                       <p className="text-sm text-gray-600">
                         Fecha: {movement.date}
                       </p>
+                      {inventoryMovements.length > movementsPerPage && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Movimiento {(currentMovementPage * movementsPerPage) + index + 1} de {inventoryMovements.length}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -686,9 +696,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Right Column - 3 cards */}
-        <div className="lg:col-span-2 flex flex-col gap-6 h-full">
-          {/* Welcome and Environmental Data Cards - Side by side with equal height */}
-          <div className="flex gap-4 flex-1">
+        <div className="lg:col-span-2 flex flex-col gap-4 h-full">
+          {/* Welcome and Environmental Data Cards - Side by side with fixed height */}
+          <div className="flex gap-3 flex-none h-36">
             {/* Environmental Data Card */}
             <Card className="shadow-lg hover:shadow-xl transition-shadow flex-1 flex flex-col">
               <CardHeader className="flex items-center gap-3">
@@ -729,47 +739,64 @@ const Dashboard: React.FC = () => {
             </Card>
           </div>
 
-          {/* Today's Sales Card - Centered and slightly taller */}
+          {/* Today's Sales Card - Compact layout */}
           <Card
             className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
-            onMouseEnter={() => setIsMovementsHovered(true)}
-            onMouseLeave={() => setIsMovementsHovered(false)}
+            onMouseEnter={() => setIsSaleHovered(true)}
+            onMouseLeave={() => setIsSaleHovered(false)}
           >
             <CardHeader className="flex items-center gap-3">
               <CurrencyDollarIcon className="w-8 h-8 text-yellow-500" />
               <h3 className="text-lg font-semibold">Ventas de Hoy</h3>
             </CardHeader>
-            <CardBody className={`transition-transform duration-300 ease-in-out ${isMovementAnimating ? 'transform -translate-y-2' : ''}`}>
-              {todaysSales.length === 0 ? (
-                <p className="text-gray-700">No hay ventas registradas hoy</p>
-              ) : (
-                <div className="space-y-2">
-                  <div className="border-l-4 border-yellow-500 pl-3 py-2">
-                    <p className="text-gray-700 font-medium">
-                      {todaysSales[currentSaleIndex].cultivo} - {todaysSales[currentSaleIndex].zona}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Fecha: {new Date(todaysSales[currentSaleIndex].fecha).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Ingreso: ${todaysSales[currentSaleIndex].ingresoTotal.toFixed(2)} | Cantidad: {todaysSales[currentSaleIndex].cantidad} kg
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Precio: ${todaysSales[currentSaleIndex].precioVenta.toFixed(2)}
-                    </p>
-                    {todaysSales.length > 1 && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        Venta {currentSaleIndex + 1} de {todaysSales.length}
-                      </p>
-                    )}
-                    <div className="mt-2 w-full h-px bg-gray-200"></div>
+            <CardBody className={`transition-transform duration-300 ease-in-out ${isMovementAnimating ? 'transform -translate-y-2' : ''} py-3`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 h-full">
+                <div className="flex flex-col justify-center">
+                  {todaysSales.length === 0 ? (
+                    <p className="text-sm text-gray-700">No hay ventas registradas hoy</p>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="border-l-4 border-yellow-500 pl-3 py-2">
+                        <p className="text-gray-700 font-medium">
+                          {todaysSales[currentSaleIndex].cultivo} - {todaysSales[currentSaleIndex].zona}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Fecha: {new Date(todaysSales[currentSaleIndex].fecha).toLocaleDateString()}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Ingreso: ${todaysSales[currentSaleIndex].ingresoTotal.toFixed(2)} | Cantidad: {todaysSales[currentSaleIndex].cantidad} kg
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Precio: ${todaysSales[currentSaleIndex].precioVenta.toFixed(2)}
+                        </p>
+                        {todaysSales.length > 1 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Venta {currentSaleIndex + 1} de {todaysSales.length}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-center items-center">
+                  <div className="w-full flex justify-center">
+                    <ResponsiveContainer width="80%" height={100}>
+                      <PieChart>
+                        <Pie data={pieChartData} dataKey="value" outerRadius={40}>
+                          {pieChartData.map((entry: any) => (
+                            <Cell key={`cell-${entry.name}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-              )}
+              </div>
             </CardBody>
 
             {/* Navigation Buttons - Only visible on hover when there are multiple sales */}
-            {isMovementsHovered && todaysSales.length > 1 && (
+            {isSaleHovered && todaysSales.length > 1 && (
               <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
                 <button
                   onClick={prevSalePage}
@@ -800,32 +827,69 @@ const Dashboard: React.FC = () => {
           </Card>
 
           {/* Today's Harvests Card */}
-          <Card className="shadow-lg hover:shadow-xl transition-shadow flex-1 flex flex-col">
+          <Card
+            className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
+            onMouseEnter={() => setIsHarvestHovered(true)}
+            onMouseLeave={() => setIsHarvestHovered(false)}
+          >
             <CardHeader className="flex items-center gap-3">
               <TruckIcon className="w-8 h-8 text-green-500" />
               <h3 className="text-lg font-semibold">Cosechas de Hoy</h3>
             </CardHeader>
-            <CardBody className="flex-1 flex flex-col justify-center">
+            <CardBody className={`transition-transform duration-300 ease-in-out ${isHarvestAnimating ? 'transform -translate-y-2' : ''} py-3`}>
               {todaysHarvests.length === 0 ? (
-                <p className="text-gray-700">No hay cosechas registradas hoy</p>
+                <p className="text-sm text-gray-700">No hay cosechas registradas hoy</p>
               ) : (
-                <div className="space-y-2">
-                  {todaysHarvests.map((harvest, index) => (
-                    <div key={harvest.id} className="border-l-4 border-green-500 pl-3 py-2">
-                      <p className="text-gray-700 font-medium">
-                        {harvest.cultivo}
+                <div className="space-y-1">
+                  <div className="border-l-4 border-green-500 pl-3 py-2">
+                    <p className="text-gray-700 font-medium">
+                      {todaysHarvests[currentHarvestIndex].cultivo} - {todaysHarvests[currentHarvestIndex].zona}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Fecha: {new Date(todaysHarvests[currentHarvestIndex].fecha).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Cantidad: {todaysHarvests[currentHarvestIndex].cantidad} {todaysHarvests[currentHarvestIndex].unidadMedida}
+                    </p>
+                    {todaysHarvests.length > 1 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Cosecha {currentHarvestIndex + 1} de {todaysHarvests.length}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        Fecha: {new Date(harvest.fecha).toLocaleDateString()}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Cantidad: {harvest.cantidad} {harvest.unidadMedida}
-                      </p>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
               )}
             </CardBody>
+
+            {/* Navigation Buttons - Only visible on hover when there are multiple harvests */}
+            {isHarvestHovered && todaysHarvests.length > 1 && (
+              <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+                <button
+                  onClick={prevHarvestPage}
+                  disabled={currentHarvestIndex === 0 || isHarvestAnimating}
+                  className={`p-2 rounded-full text-white shadow-lg transition-all duration-200 ${
+                    currentHarvestIndex === 0 || isHarvestAnimating
+                      ? 'opacity-50 cursor-not-allowed bg-[#15A55A]'
+                      : 'hover:scale-110 bg-[#15A55A] hover:bg-[#128a4a]'
+                  }`}
+                  aria-label="Previous harvest"
+                >
+                  <ChevronUpIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={nextHarvestPage}
+                  disabled={currentHarvestIndex >= todaysHarvests.length - 1 || isHarvestAnimating}
+                  className={`p-2 rounded-full text-white shadow-lg transition-all duration-200 ${
+                    currentHarvestIndex >= todaysHarvests.length - 1 || isHarvestAnimating
+                      ? 'opacity-50 cursor-not-allowed bg-[#15A55A]'
+                      : 'hover:scale-110 bg-[#15A55A] hover:bg-[#128a4a]'
+                  }`}
+                  aria-label="Next harvest"
+                >
+                  <ChevronDownIcon className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </Card>
         </div>
       </div>
