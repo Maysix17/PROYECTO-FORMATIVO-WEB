@@ -22,7 +22,8 @@ const userSearchService = {
   },
   searchByDni: async (dni: string): Promise<User[]> => {
     const response = await apiClient.get(`/usuarios/search/dni/${dni}`);
-    return response.data;
+    // The backend returns a single user object, not an array
+    return Array.isArray(response.data) ? response.data : [response.data];
   },
 };
 

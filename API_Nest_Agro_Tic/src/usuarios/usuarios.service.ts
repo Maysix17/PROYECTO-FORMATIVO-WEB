@@ -203,10 +203,10 @@ export class UsuariosService {
     });
 
     if (!user) {
-      throw new NotFoundException(`Usuario con DNI "${dni}" no encontrado.`);
+      return []; // Return empty array when user not found
     }
 
-    return {
+    return [{
       numero_documento: user.dni,
       nombres: user.nombres,
       apellidos: user.apellidos,
@@ -214,6 +214,6 @@ export class UsuariosService {
       telefono: user.telefono,
       id_ficha: user.ficha?.numero || 'No tiene ficha',
       rol: user.rol?.nombre,
-    };
+    }];
   }
 }

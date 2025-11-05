@@ -22,7 +22,12 @@ const PanelControl: React.FC = () => {
       const data = await userSearchService.searchByDni(searchTerm);
       setResults(Array.isArray(data) ? data.slice(0, 8) : [data]);
     } catch (err: any) {
-      console.error('Error al buscar usuario:', err);
+      // Only log error if it's not a 404 (user not found is expected)
+      if (err.response?.status !== 404) {
+        console.error('Error al buscar usuario:', err);
+      }
+      // For 404, just set empty results
+      setResults([]);
     } finally {
       setLoading(false);
     }

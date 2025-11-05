@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardBody, Button } from '@heroui/react';
 import {
   UserIcon,
@@ -19,7 +19,9 @@ import {
 } from 'recharts';
 import axios from '../lib/axios/axios';
 import { useNotificationsSocket } from '../hooks/useNotificationsSocket';
-import type { Notification } from '../types/notification.types';
+// Removed unused import
+import { movementsService } from '../services/movementsService';
+import type { MovimientoInventario } from '../types/movements.types';
 
 // Mock data for prototype
 const mockUser = {
@@ -39,12 +41,7 @@ const mockLastSale = {
   products: ['Tomates', 'Lechugas', 'Zanahorias'],
 };
 
-const mockLastInventoryMovement = {
-  user: 'María García',
-  date: '2025-10-28',
-  type: 'Entrada',
-  products: ['Fertilizante X: 100 unidades', 'Semillas Y: 50 paquetes'],
-};
+// Removed unused mock data
 
 interface AssignedActivity {
   id: string;
@@ -73,6 +70,15 @@ interface AssignedActivity {
   };
 }
 
+interface InventoryMovement {
+  id: string;
+  userName: string;
+  userId: string; // Assuming cédula is user ID
+  date: string;
+  type: string;
+  product: string;
+}
+
 const environmentalMetrics = [
   { name: 'Humedad', value: '65%', unit: '%' },
   { name: 'pH del Suelo', value: '6.8', unit: '' },
@@ -94,6 +100,14 @@ const Dashboard: React.FC = () => {
   const [isActivitiesHovered, setIsActivitiesHovered] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  // Inventory movements state
+  const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
+  const [currentMovementIndex, setCurrentMovementIndex] = useState(0);
+  const [isMovementsHovered, setIsMovementsHovered] = useState(false);
+  const [isMovementAnimating, setIsMovementAnimating] = useState(false);
+  const [isAutoRotating, setIsAutoRotating] = useState(true);
+  const autoRotateRef = useRef<number | null>(null);
+
   const nextMetric = () => {
     setCurrentMetricIndex((prevIndex) =>
       (prevIndex + 1) % environmentalMetrics.length
@@ -103,10 +117,87 @@ const Dashboard: React.FC = () => {
   const fetchAssignedActivities = async () => {
     try {
       const response = await axios.get('/usuarios-x-actividades');
-      setAssignedActivities(response.data);
+      const activities = response.data;
+
+      // Fetch user details for each activity's responsable
+      const activitiesWithUserDetails = await Promise.all(
+        activities.map(async (activity: any) => {
+          if (activity.actividad?.dniResponsable) {
+            const userDetails = await getUserByDni(activity.actividad.dniResponsable);
+            if (userDetails) {
+              return {
+                ...activity,
+                actividad: {
+                  ...activity.actividad,
+                  responsable: {
+                    nombres: userDetails.nombres,
+                    apellidos: userDetails.apellidos,
+                    rol: {
+                      nombre: userDetails.rol?.nombre || 'Sin rol',
+                    },
+                  },
+                },
+              };
+            }
+          }
+          return activity;
+        })
+      );
+
+      setAssignedActivities(activitiesWithUserDetails);
       setCurrentActivityIndex(0); // Reset to first page when data changes
     } catch (error) {
       console.error('Error fetching assigned activities:', error);
+    }
+  };
+
+  // Function to get user name and role by DNI
+  const getUserByDni = async (dni: number) => {
+    try {
+      const response = await axios.get(`/usuarios/search/dni/${dni}`);
+      // Backend now returns an array, take first element if exists
+      const userData = Array.isArray(response.data) ? response.data[0] : response.data;
+      if (!userData) return null;
+
+      return {
+        nombres: userData.nombres,
+        apellidos: userData.apellidos,
+        rol: {
+          nombre: userData.rol,
+        },
+      };
+    } catch (error) {
+      console.error('Error fetching user by DNI:', error);
+      return null;
+    }
+  };
+
+  const fetchTodaysInventoryMovements = async () => {
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+      const movements = await movementsService.getFiltered({
+        startDate: startOfDay,
+        endDate: endOfDay,
+      });
+
+      // Transform the data to match our interface
+      const transformedMovements: InventoryMovement[] = movements.map((movement: MovimientoInventario) => ({
+        id: movement.id,
+        userName: movement.responsable || 'Usuario desconocido',
+        userId: movement.responsable || 'N/A', // Assuming responsable is the user ID or name
+        date: new Date(movement.fechaMovimiento).toLocaleDateString(),
+        type: movement.tipoMovimiento?.nombre || 'Tipo desconocido',
+        product: movement.lote?.producto?.nombre || 'Producto desconocido',
+      }));
+
+      setInventoryMovements(transformedMovements);
+      setCurrentMovementIndex(0); // Reset to first movement
+    } catch (error) {
+      console.error('Error fetching today\'s inventory movements:', error);
+      setInventoryMovements([]);
     }
   };
 
@@ -136,16 +227,80 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const nextMovementPage = () => {
+    if (inventoryMovements.length > 1 && !isMovementAnimating) {
+      setIsMovementAnimating(true);
+      stopAutoRotation();
+      setTimeout(() => {
+        setCurrentMovementIndex((prevIndex) =>
+          (prevIndex + 1) % inventoryMovements.length
+        );
+        setIsMovementAnimating(false);
+      }, 150);
+    }
+  };
+
+  const prevMovementPage = () => {
+    if (inventoryMovements.length > 1 && !isMovementAnimating) {
+      setIsMovementAnimating(true);
+      stopAutoRotation();
+      setTimeout(() => {
+        setCurrentMovementIndex((prevIndex) =>
+          prevIndex === 0 ? inventoryMovements.length - 1 : prevIndex - 1
+        );
+        setIsMovementAnimating(false);
+      }, 150);
+    }
+  };
+
   // Handler for new notifications
   const handleNewNotification = () => {
     fetchAssignedActivities();
+    fetchTodaysInventoryMovements(); // Also fetch movements on notification
   };
 
   // Use the notifications socket hook
   useNotificationsSocket(handleNewNotification);
 
+  // Auto-rotate effect for inventory movements
+  useEffect(() => {
+    if (inventoryMovements.length > 1 && isAutoRotating) {
+      autoRotateRef.current = window.setInterval(() => {
+        setCurrentMovementIndex((prevIndex) =>
+          (prevIndex + 1) % inventoryMovements.length
+        );
+      }, 8000); // 8 seconds for auto-rotation
+    } else {
+      if (autoRotateRef.current) {
+        clearInterval(autoRotateRef.current);
+        autoRotateRef.current = null;
+      }
+    }
+
+    return () => {
+      if (autoRotateRef.current) {
+        clearInterval(autoRotateRef.current);
+      }
+    };
+  }, [inventoryMovements.length, isAutoRotating]);
+
+  // Stop auto-rotation when user interacts
+  const stopAutoRotation = () => {
+    setIsAutoRotating(false);
+    if (autoRotateRef.current) {
+      clearInterval(autoRotateRef.current);
+      autoRotateRef.current = null;
+    }
+  };
+
+  // Resume auto-rotation after inactivity (currently not used, but kept for future enhancement)
+  // const resumeAutoRotation = () => {
+  //   setIsAutoRotating(true);
+  // };
+
   useEffect(() => {
     fetchAssignedActivities();
+    fetchTodaysInventoryMovements();
   }, []);
   return (
     <div className="bg-gray-50 w-full flex flex-col h-full">
@@ -220,22 +375,64 @@ const Dashboard: React.FC = () => {
           </Card>
 
           {/* Last Inventory Movement Card */}
-          <Card className="shadow-lg hover:shadow-xl transition-shadow flex-1">
+          <Card
+            className="shadow-lg hover:shadow-xl transition-shadow flex-1 relative"
+            onMouseEnter={() => setIsMovementsHovered(true)}
+            onMouseLeave={() => setIsMovementsHovered(false)}
+          >
             <CardHeader className="flex items-center gap-3">
               <ChartBarIcon className="w-8 h-8 text-purple-500" />
-              <h3 className="text-lg font-semibold">Último Movimiento en Inventario</h3>
+              <h3 className="text-lg font-semibold">Últimos Movimientos en Inventario</h3>
             </CardHeader>
-            <CardBody>
-              <p className="text-gray-700"><strong>Usuario:</strong> {mockLastInventoryMovement.user}</p>
-              <p className="text-gray-700"><strong>Fecha:</strong> {mockLastInventoryMovement.date}</p>
-              <p className="text-gray-700"><strong>Tipo:</strong> {mockLastInventoryMovement.type}</p>
-              <p className="text-gray-700"><strong>Productos:</strong></p>
-              <ul className="list-disc list-inside text-gray-700">
-                {mockLastInventoryMovement.products.map((product, index) => (
-                  <li key={index}>{product}</li>
-                ))}
-              </ul>
+            <CardBody className={`transition-transform duration-300 ease-in-out ${isMovementAnimating ? 'transform -translate-y-2' : ''}`}>
+              {inventoryMovements.length === 0 ? (
+                <p className="text-gray-700">No hay movimientos registrados hoy</p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="border-l-4 border-purple-500 pl-3 py-2">
+                    <p className="text-gray-700 font-medium">
+                      {inventoryMovements[currentMovementIndex].type}: {inventoryMovements[currentMovementIndex].product}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Usuario: {inventoryMovements[currentMovementIndex].userName} ({inventoryMovements[currentMovementIndex].userId})
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Fecha: {inventoryMovements[currentMovementIndex].date}
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardBody>
+
+            {/* Navigation Buttons - Only visible on hover */}
+            {isMovementsHovered && inventoryMovements.length > 1 && (
+              <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+                <button
+                  onClick={prevMovementPage}
+                  disabled={isMovementAnimating}
+                  className={`p-2 rounded-full text-white shadow-lg transition-all duration-200 ${
+                    isMovementAnimating
+                      ? 'opacity-50 cursor-not-allowed bg-[#15A55A]'
+                      : 'hover:scale-110 bg-[#15A55A] hover:bg-[#128a4a]'
+                  }`}
+                  aria-label="Previous movement"
+                >
+                  <ChevronUpIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={nextMovementPage}
+                  disabled={isMovementAnimating}
+                  className={`p-2 rounded-full text-white shadow-lg transition-all duration-200 ${
+                    isMovementAnimating
+                      ? 'opacity-50 cursor-not-allowed bg-[#15A55A]'
+                      : 'hover:scale-110 bg-[#15A55A] hover:bg-[#128a4a]'
+                  }`}
+                  aria-label="Next movement"
+                >
+                  <ChevronDownIcon className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </Card>
         </div>
 
