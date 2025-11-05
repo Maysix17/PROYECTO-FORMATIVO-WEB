@@ -157,7 +157,77 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
       });
 
       const wsActividades = XLSX.utils.aoa_to_sheet(actividadesData);
+
+      // Set column widths for better readability
+      wsActividades['!cols'] = [
+        { wch: 15 }, // ID
+        { wch: 15 }, // Fecha Asignación
+        { wch: 20 }, // Categoría
+        { wch: 25 }, // Usuario Responsable
+        { wch: 40 }, // Inventario Utilizado
+        { wch: 15 }, // Zona
+        { wch: 12 }, // Estado
+        { wch: 50 }, // Observación
+        { wch: 15 }  // Horas Dedicadas
+      ];
+
       XLSX.utils.book_append_sheet(wb, wsActividades, "Historial de Actividades");
+
+      // Sheet: Detalle de Inventario Utilizado
+      const inventarioData = [
+        ["ID Actividad", "Fecha Asignación", "Categoría", "Usuario Responsable", "Producto", "Cantidad Reservada", "Cantidad Usada", "Unidad de Medida", "Zona", "Estado"]
+      ];
+
+      filteredActivities.forEach((activity: ExtendedActividad) => {
+        if (activity.reservas && activity.reservas.length > 0) {
+          activity.reservas.forEach((reserva: any) => {
+            inventarioData.push([
+              activity.id,
+              formatDate(activity.fechaAsignacion),
+              activity.categoriaActividad?.nombre || 'Sin categoría',
+              getResponsibleUser(activity),
+              reserva.lote?.producto?.nombre || 'Producto desconocido',
+              reserva.cantidadReservada || 0,
+              reserva.cantidadUsada || 0,
+              reserva.lote?.producto?.unidadMedida?.abreviatura || 'N/A',
+              activity.cultivoVariedadZona?.zona?.nombre || 'Sin zona',
+              activity.estado === false ? 'Finalizada' : 'En Progreso'
+            ]);
+          });
+        } else {
+          // If no inventory, still add a row with empty inventory fields
+          inventarioData.push([
+            activity.id,
+            formatDate(activity.fechaAsignacion),
+            activity.categoriaActividad?.nombre || 'Sin categoría',
+            getResponsibleUser(activity),
+            'Sin inventario utilizado',
+            0,
+            0,
+            'N/A',
+            activity.cultivoVariedadZona?.zona?.nombre || 'Sin zona',
+            activity.estado === false ? 'Finalizada' : 'En Progreso'
+          ]);
+        }
+      });
+
+      const wsInventario = XLSX.utils.aoa_to_sheet(inventarioData);
+
+      // Set column widths for inventory sheet
+      wsInventario['!cols'] = [
+        { wch: 15 }, // ID Actividad
+        { wch: 15 }, // Fecha Asignación
+        { wch: 20 }, // Categoría
+        { wch: 25 }, // Usuario Responsable
+        { wch: 30 }, // Producto
+        { wch: 18 }, // Cantidad Reservada
+        { wch: 15 }, // Cantidad Usada
+        { wch: 18 }, // Unidad de Medida
+        { wch: 15 }, // Zona
+        { wch: 12 }  // Estado
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsInventario, "Detalle de Inventario");
 
       // Generate and download file
       const fileName = `Historial_Actividades_${cultivoName}_${new Date().toISOString().split('T')[0]}.xlsx`;
@@ -181,13 +251,6 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
     return 'Sin responsable';
   };
 
-  const getAssignedUsers = (activity: ExtendedActividad) => {
-    if (!activity.usuariosAsignados || activity.usuariosAsignados.length === 0) return 'Sin usuarios asignados';
-    return activity.usuariosAsignados
-      .filter((ua: any) => ua.activo)
-      .map((ua: any) => `${ua.usuario.nombres} ${ua.usuario.apellidos}`)
-      .join(', ');
-  };
 
   const getInventoryUsed = (activity: ExtendedActividad) => {
     if (!activity.reservas || activity.reservas.length === 0) return 'Sin inventario';

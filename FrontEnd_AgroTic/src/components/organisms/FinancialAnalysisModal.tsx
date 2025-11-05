@@ -92,8 +92,6 @@ export const FinancialAnalysisModal: React.FC<FinancialAnalysisModalProps> = ({
       // Sheet 1: Resumen Financiero
       const resumenData = [
         ["Concepto", "Valor"],
-        ["ID del Análisis", finanzas.id],
-        ["ID de Cosecha", finanzas.fkCosechaId],
         ["Cantidad Cosechada", finanzas.cantidadCosechada.toString() + " KG"],
         ["Precio por Kilo", formatCurrency(finanzas.precioPorKilo)],
         ["Fecha de Venta", finanzas.fechaVenta ? new Date(finanzas.fechaVenta).toLocaleDateString('es-CO') : "N/A"],
@@ -108,6 +106,13 @@ export const FinancialAnalysisModal: React.FC<FinancialAnalysisModalProps> = ({
         ["Fecha de Exportación", new Date().toLocaleDateString('es-CO')]
       ];
       const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
+
+      // Set column widths for Resumen Financiero sheet
+      wsResumen['!cols'] = [
+        { wch: 30 }, // Concepto
+        { wch: 25 }  // Valor
+      ];
+
       XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen Financiero");
 
       // Sheet 2: Detalle de Costos
@@ -119,6 +124,14 @@ export const FinancialAnalysisModal: React.FC<FinancialAnalysisModalProps> = ({
         ["Total Costos", "Suma de todos los costos", finanzas.costoTotalProduccion.toString()]
       ];
       const wsCostos = XLSX.utils.aoa_to_sheet(costosData);
+
+      // Set column widths for Detalle de Costos sheet
+      wsCostos['!cols'] = [
+        { wch: 15 }, // Categoría
+        { wch: 35 }, // Descripción
+        { wch: 20 }  // Monto
+      ];
+
       XLSX.utils.book_append_sheet(wb, wsCostos, "Detalle de Costos");
 
       // Sheet 3: Ingresos y Rentabilidad
@@ -130,6 +143,15 @@ export const FinancialAnalysisModal: React.FC<FinancialAnalysisModalProps> = ({
         ["Resultado Final", "", "", formatCurrency(finanzas.ganancias)]
       ];
       const wsIngresos = XLSX.utils.aoa_to_sheet(ingresosData);
+
+      // Set column widths for Ingresos y Rentabilidad sheet
+      wsIngresos['!cols'] = [
+        { wch: 25 }, // Concepto
+        { wch: 20 }, // Cantidad
+        { wch: 20 }, // Precio Unitario
+        { wch: 20 }  // Total
+      ];
+
       XLSX.utils.book_append_sheet(wb, wsIngresos, "Ingresos y Rentabilidad");
 
       // Generate and download file
