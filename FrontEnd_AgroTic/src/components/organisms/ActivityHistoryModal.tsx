@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ModalContent, ModalHeader, ModalBody, Button } from '@heroui/react';
+import { Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
 import CustomButton from '../atoms/Boton';
 import InputSearch from '../atoms/buscador';
 import DateRangeInput from '../atoms/DateRangeInput';
@@ -7,6 +7,7 @@ import Table from '../atoms/Table';
 import { getActividadesByCultivoVariedadZonaId } from '../../services/actividadesService';
 import ActivityHistoryDetailModal from './ActivityHistoryDetailModal';
 import type { Actividad } from '../../services/actividadesService';
+import * as XLSX from 'xlsx';
 
 interface ExtendedActividad extends Actividad {
   categoriaActividad?: { nombre: string };
@@ -64,10 +65,20 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
   const fetchActivities = async () => {
     setLoading(true);
     try {
+      console.log(`[${new Date().toISOString()}] 🔍 FRONTEND: Fetching activities for CVZ ID: ${cvzId}`);
       const data = await getActividadesByCultivoVariedadZonaId(cvzId);
+      console.log(`[${new Date().toISOString()}] 📊 FRONTEND: Received ${data.length} activities from backend`);
+      data.forEach((act: ExtendedActividad, idx: number) => {
+        console.log(`[${new Date().toISOString()}] 👥 FRONTEND: Activity ${idx + 1} (${act.id}) - Usuarios asignados: ${act.usuariosAsignados?.length || 0}`);
+        if (act.usuariosAsignados && act.usuariosAsignados.length > 0) {
+          act.usuariosAsignados.forEach((uxa: any, uidx: number) => {
+            console.log(`[${new Date().toISOString()}] 👤 FRONTEND:   User ${uidx + 1}: ${uxa.usuario?.nombres} ${uxa.usuario?.apellidos} (DNI: ${uxa.usuario?.dni}, Activo: ${uxa.activo})`);
+          });
+        }
+      });
       setActivities(data);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error(`[${new Date().toISOString()}] ❌ FRONTEND: Error fetching activities for CVZ ${cvzId}:`, error);
       setActivities([]);
     } finally {
       setLoading(false);
@@ -116,6 +127,48 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
     setDateRange([null, null]);
   };
 
+  const exportToExcel = () => {
+    if (filteredActivities.length === 0) {
+      alert('No hay actividades para exportar.');
+      return;
+    }
+
+    try {
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Sheet: Historial de Actividades
+      const actividadesData = [
+        ["ID", "Fecha Asignación", "Categoría", "Usuario Responsable", "Inventario Utilizado", "Zona", "Estado", "Observación", "Horas Dedicadas"]
+      ];
+
+      filteredActivities.forEach((activity: ExtendedActividad) => {
+        actividadesData.push([
+          activity.id,
+          formatDate(activity.fechaAsignacion),
+          activity.categoriaActividad?.nombre || 'Sin categoría',
+          getResponsibleUser(activity),
+          getInventoryUsed(activity),
+          activity.cultivoVariedadZona?.zona?.nombre || 'Sin zona',
+          activity.estado === false ? 'Finalizada' : 'En Progreso',
+          activity.observacion || '',
+          (activity.horasDedicadas || 0).toString()
+        ]);
+      });
+
+      const wsActividades = XLSX.utils.aoa_to_sheet(actividadesData);
+      XLSX.utils.book_append_sheet(wb, wsActividades, "Historial de Actividades");
+
+      // Generate and download file
+      const fileName = `Historial_Actividades_${cultivoName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Error al exportar el historial de actividades. Por favor, inténtelo de nuevo.');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
@@ -126,6 +179,14 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
       return (activity as any).responsableNombre;
     }
     return 'Sin responsable';
+  };
+
+  const getAssignedUsers = (activity: ExtendedActividad) => {
+    if (!activity.usuariosAsignados || activity.usuariosAsignados.length === 0) return 'Sin usuarios asignados';
+    return activity.usuariosAsignados
+      .filter((ua: any) => ua.activo)
+      .map((ua: any) => `${ua.usuario.nombres} ${ua.usuario.apellidos}`)
+      .join(', ');
   };
 
   const getInventoryUsed = (activity: ExtendedActividad) => {
@@ -173,6 +234,13 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
                     size="sm"
                     variant="light"
                     color="secondary"
+                  />
+                  <CustomButton
+                    label="Exportar Excel"
+                    onClick={exportToExcel}
+                    size="sm"
+                    variant="solid"
+                    color="success"
                   />
                 </div>
               </div>

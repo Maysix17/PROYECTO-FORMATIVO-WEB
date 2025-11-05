@@ -3,6 +3,12 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@herou
 import CustomButton from '../atoms/Boton';
 import type { Cultivo } from '../../types/cultivos.types';
 import { calcularEdadCultivo } from '../../services/cultivosVariedadZonaService';
+import * as XLSX from 'xlsx';
+import { getActividadesByCultivoVariedadZonaId } from '../../services/actividadesService';
+import { getCosechasByCultivo } from '../../services/cosechasService';
+import { getVentas } from '../../services/ventaService';
+import type { Actividad } from '../../services/actividadesService';
+import type { Cosecha } from '../../types/cosechas.types';
 
 interface CultivoDetailsModalProps {
    isOpen: boolean;
@@ -28,49 +34,112 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
 
   if (!currentCultivo) return null;
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!currentCultivo) return;
 
-    const headers = ["Campo", "Valor"];
-    const data = [
-      ["Ficha", currentCultivo.ficha],
-      ["Lote", currentCultivo.lote],
-      ["Nombre del Cultivo", `${currentCultivo.tipoCultivo?.nombre} ${currentCultivo.nombrecultivo}`],
-      ["Fecha de Siembra", currentCultivo.fechasiembra],
-      ["Fecha de Cosecha", currentCultivo.fechacosecha],
-      ["Edad del Cultivo", currentCultivo.fechasiembra ? `${calcularEdadCultivo(currentCultivo.fechasiembra)} días` : "N/A"],
-      ["Cantidad de Plantas Inicial", currentCultivo.cantidad_plantas_inicial || "No registrado"],
-      ["Cantidad de Plantas Actual", currentCultivo.cantidad_plantas_actual || "No registrado"],
-      ["Estado Fenológico", typeof currentCultivo.estado_fenologico === 'object' ? currentCultivo.estado_fenologico.nombre : (currentCultivo.estado_fenologico || "No definido")],
-      ["Área del Terreno", currentCultivo.area_terreno ? `${currentCultivo.area_terreno} m²` : "N/A"],
-      ["Rendimiento Promedio", currentCultivo.rendimiento_promedio ? `${currentCultivo.rendimiento_promedio.toFixed(2)} kg/planta` : "Sin datos"],
-      ["Estado", currentCultivo.estado === 1 ? "En Curso" : "Finalizado"]
-    ];
+    try {
+      // Fetch all related data
+      const [actividades, cosechas, ventas] = await Promise.all([
+        getActividadesByCultivoVariedadZonaId(currentCultivo.cvzid),
+        getCosechasByCultivo(currentCultivo.cvzid),
+        getVentas()
+      ]);
 
-    // Crear contenido HTML para Excel
-    const htmlContent = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8"><title>Detalles del Cultivo - ${currentCultivo.nombrecultivo}</title></head>
-      <body>
-        <table border="1">
-          <thead><tr>${headers.map((header) => `<th>${header}</th>`).join("")}</tr></thead>
-          <tbody>
-            ${data.map(([campo, valor]) => `<tr><td>${campo}</td><td>${valor}</td></tr>`).join("")}
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+      // Filter ventas related to this cultivo's cosechas
+      const cultivoVentas = ventas.filter(venta =>
+        cosechas.some(cosecha => cosecha.id === venta.fkCosechaId)
+      );
 
-    const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    const fileName = `cultivo_${currentCultivo.ficha}_${new Date().toISOString().split("T")[0]}.xls`;
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Resumen del Cultivo
+      const resumenData = [
+        ["Campo", "Valor"],
+        ["ID del Cultivo", currentCultivo.cvzid],
+        ["Ficha", currentCultivo.ficha],
+        ["Lote", currentCultivo.lote],
+        ["Nombre del Cultivo", `${currentCultivo.tipoCultivo?.nombre || ''} ${currentCultivo.nombrecultivo}`.trim()],
+        ["Fecha de Siembra", currentCultivo.fechasiembra ? new Date(currentCultivo.fechasiembra).toLocaleDateString('es-CO') : "N/A"],
+        ["Fecha de Cosecha", currentCultivo.fechacosecha ? new Date(currentCultivo.fechacosecha).toLocaleDateString('es-CO') : "N/A"],
+        ["Edad del Cultivo", currentCultivo.fechasiembra ? `${calcularEdadCultivo(currentCultivo.fechasiembra)} días` : "N/A"],
+        ["Cantidad de Plantas Inicial", currentCultivo.cantidad_plantas_inicial || "No registrado"],
+        ["Cantidad de Plantas Actual", currentCultivo.cantidad_plantas_actual || "No registrado"],
+        ["Estado Fenológico", currentCultivo.estado_fenologico_nombre || (typeof currentCultivo.estado_fenologico === 'object' ? currentCultivo.estado_fenologico.nombre : (currentCultivo.estado_fenologico || "No definido"))],
+        ["Área del Terreno", currentCultivo.area_terreno ? `${currentCultivo.area_terreno} m²` : "N/A"],
+        ["Rendimiento Promedio", currentCultivo.rendimiento_promedio ? `${currentCultivo.rendimiento_promedio.toFixed(2)} kg/planta` : "Sin datos"],
+        ["Estado", currentCultivo.estado === 1 ? "En Curso" : "Finalizado"],
+        ["Total Actividades", actividades.length],
+        ["Total Cosechas", cosechas.length],
+        ["Total Ventas", cultivoVentas.length],
+        ["Ingresos Totales", cultivoVentas.reduce((sum, venta) => sum + (venta.precioUnitario || 0) * venta.cantidad, 0).toFixed(2)],
+        ["Fecha de Exportación", new Date().toLocaleDateString('es-CO')]
+      ];
+      const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
+      XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen del Cultivo");
+
+      // Sheet 2: Actividades Realizadas
+      const actividadesData = [
+        ["ID", "Descripción", "Fecha Asignación", "Horas Dedicadas", "Estado", "Observación", "Responsable"]
+      ];
+      actividades.forEach((act: Actividad) => {
+        actividadesData.push([
+          act.id,
+          act.descripcion,
+          act.fechaAsignacion ? new Date(act.fechaAsignacion).toLocaleDateString('es-CO') : "N/A",
+          (act.horasDedicadas || 0).toString(),
+          act.estado ? "Completada" : "Pendiente",
+          act.observacion || "",
+          (act.dniResponsable || "N/A").toString()
+        ]);
+      });
+      const wsActividades = XLSX.utils.aoa_to_sheet(actividadesData);
+      XLSX.utils.book_append_sheet(wb, wsActividades, "Actividades");
+
+      // Sheet 3: Detalles Financieros (simplified - assuming costs from activities)
+      const costosTotales = actividades.reduce((sum, act) => sum + (act.horasDedicadas || 0) * 10, 0); // Assuming $10/hour
+      const ingresosTotales = cultivoVentas.reduce((sum, venta) => sum + (venta.precioUnitario || 0) * venta.cantidad, 0);
+      const financierosData = [
+        ["Categoría", "Descripción", "Monto", "Tipo"],
+        ["Mano de Obra", "Costo estimado de actividades", costosTotales.toFixed(2), "Gasto"],
+        ["Ventas", "Ingresos por ventas", ingresosTotales.toFixed(2), "Ingreso"],
+        ["Total Gastos", "", costosTotales.toFixed(2), ""],
+        ["Total Ingresos", "", ingresosTotales.toFixed(2), ""],
+        ["Ganancia Neta", "", (ingresosTotales - costosTotales).toFixed(2), ""]
+      ];
+      const wsFinancieros = XLSX.utils.aoa_to_sheet(financierosData);
+      XLSX.utils.book_append_sheet(wb, wsFinancieros, "Financieros");
+
+      // Sheet 4: Cosechas y Ventas
+      const cosechasVentasData = [
+        ["ID Cosecha", "Fecha Cosecha", "Cantidad", "Unidad", "Disponible", "Estado", "ID Venta", "Fecha Venta", "Precio Unitario", "Total Venta"]
+      ];
+      cosechas.forEach((cosecha: Cosecha) => {
+        const venta = cultivoVentas.find(v => v.fkCosechaId === cosecha.id);
+        cosechasVentasData.push([
+          cosecha.id,
+          cosecha.fecha ? new Date(cosecha.fecha).toLocaleDateString('es-CO') : "N/A",
+          cosecha.cantidad.toString(),
+          cosecha.unidadMedida,
+          cosecha.cantidadDisponible.toString(),
+          cosecha.cerrado ? "Cerrada" : "Abierta",
+          venta?.id || "Sin venta",
+          venta?.fecha ? new Date(venta.fecha).toLocaleDateString('es-CO') : "N/A",
+          (venta?.precioUnitario || 0).toString(),
+          venta ? ((venta.precioUnitario || 0) * venta.cantidad).toFixed(2) : "0.00"
+        ]);
+      });
+      const wsCosechasVentas = XLSX.utils.aoa_to_sheet(cosechasVentasData);
+      XLSX.utils.book_append_sheet(wb, wsCosechasVentas, "Cosechas y Ventas");
+
+      // Generate and download file
+      const fileName = `Informe_Cultivo_${currentCultivo.ficha}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Error al exportar el informe. Por favor, inténtelo de nuevo.');
+    }
   };
 
   return (
@@ -164,7 +233,7 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
 
           {/* BOTÓN DE INFORMACIÓN EN ESQUINA DERECHA */}
           <CustomButton onClick={exportToExcel} variant="solid" color="success">
-            Información
+            Exportar Excel
           </CustomButton>
         </ModalFooter>
       </ModalContent>

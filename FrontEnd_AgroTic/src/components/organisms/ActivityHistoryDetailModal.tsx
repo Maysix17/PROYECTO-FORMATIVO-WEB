@@ -58,13 +58,24 @@ const ActivityHistoryDetailModal: React.FC<ActivityHistoryDetailModalProps> = ({
 
   useEffect(() => {
     if (activity && isOpen) {
+      console.log(`[${new Date().toISOString()}] 🔍 FRONTEND: Opening detail modal for activity ${activity.id}`);
+      console.log(`[${new Date().toISOString()}] 👥 FRONTEND: Activity has ${activity.usuariosAsignados?.length || 0} assigned users`);
+      if (activity.usuariosAsignados && activity.usuariosAsignados.length > 0) {
+        activity.usuariosAsignados.forEach((uxa, idx) => {
+          console.log(`[${new Date().toISOString()}] 👤 FRONTEND: Assigned user ${idx + 1}: ${uxa.usuario?.nombres} ${uxa.usuario?.apellidos} (DNI: ${uxa.usuario?.dni}, Activo: ${uxa.activo})`);
+        });
+      } else {
+        console.log(`[${new Date().toISOString()}] ⚠️ FRONTEND: No assigned users found in activity data`);
+      }
+
       // Fetch reservations
       const fetchReservations = async () => {
         try {
           const res = await getReservationsByActivity(activity.id);
           setReservations(res);
+          console.log(`[${new Date().toISOString()}] 📦 FRONTEND: Fetched ${res.length} reservations for activity ${activity.id}`);
         } catch (error) {
-          console.error('Error fetching reservations:', error);
+          console.error(`[${new Date().toISOString()}] ❌ FRONTEND: Error fetching reservations for activity ${activity.id}:`, error);
           setReservations([]);
         }
       };
@@ -114,15 +125,24 @@ const ActivityHistoryDetailModal: React.FC<ActivityHistoryDetailModalProps> = ({
                   Usuarios Asignados
                 </h3>
                 <div className="space-y-2 max-h-32 overflow-auto">
-                  {activity.usuariosAsignados?.filter(u => u.activo).map((uxa, idx) => (
-                    <div key={idx} className="p-3 bg-white rounded border">
-                      <div className="font-medium text-gray-900">{uxa.usuario.nombres} {uxa.usuario.apellidos}</div>
-                      <div className="text-sm text-gray-600">DNI: {uxa.usuario.dni}</div>
-                      {uxa.usuario.ficha && (
-                        <div className="text-sm text-gray-600">Ficha: {uxa.usuario.ficha.numero}</div>
-                      )}
-                    </div>
-                  )) || <p className="text-gray-500 italic">No hay usuarios asignados</p>}
+                  {(() => {
+                    const allUsers = activity.usuariosAsignados || [];
+                    console.log(`[${new Date().toISOString()}] 🎯 FRONTEND: Total assigned users: ${allUsers.length}`);
+                    console.log(`[${new Date().toISOString()}] 📋 FRONTEND: All users:`, allUsers.map(u => ({ name: `${u.usuario.nombres} ${u.usuario.apellidos}`, activo: u.activo })));
+                    return allUsers.length > 0 ? (
+                      allUsers.map((uxa, idx) => (
+                        <div key={idx} className="p-3 bg-white rounded border">
+                          <div className="font-medium text-gray-900">{uxa.usuario.nombres} {uxa.usuario.apellidos}</div>
+                          <div className="text-sm text-gray-600">DNI: {uxa.usuario.dni}</div>
+                          {uxa.usuario.ficha && (
+                            <div className="text-sm text-gray-600">Ficha: {uxa.usuario.ficha.numero}</div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 italic">No hay usuarios asignados</p>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

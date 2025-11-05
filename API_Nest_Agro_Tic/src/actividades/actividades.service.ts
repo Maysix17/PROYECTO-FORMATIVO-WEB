@@ -326,6 +326,7 @@ export class ActividadesService {
     });
   }
   async findByCultivoVariedadZonaId(cvzId: string): Promise<Actividad[]> {
+    console.log(`[${new Date().toISOString()}] 🔍 BACKEND: Finding activities for CVZ ID: ${cvzId}`);
     const actividades = await this.actividadesRepo.find({
       where: { fkCultivoVariedadZonaId: cvzId },
       relations: [
@@ -349,8 +350,20 @@ export class ActividadesService {
       order: { fechaAsignacion: 'DESC' },
     });
 
+    console.log(`[${new Date().toISOString()}] 📊 BACKEND: Found ${actividades.length} activities for CVZ ${cvzId}`);
+    actividades.forEach((act, idx) => {
+      console.log(`[${new Date().toISOString()}] 👥 BACKEND: Activity ${idx + 1} (${act.id}) - Usuarios asignados: ${act.usuariosAsignados?.length || 0}`);
+      if (act.usuariosAsignados && act.usuariosAsignados.length > 0) {
+        act.usuariosAsignados.forEach((uxa, uidx) => {
+          console.log(`[${new Date().toISOString()}] 👤 BACKEND:   User ${uidx + 1}: ${uxa.usuario?.nombres} ${uxa.usuario?.apellidos} (DNI: ${uxa.usuario?.dni}, Activo: ${uxa.activo})`);
+        });
+      }
+    });
+
     // Enrich with responsable information
-    return await this.enrichActividadesWithResponsable(actividades);
+    const enriched = await this.enrichActividadesWithResponsable(actividades);
+    console.log(`[${new Date().toISOString()}] ✅ BACKEND: Enriched activities with responsable info`);
+    return enriched;
   }
 
   private async enrichActividadesWithResponsable(actividades: Actividad[]): Promise<Actividad[]> {

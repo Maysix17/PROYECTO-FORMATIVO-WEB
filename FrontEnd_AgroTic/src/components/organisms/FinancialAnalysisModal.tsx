@@ -3,6 +3,7 @@ import { Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
 import CustomButton from '../atoms/Boton';
 import { PieChart, Pie, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import apiClient from '../../lib/axios/axios';
+import * as XLSX from 'xlsx';
 
 interface FinanzasCosecha {
   id: string;
@@ -76,6 +77,71 @@ export const FinancialAnalysisModal: React.FC<FinancialAnalysisModalProps> = ({
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('es-CO').format(num);
+  };
+
+  const exportToExcel = () => {
+    if (!finanzas) {
+      alert('No hay datos financieros para exportar.');
+      return;
+    }
+
+    try {
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Resumen Financiero
+      const resumenData = [
+        ["Concepto", "Valor"],
+        ["ID del Análisis", finanzas.id],
+        ["ID de Cosecha", finanzas.fkCosechaId],
+        ["Cantidad Cosechada", finanzas.cantidadCosechada.toString() + " KG"],
+        ["Precio por Kilo", formatCurrency(finanzas.precioPorKilo)],
+        ["Fecha de Venta", finanzas.fechaVenta ? new Date(finanzas.fechaVenta).toLocaleDateString('es-CO') : "N/A"],
+        ["Cantidad Vendida", finanzas.cantidadVendida.toString() + " KG"],
+        ["Costo Inventario", formatCurrency(finanzas.costoInventario)],
+        ["Costo Mano de Obra", formatCurrency(finanzas.costoManoObra)],
+        ["Costo Total de Producción", formatCurrency(finanzas.costoTotalProduccion)],
+        ["Ingresos Totales", formatCurrency(finanzas.ingresosTotales)],
+        ["Ganancias", formatCurrency(finanzas.ganancias)],
+        ["Margen de Ganancia", (finanzas.margenGanancia * 100).toFixed(2) + "%"],
+        ["Fecha de Cálculo", new Date(finanzas.fechaCalculo).toLocaleDateString('es-CO')],
+        ["Fecha de Exportación", new Date().toLocaleDateString('es-CO')]
+      ];
+      const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
+      XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen Financiero");
+
+      // Sheet 2: Detalle de Costos
+      const costosData = [
+        ["Categoría", "Descripción", "Monto"],
+        ["Producción", "Costo total de producción", finanzas.costoTotalProduccion.toString()],
+        ["Inventario", "Costo de insumos y materiales", finanzas.costoInventario.toString()],
+        ["Mano de Obra", "Costo de mano de obra", finanzas.costoManoObra.toString()],
+        ["Total Costos", "Suma de todos los costos", finanzas.costoTotalProduccion.toString()]
+      ];
+      const wsCostos = XLSX.utils.aoa_to_sheet(costosData);
+      XLSX.utils.book_append_sheet(wb, wsCostos, "Detalle de Costos");
+
+      // Sheet 3: Ingresos y Rentabilidad
+      const ingresosData = [
+        ["Concepto", "Cantidad", "Precio Unitario", "Total"],
+        ["Producción Total", finanzas.cantidadCosechada.toString() + " KG", formatCurrency(finanzas.precioPorKilo), formatCurrency(finanzas.cantidadCosechada * finanzas.precioPorKilo)],
+        ["Ventas Realizadas", finanzas.cantidadVendida.toString() + " KG", formatCurrency(finanzas.precioPorKilo), formatCurrency(finanzas.ingresosTotales)],
+        ["Eficiencia de Ventas", ((finanzas.cantidadVendida / finanzas.cantidadCosechada) * 100).toFixed(2) + "%", "", ""],
+        ["Resultado Final", "", "", formatCurrency(finanzas.ganancias)]
+      ];
+      const wsIngresos = XLSX.utils.aoa_to_sheet(ingresosData);
+      XLSX.utils.book_append_sheet(wb, wsIngresos, "Ingresos y Rentabilidad");
+
+      // Generate and download file
+      const tipo = cultivoId ? 'Cultivo' : 'Cosecha';
+      const id = cultivoId || cosechaId;
+      const fileName = `Analisis_Financiero_${tipo}_${id}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Error al exportar el análisis financiero. Por favor, inténtelo de nuevo.');
+    }
   };
 
   return (
@@ -330,14 +396,23 @@ export const FinancialAnalysisModal: React.FC<FinancialAnalysisModalProps> = ({
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-end space-x-3 p-6 border-t bg-gray-50">
-            <CustomButton onClick={onClose} variant="light" label="Cerrar" />
+          <div className="flex items-center justify-between p-6 border-t bg-gray-50">
             <CustomButton
-              onClick={loadFinancialData}
-              disabled={loading}
+              onClick={exportToExcel}
+              disabled={!finanzas}
+              variant="solid"
               color="success"
-              label={loading ? 'Recalculando...' : 'Recalcular'}
+              label="Exportar Excel"
             />
+            <div className="flex space-x-3">
+              <CustomButton onClick={onClose} variant="light" label="Cerrar" />
+              <CustomButton
+                onClick={loadFinancialData}
+                disabled={loading}
+                color="primary"
+                label={loading ? 'Recalculando...' : 'Recalcular'}
+              />
+            </div>
           </div>
         </ModalBody>
       </ModalContent>
