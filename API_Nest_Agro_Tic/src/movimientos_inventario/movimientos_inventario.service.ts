@@ -1,27 +1,51 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MovimientosInventario } from './entities/movimientos_inventario.entity';
 import { CreateMovimientosInventarioDto } from './dto/create-movimientos_inventario.dto';
 import { UpdateMovimientosInventarioDto } from './dto/update-movimientos_inventario.dto';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class MovimientosInventarioService {
   constructor(
     @InjectRepository(MovimientosInventario)
     private readonly movimientosInventarioRepo: Repository<MovimientosInventario>,
+    @Inject(forwardRef(() => NotificationsGateway))
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async create(
     createDto: CreateMovimientosInventarioDto,
   ): Promise<MovimientosInventario> {
     const entity = this.movimientosInventarioRepo.create(createDto);
-    return await this.movimientosInventarioRepo.save(entity);
+    const savedEntity = await this.movimientosInventarioRepo.save(entity);
+
+    const notification = {
+      type: 'new_movement',
+      message: 'Se ha creado un nuevo movimiento de inventario.',
+    };
+
+    this.notificationsGateway.emitNotificationToAll(notification);
+
+    return savedEntity;
   }
 
   async findAll(): Promise<MovimientosInventario[]> {
     return await this.movimientosInventarioRepo.find({
-      relations: ['lote', 'lote.producto', 'lote.producto.categoria', 'lote.bodega', 'reserva', 'tipoMovimiento'],
+      relations: [
+        'lote',
+        'lote.producto',
+        'lote.producto.categoria',
+        'lote.bodega',
+        'reserva',
+        'tipoMovimiento',
+      ],
     });
   }
 
