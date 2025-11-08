@@ -36,6 +36,7 @@ import { TipoMovimiento } from 'src/tipos_movimiento/entities/tipos_movimiento.e
 import { EstadoReserva } from 'src/estados_reserva/entities/estados_reserva.entity';
 import { EstadoFenologico } from 'src/estados_fenologicos/entities/estado_fenologico.entity';
 import { CosechasVentas } from 'src/cosechas_ventas/entities/cosechas_ventas.entity';
+import { MqttConfig } from 'src/mqtt_config/entities/mqtt_config.entity';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { CosechasVentas } from 'src/cosechas_ventas/entities/cosechas_ventas.ent
       EstadoReserva,
       EstadoFenologico,
       CosechasVentas,
+      MqttConfig,
     ]),
   ],
   providers: [SeederService, Logger],

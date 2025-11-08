@@ -35,6 +35,7 @@ import { EstadoFenologico }
   from '../estados_fenologicos/entities/estado_fenologico.entity';
 import { CosechasVentas } from '../cosechas_ventas/entities/cosechas_ventas.entity';
 import { Venta } from '../venta/entities/venta.entity';
+import { MqttConfig } from '../mqtt_config/entities/mqtt_config.entity';
 // Acciones comunes para reutilizar y mantener consistencia
 const ACCIONES_CRUD = ['leer', 'crear', 'actualizar', 'eliminar'];
 const ACCION_VER = ['ver'];
@@ -144,6 +145,8 @@ export class SeederService {
     private readonly cosechasVentasRepository: Repository<CosechasVentas>,
     @InjectRepository(Venta)
     private readonly ventaRepository: Repository<Venta>,
+    @InjectRepository(MqttConfig)
+    private readonly mqttConfigRepository: Repository<MqttConfig>,
   ) {}
 
   async seed() {
@@ -219,6 +222,9 @@ export class SeederService {
     // Seed reservations and movements for financial testing
     await this.seedReservasXActividad();
     await this.seedMovimientosInventario();
+
+    // Seed MQTT configurations
+    await this.seedMqttConfigs();
 
     this.logger.log('Seeding completado exitosamente.', 'Seeder');
   }
@@ -2151,6 +2157,64 @@ export class SeederService {
       this.logger.log(`Ventas con conversión de unidades creadas para testing financiero.`, 'Seeder');
     } catch (error) {
       this.logger.error(`Error creando ventas: ${error.message}`, 'Seeder');
+    }
+  }
+
+  private async seedMqttConfigs() {
+    this.logger.log('Creando configuraciones MQTT predeterminadas...', 'Seeder');
+    try {
+      const mqttConfigsData = [
+        {
+          nombre: 'Config Temperatura',
+          host: 'test.mosquitto.org',
+          port: 1883,
+          protocol: 'mqtt',
+          topicBase: 'agrotic/sensores/temperatura',
+          activa: true,
+        },
+        {
+          nombre: 'Config Humedad',
+          host: 'test.mosquitto.org',
+          port: 1883,
+          protocol: 'mqtt',
+          topicBase: 'agrotic/sensores/humedad',
+          activa: true,
+        },
+        {
+          nombre: 'Config Gas MQ4',
+          host: 'test.mosquitto.org',
+          port: 1883,
+          protocol: 'mqtt',
+          topicBase: 'agrotic/sensores/gas_mq4',
+          activa: true,
+        },
+        {
+          nombre: 'Config Luz LDR',
+          host: 'test.mosquitto.org',
+          port: 1883,
+          protocol: 'mqtt',
+          topicBase: 'agrotic/sensores/luz_ldr',
+          activa: true,
+        },
+      ];
+
+      for (const configData of mqttConfigsData) {
+        let mqttConfig = await this.mqttConfigRepository.findOne({
+          where: { nombre: configData.nombre },
+        });
+
+        if (!mqttConfig) {
+          mqttConfig = this.mqttConfigRepository.create(configData);
+          await this.mqttConfigRepository.save(mqttConfig);
+          this.logger.log(`Configuración MQTT "${configData.nombre}" creada.`, 'Seeder');
+        } else {
+          this.logger.log(`Configuración MQTT "${configData.nombre}" ya existe. Omitiendo.`, 'Seeder');
+        }
+      }
+
+      this.logger.log('Configuraciones MQTT predeterminadas creadas/verificados.', 'Seeder');
+    } catch (error) {
+      this.logger.error(`Error creando configuraciones MQTT: ${error.message}`, 'Seeder');
     }
   }
 }
