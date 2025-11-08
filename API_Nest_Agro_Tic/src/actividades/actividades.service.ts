@@ -8,6 +8,8 @@ import { ReservasXActividadService } from '../reservas_x_actividad/reservas_x_ac
 import { CreateReservasXActividadDto } from '../reservas_x_actividad/dto/create-reservas_x_actividad.dto';
 import { ReservasXActividad } from '../reservas_x_actividad/entities/reservas_x_actividad.entity';
 import { LotesInventario } from '../lotes_inventario/entities/lotes_inventario.entity';
+import { MovimientosInventarioService } from '../movimientos_inventario/movimientos_inventario.service';
+import { CreateMovimientosInventarioDto } from '../movimientos_inventario/dto/create-movimientos_inventario.dto';
 
 @Injectable()
 export class ActividadesService {
@@ -17,6 +19,7 @@ export class ActividadesService {
     @InjectRepository(ReservasXActividad)
     private readonly reservasXActividadRepo: Repository<ReservasXActividad>,
     private readonly reservasXActividadService: ReservasXActividadService,
+    private readonly movimientosInventarioService: MovimientosInventarioService,
   ) {}
 
   async create(
@@ -197,7 +200,6 @@ export class ActividadesService {
   ): Promise<void> {
     try {
       // Import required entities and repositories
-      const { MovimientosInventario } = await import('../movimientos_inventario/entities/movimientos_inventario.entity');
       const { TipoMovimiento } = await import('../tipos_movimiento/entities/tipos_movimiento.entity');
 
       // Find the movement type
@@ -227,18 +229,17 @@ export class ActividadesService {
         }
       }
 
-      // Create the movement record
-      const movimiento = this.reservasXActividadRepo.manager.create(MovimientosInventario, {
+      // Create the movement record using the service (which emits notifications)
+      const createDto: CreateMovimientosInventarioDto = {
         fkLoteId: loteId,
         fkReservaId: reservaId,
         fkTipoMovimientoId: tipoMovimiento.id,
         cantidad: cantidad,
-        fechaMovimiento: new Date(),
         observacion: observacion,
         responsable: responsable,
-      });
+      };
 
-      await this.reservasXActividadRepo.manager.save(MovimientosInventario, movimiento);
+      await this.movimientosInventarioService.create(createDto);
       console.log(`✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`);
     } catch (error) {
       console.error(`❌ Error creando movimiento: ${error.message}`);

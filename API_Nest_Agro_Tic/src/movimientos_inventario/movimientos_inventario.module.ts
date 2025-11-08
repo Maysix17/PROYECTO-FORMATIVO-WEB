@@ -12,5 +12,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
   ],
   controllers: [MovimientosInventarioController],
   providers: [MovimientosInventarioService],
+  exports: [MovimientosInventarioService],
 })
 export class MovimientosInventarioModule {}

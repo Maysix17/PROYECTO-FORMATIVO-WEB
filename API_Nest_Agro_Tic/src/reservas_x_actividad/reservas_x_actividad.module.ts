@@ -9,11 +9,13 @@ import { LotesInventario } from '../lotes_inventario/entities/lotes_inventario.e
 import { MovimientosInventario } from '../movimientos_inventario/entities/movimientos_inventario.entity';
 import { TipoMovimiento } from '../tipos_movimiento/entities/tipos_movimiento.entity';
 import { UsuariosXActividadesModule } from '../usuarios_x_actividades/usuarios_x_actividades.module';
+import { MovimientosInventarioModule } from '../movimientos_inventario/movimientos_inventario.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ReservasXActividad, Actividad, EstadoReserva, LotesInventario, MovimientosInventario, TipoMovimiento]),
     UsuariosXActividadesModule,
+    MovimientosInventarioModule,
   ],
   controllers: [ReservasXActividadController],
   providers: [ReservasXActividadService],

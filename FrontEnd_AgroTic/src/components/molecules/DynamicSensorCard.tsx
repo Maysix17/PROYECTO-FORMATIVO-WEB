@@ -185,7 +185,7 @@ const DynamicSensorCard: React.FC = () => {
           {sensorReadings.length === 0 ? (
             <div className="text-gray-500">
               <p className="text-sm">Esperando datos de sensores...</p>
-              <p className="text-xs text-gray-400 mt-1">No hay configuraciones MQTT activas</p>
+              <p className="text-xs text-gray-400 mt-1">No hay configuraciones de broker activas</p>
             </div>
           ) : currentReading ? (
             <div className={`transition-all duration-300 ease-in-out ${isAnimating ? 'transform -translate-y-2 opacity-50' : 'opacity-100'}`}>

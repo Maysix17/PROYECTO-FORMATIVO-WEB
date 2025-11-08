@@ -6,11 +6,13 @@ import { Actividad } from './entities/actividades.entity';
 import { ReservasXActividad } from '../reservas_x_actividad/entities/reservas_x_actividad.entity';
 import { ReservasXActividadModule } from '../reservas_x_actividad/reservas_x_actividad.module';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import { MovimientosInventarioModule } from '../movimientos_inventario/movimientos_inventario.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Actividad, ReservasXActividad, Usuario]),
     ReservasXActividadModule,
+    MovimientosInventarioModule,
   ],
   providers: [ActividadesService],
   controllers: [ActividadesController],

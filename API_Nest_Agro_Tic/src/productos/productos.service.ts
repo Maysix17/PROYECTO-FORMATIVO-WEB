@@ -8,6 +8,8 @@ import { CreateProductoWithLoteDto } from './dto/create-producto-with-lote.dto';
 import { LotesInventario } from '../lotes_inventario/entities/lotes_inventario.entity';
 import { MovimientosInventario } from '../movimientos_inventario/entities/movimientos_inventario.entity';
 import { TipoMovimiento } from '../tipos_movimiento/entities/tipos_movimiento.entity';
+import { MovimientosInventarioService } from '../movimientos_inventario/movimientos_inventario.service';
+import { CreateMovimientosInventarioDto } from '../movimientos_inventario/dto/create-movimientos_inventario.dto';
 
 @Injectable()
 export class ProductosService {
@@ -18,6 +20,7 @@ export class ProductosService {
     private readonly movimientosInventarioRepo: Repository<MovimientosInventario>,
     @InjectRepository(TipoMovimiento)
     private readonly tipoMovimientoRepo: Repository<TipoMovimiento>,
+    private readonly movimientosInventarioService: MovimientosInventarioService,
   ) {}
 
   async create(createDto: CreateProductosDto): Promise<Producto> {
@@ -104,17 +107,16 @@ export class ProductosService {
         }
       }
 
-      // Create the movement record
-      const movimiento = queryRunner.manager.create(MovimientosInventario, {
+      // Create the movement record using the service (which emits notifications)
+      const createDto: CreateMovimientosInventarioDto = {
         fkLoteId: loteId,
         fkTipoMovimientoId: tipoMovimiento.id,
         cantidad: cantidad,
-        fechaMovimiento: new Date(),
         observacion: observacion,
         responsable: responsable,
-      });
+      };
 
-      await queryRunner.manager.save(MovimientosInventario, movimiento);
+      await this.movimientosInventarioService.create(createDto);
       console.log(`✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`);
     } catch (error) {
       console.error(`❌ Error creando movimiento: ${error.message}`);

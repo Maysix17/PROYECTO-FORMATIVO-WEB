@@ -15,6 +15,8 @@ import { LotesInventario } from '../lotes_inventario/entities/lotes_inventario.e
 import { MovimientosInventario } from '../movimientos_inventario/entities/movimientos_inventario.entity';
 import { TipoMovimiento } from '../tipos_movimiento/entities/tipos_movimiento.entity';
 import { UsuariosXActividadesService } from '../usuarios_x_actividades/usuarios_x_actividades.service';
+import { MovimientosInventarioService } from '../movimientos_inventario/movimientos_inventario.service';
+import { CreateMovimientosInventarioDto } from '../movimientos_inventario/dto/create-movimientos_inventario.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -34,6 +36,7 @@ export class ReservasXActividadService {
     @InjectRepository(TipoMovimiento)
     private readonly tipoMovimientoRepo: Repository<TipoMovimiento>,
     private readonly usuariosXActividadesService: UsuariosXActividadesService,
+    private readonly movimientosInventarioService: MovimientosInventarioService,
   ) {}
 
   async create(
@@ -364,18 +367,17 @@ export class ReservasXActividadService {
         }
       }
 
-      // Create the movement record
-      const movimiento = this.movimientosInventarioRepo.create({
+      // Create the movement record using the service (which emits notifications)
+      const createDto: CreateMovimientosInventarioDto = {
         fkLoteId: loteId,
         fkReservaId: reservaId,
         fkTipoMovimientoId: tipoMovimiento.id,
         cantidad: cantidad,
-        fechaMovimiento: new Date(),
         observacion: observacion,
         responsable: responsable,
-      });
+      };
 
-      await this.movimientosInventarioRepo.save(movimiento);
+      await this.movimientosInventarioService.create(createDto);
       console.log(`✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`);
     } catch (error) {
       console.error(`❌ Error creando movimiento: ${error.message}`);
