@@ -86,7 +86,7 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
         actividadesData.push([
           act.id,
           act.descripcion,
-          act.fechaAsignacion ? new Date(act.fechaAsignacion).toLocaleDateString('es-CO') : "N/A",
+          act.fechaAsignacion ? new Date(act.fechaAsignacion + 'T00:00:00').toLocaleDateString('es-CO') : "N/A",
           (act.horasDedicadas || 0).toString(),
           act.estado ? "Completada" : "Pendiente",
           act.observacion || "",

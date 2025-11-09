@@ -248,7 +248,7 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
                     <div>
                       <label className="block text-xs font-medium text-purple-700 uppercase tracking-wide">Fecha Asignación</label>
                       <div className="text-sm text-gray-900 font-medium">
-                        {new Date(activity.fechaAsignacion).toLocaleDateString()}
+                        {new Date(activity.fechaAsignacion + 'T00:00:00').toLocaleDateString()}
                       </div>
                     </div>
                     <div>

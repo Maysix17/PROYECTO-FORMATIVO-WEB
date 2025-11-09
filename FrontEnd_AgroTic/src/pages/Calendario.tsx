@@ -64,7 +64,7 @@ function Calendario() {
                   <div>
                     <h3 className="font-medium text-gray-900">{activity.descripcion}</h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      Fecha: {new Date(activity.fechaAsignacion).toLocaleDateString()}
+                      Fecha: {new Date(activity.fechaAsignacion + 'T00:00:00').toLocaleDateString()}
                     </p>
                     <p className="text-sm text-gray-600">
                       Horas dedicadas: {activity.horasDedicadas}
