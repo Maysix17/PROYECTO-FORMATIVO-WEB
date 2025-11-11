@@ -30,9 +30,25 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
   const [showMqttManagementModal, setShowMqttManagementModal] = useState(false);
   const [showZoneSelectionModal, setShowZoneSelectionModal] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedSensors, setSelectedSensors] = useState<string[]>([]);
 
   // Use MQTT socket hook for real-time updates
   const { lecturas, isConnected } = useMqttSocket();
+
+  const toggleSensor = (key: string) => {
+    setSelectedSensors(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  };
+
+  const getBorderColor = () => {
+    if (selectedSensors.length === 0) return 'transparent';
+    const hues = selectedSensors.map(key => {
+      const index = sensorEntries.findIndex(([k]) => k === key);
+      return index * 137.5 % 360;
+    });
+    if (selectedSensors.length === 1) return `hsl(${hues[0]}, 70%, 50%)`;
+    const avgHue = hues.reduce((a, b) => a + b, 0) / hues.length;
+    return `hsl(${avgHue}, 70%, 50%)`;
+  };
 
   useEffect(() => {
     loadInitialData();
@@ -64,7 +80,8 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
             const sensorKey = medicion.key;
             const newValue = Number(medicion.valor);
 
-            if (!newData[sensorKey]) {
+            if (selectedSensors.length === 0 || selectedSensors.includes(sensorKey)) {
+              if (!newData[sensorKey]) {
               newData[sensorKey] = {
                 unit: medicion.unidad,
                 history: [{ value: newValue, timestamp: medicion.fechaMedicion, zonaId: lectura.zonaId, cultivoNombres }],
@@ -84,7 +101,8 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
               }
               hasUpdates = true;
             }
-          });
+          }
+        });
         });
 
         return hasUpdates ? newData : prevData;
@@ -172,6 +190,7 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
 
   const filteredSensorData = applyFilters(sensorData);
   const sensorEntries = Object.entries(filteredSensorData);
+  const displayedSensorEntries = selectedSensors.length > 0 ? sensorEntries.filter(([key]) => selectedSensors.includes(key)) : sensorEntries;
 
   const prepareChartData = (data: SensorData) => {
     // Get all timestamps
@@ -195,10 +214,10 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
   };
 
   // Prepare chart data
-  const chartData = sensorEntries.length > 0 ? prepareChartData(filteredSensorData) : [];
+  const chartData = displayedSensorEntries.length > 0 ? prepareChartData(Object.fromEntries(displayedSensorEntries)) : [];
 
   // Sensor Card Component
-  const SensorCard = React.memo(({ sensorKey, data }: { sensorKey: string; data: SensorData[string] }) => {
+  const SensorCard = React.memo(({ sensorKey, data, isSelected }: { sensorKey: string; data: SensorData[string]; isSelected: boolean }) => {
     const chartData = data.history.slice(-20).map((point, index) => ({
       time: index,
       value: point.value,
@@ -212,8 +231,11 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
         .trim();
     };
 
+    const index = sensorEntries.findIndex(([k]) => k === sensorKey);
+    const highlightColor = `hsl(${index * 137.5 % 360}, 70%, 50%)`;
+
     return (
-      <Card className="w-full max-w-xs">
+      <Card className="w-full max-w-xs" style={isSelected ? { border: `2px solid ${highlightColor}`, boxShadow: `0 6px 12px ${highlightColor}70, 0 10px 20px ${highlightColor}50` } : {}}>
         <CardHeader className="flex items-center justify-between pb-2">
           <div className="text-center flex-1">
             <h3 className="text-lg font-bold text-gray-800 mb-1">{formatSensorKey(sensorKey)}</h3>
@@ -355,7 +377,7 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
               <div className="relative">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {sensorEntries.slice(currentIndex, currentIndex + 4).map(([key, data]) => (
-                    <SensorCard key={key} sensorKey={key} data={data} />
+                    <SensorCard key={key} sensorKey={key} data={data} isSelected={selectedSensors.includes(key)} />
                   ))}
                 </div>
                 {sensorEntries.length > 4 && (
@@ -404,32 +426,45 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
                                 domain={[0, (dataMax) => Math.ceil(dataMax / 10) * 10 + 5]}
                                 tickCount={10}
                               />
-                              {sensorEntries.map(([key], index) => (
-                                <Line
-                                  key={key}
-                                  type="monotone"
-                                  dataKey={key}
-                                  stroke={`hsl(${index * 137.5 % 360}, 70%, 50%)`}
-                                  strokeWidth={2}
-                                  dot={false}
-                                  connectNulls={true}
-                                  isAnimationActive={false}
-                                />
-                              ))}
+                              {displayedSensorEntries.map(([key]) => {
+                                const originalIndex = sensorEntries.findIndex(([k]) => k === key);
+                                return (
+                                  <Line
+                                    key={key}
+                                    type="monotone"
+                                    dataKey={key}
+                                    stroke={`hsl(${originalIndex * 137.5 % 360}, 70%, 50%)`}
+                                    strokeWidth={2}
+                                    dot={false}
+                                    connectNulls={true}
+                                    isAnimationActive={false}
+                                  />
+                                );
+                              })}
                             </LineChart>
                           </ResponsiveContainer>
                         </div>
                         <div className="w-1/5 p-4">
                           <div className="space-y-2">
                             {sensorEntries.map(([key], index) => (
-                              <div key={key} className="flex items-center">
-                                <div
-                                  className="w-4 h-4 rounded-full mr-2"
-                                  style={{ backgroundColor: `hsl(${index * 137.5 % 360}, 70%, 50%)` }}
-                                ></div>
-                                <span className="text-sm">{String(key).replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
-                              </div>
+                              <Button
+                                key={key}
+                                variant={selectedSensors.includes(key) ? "solid" : "light"}
+                                onClick={() => toggleSensor(key)}
+                                className="w-full justify-start h-auto p-2"
+                              >
+                                <div className="flex items-center w-full">
+                                  <div
+                                    className="w-4 h-4 rounded-full mr-2"
+                                    style={{ backgroundColor: `hsl(${index * 137.5 % 360}, 70%, 50%)` }}
+                                  ></div>
+                                  <span className="text-sm">{String(key).replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
+                                </div>
+                              </Button>
                             ))}
+                            <Button onClick={() => setSelectedSensors([])} variant="light" className="w-full mt-2">
+                              Limpiar todo
+                            </Button>
                           </div>
                         </div>
                       </>
