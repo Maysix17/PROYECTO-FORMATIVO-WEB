@@ -390,14 +390,14 @@ export class FinanzasService {
     for (const actividad of actividades) {
       if (actividad.reservas && actividad.reservas.length > 0) {
         for (const reserva of actividad.reservas) {
-          // Solo considerar reservas activas (no confirmadas/usadas)
-          if (reserva.estado && reserva.estado.nombre !== 'Confirmada') {
+          // Considerar reservas que tengan cantidad usada (incluyendo confirmadas)
+          const cantidadUsada = reserva.cantidadUsada || 0;
+          if (cantidadUsada > 0) {
             const esDivisible = reserva.lote?.producto?.categoria?.esDivisible ?? true;
 
             if (esDivisible) {
               // Lógica para productos divisibles (consumibles)
-              const costoReserva = (reserva.cantidadUsada || reserva.cantidadReservada || 0) *
-                (reserva.precioProducto / reserva.capacidadPresentacionProducto);
+              const costoReserva = cantidadUsada * (reserva.precioProducto / reserva.capacidadPresentacionProducto);
               costoTotal += costoReserva;
             } else {
               // Lógica para productos no divisibles (herramientas)
@@ -409,8 +409,7 @@ export class FinanzasService {
                 costoTotal += costoPorUso;
               } else {
                 // Fallback
-                const costoReserva = (reserva.cantidadUsada || reserva.cantidadReservada || 0) *
-                  (reserva.precioProducto / reserva.capacidadPresentacionProducto);
+                const costoReserva = cantidadUsada * (reserva.precioProducto / reserva.capacidadPresentacionProducto);
                 costoTotal += costoReserva;
               }
             }
