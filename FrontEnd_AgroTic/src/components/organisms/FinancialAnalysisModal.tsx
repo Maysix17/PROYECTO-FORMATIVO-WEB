@@ -296,7 +296,7 @@ export const FinancialAnalysisModal: React.FC<FinancialAnalysisModalProps> = ({
                 {/* Pie Chart */}
                 <div className="bg-gray-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    {finanzas.cantidadCosechada > 0 ? 'Cosecha' : 'Costos Estimados'}
+                    {finanzas.cantidadCosechada > 0 ? 'Total de Ingresos totales y Costos de produccion' : 'Costos Estimados'}
                   </h3>
                   <div style={{ width: '100%', height: '300px', minWidth: '300px', minHeight: '300px' }}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -304,12 +304,12 @@ export const FinancialAnalysisModal: React.FC<FinancialAnalysisModalProps> = ({
                         <Pie
                           data={[
                             {
-                              name: 'Costo \n de Producción',
+                              name: 'Costo total\n de Producción',
                               value: parseFloat(finanzas.costoTotalProduccion.toString()),
                               fill: '#DC2626'
                             },
                             ...(finanzas.ingresosTotales > 0 ? [{
-                              name: 'Ingresos\npor Ventas',
+                              name: 'Ingresos\nTotales',
                               value: parseFloat(finanzas.ingresosTotales.toString()),
                               fill: '#16A34A'
                             }] : [])

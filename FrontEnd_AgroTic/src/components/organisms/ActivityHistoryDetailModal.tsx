@@ -10,7 +10,12 @@ interface Reservation {
   capacidadPresentacionProducto?: number;
   lote?: {
     nombre: string;
-    producto: { nombre: string; unidadMedida?: { abreviatura: string } };
+    producto: {
+      nombre: string;
+      unidadMedida?: { abreviatura: string };
+      categoria?: { esDivisible: boolean };
+      vidaUtilPromedioPorUsos?: number;
+    };
   };
   estado?: { nombre: string };
 }
@@ -196,10 +201,38 @@ const ActivityHistoryDetailModal: React.FC<ActivityHistoryDetailModalProps> = ({
                     <div className="text-sm text-gray-900">
                       ${(() => {
                         const totalInputsCost = reservations.reduce((sum, res) => {
-                          const unitPrice = res.capacidadPresentacionProducto && res.capacidadPresentacionProducto > 0
-                            ? (res.precioProducto || 0) / res.capacidadPresentacionProducto
-                            : 0;
-                          const subtotal = (res.cantidadUsada || 0) * unitPrice;
+                          const cantidadUsada = res.cantidadUsada || 0;
+                          let subtotal = 0;
+
+                          // Check if product is divisible (consumable) or not (tool)
+                          const esDivisible = res.lote?.producto?.categoria?.esDivisible ?? true; // Default true for compatibility
+
+                          if (esDivisible) {
+                            // Logic for divisible products (consumables)
+                            const unitPrice = res.capacidadPresentacionProducto && res.capacidadPresentacionProducto > 0
+                              ? (res.precioProducto || 0) / res.capacidadPresentacionProducto
+                              : 0;
+                            subtotal = cantidadUsada * unitPrice;
+                          } else {
+                            // Logic for non-divisible products (tools) - depreciation per use
+                            const vidaUtilPromedioPorUsos = res.lote?.producto?.vidaUtilPromedioPorUsos;
+
+                            if (vidaUtilPromedioPorUsos && vidaUtilPromedioPorUsos > 0) {
+                              // Residual value = 10% of product price
+                              const valorResidual = (res.precioProducto || 0) * 0.1;
+                              const costoPorUso = ((res.precioProducto || 0) - valorResidual) / vidaUtilPromedioPorUsos;
+
+                              // Each use counts as 1 usage
+                              subtotal = costoPorUso; // Since cantidadUsada represents number of uses
+                            } else {
+                              // Fallback: if no useful life defined, use normal logic
+                              const unitPrice = res.capacidadPresentacionProducto && res.capacidadPresentacionProducto > 0
+                                ? (res.precioProducto || 0) / res.capacidadPresentacionProducto
+                                : 0;
+                              subtotal = cantidadUsada * unitPrice;
+                            }
+                          }
+
                           return sum + subtotal;
                         }, 0);
                         const laborCost = (activity.horasDedicadas || 0) * (activity.precioHora || 0);
@@ -226,10 +259,40 @@ const ActivityHistoryDetailModal: React.FC<ActivityHistoryDetailModalProps> = ({
                 </h3>
                 <div className="space-y-2 max-h-32 overflow-auto">
                   {reservations.map((res, idx) => {
-                    const unitPrice = res.capacidadPresentacionProducto && res.capacidadPresentacionProducto > 0
-                      ? (res.precioProducto || 0) / res.capacidadPresentacionProducto
-                      : 0;
-                    const subtotal = (res.cantidadUsada || 0) * unitPrice;
+                    const cantidadUsada = res.cantidadUsada || 0;
+                    let unitPrice = 0;
+                    let subtotal = 0;
+
+                    // Check if product is divisible (consumable) or not (tool)
+                    const esDivisible = res.lote?.producto?.categoria?.esDivisible ?? true; // Default true for compatibility
+
+                    if (esDivisible) {
+                      // Logic for divisible products (consumables)
+                      unitPrice = res.capacidadPresentacionProducto && res.capacidadPresentacionProducto > 0
+                        ? (res.precioProducto || 0) / res.capacidadPresentacionProducto
+                        : 0;
+                      subtotal = cantidadUsada * unitPrice;
+                    } else {
+                      // Logic for non-divisible products (tools) - depreciation per use
+                      const vidaUtilPromedioPorUsos = res.lote?.producto?.vidaUtilPromedioPorUsos;
+
+                      if (vidaUtilPromedioPorUsos && vidaUtilPromedioPorUsos > 0) {
+                        // Residual value = 10% of product price
+                        const valorResidual = (res.precioProducto || 0) * 0.1;
+                        const costoPorUso = ((res.precioProducto || 0) - valorResidual) / vidaUtilPromedioPorUsos;
+
+                        // Each use counts as 1 usage
+                        unitPrice = costoPorUso;
+                        subtotal = costoPorUso; // Since cantidadUsada represents number of uses
+                      } else {
+                        // Fallback: if no useful life defined, use normal logic
+                        unitPrice = res.capacidadPresentacionProducto && res.capacidadPresentacionProducto > 0
+                          ? (res.precioProducto || 0) / res.capacidadPresentacionProducto
+                          : 0;
+                        subtotal = cantidadUsada * unitPrice;
+                      }
+                    }
+
                     return (
                       <div key={idx} className="p-3 bg-white rounded border">
                         <div className="flex justify-between items-start mb-2">

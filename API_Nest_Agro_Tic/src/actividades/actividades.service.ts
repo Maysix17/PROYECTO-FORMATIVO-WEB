@@ -322,6 +322,7 @@ export class ActividadesService {
         'lote',
         'lote.producto',
         'lote.producto.unidadMedida',
+        'lote.producto.categoria',
         'estado',
       ],
     });
@@ -418,11 +419,39 @@ export class ActividadesService {
     let totalInputsCost = 0;
     const reservationsWithCosts = actividad.reservas.map(reserva => {
       const cantidadUsada = reserva.cantidadUsada || 0;
-      // Unit price: for divisible products, precioProducto / capacidadPresentacionProducto
-      const unitPrice = reserva.capacidadPresentacionProducto > 0
-        ? reserva.precioProducto / reserva.capacidadPresentacionProducto
-        : 0;
-      const subtotal = cantidadUsada * unitPrice;
+      let unitPrice = 0;
+      let subtotal = 0;
+
+      // Check if product is divisible (consumable) or not (tool)
+      const esDivisible = reserva.lote?.producto?.categoria?.esDivisible ?? true; // Default true for compatibility
+
+      if (esDivisible) {
+        // Logic for divisible products (consumables)
+        unitPrice = reserva.capacidadPresentacionProducto > 0
+          ? reserva.precioProducto / reserva.capacidadPresentacionProducto
+          : 0;
+        subtotal = cantidadUsada * unitPrice;
+      } else {
+        // Logic for non-divisible products (tools) - depreciation per use
+        const vidaUtilPromedioPorUsos = reserva.lote?.producto?.vidaUtilPromedioPorUsos;
+
+        if (vidaUtilPromedioPorUsos && vidaUtilPromedioPorUsos > 0) {
+          // Residual value = 10% of product price
+          const valorResidual = reserva.precioProducto * 0.1;
+          const costoPorUso = (reserva.precioProducto - valorResidual) / vidaUtilPromedioPorUsos;
+
+          // Each use counts as 1 usage
+          unitPrice = costoPorUso;
+          subtotal = costoPorUso; // Since cantidadUsada represents number of uses
+        } else {
+          // Fallback: if no useful life defined, use normal logic
+          unitPrice = reserva.capacidadPresentacionProducto > 0
+            ? reserva.precioProducto / reserva.capacidadPresentacionProducto
+            : 0;
+          subtotal = cantidadUsada * unitPrice;
+        }
+      }
+
       totalInputsCost += subtotal;
 
       return {

@@ -23,7 +23,8 @@ interface ExtendedActividad extends Actividad {
       producto?: {
         nombre: string;
         unidadMedida?: { abreviatura: string };
-        categoria?: { esDivisible: boolean; vidaUtilPromedioPorUsos?: number };
+        categoria?: { esDivisible: boolean };
+        vidaUtilPromedioPorUsos?: number;
       };
     };
     cantidadUsada?: number;
@@ -146,7 +147,7 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
           const precioUnitario = (reserva.precioProducto || 0) / (reserva.capacidadPresentacionProducto || 1);
           total += cantidadUsada * precioUnitario;
         } else {
-          const vidaUtil = reserva.lote?.producto?.categoria?.vidaUtilPromedioPorUsos;
+          const vidaUtil = reserva.lote?.producto?.vidaUtilPromedioPorUsos;
           if (vidaUtil && vidaUtil > 0) {
             const valorResidual = (reserva.precioProducto || 0) * 0.1;
             const costoPorUso = ((reserva.precioProducto || 0) - valorResidual) / vidaUtil;
@@ -232,7 +233,7 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
             if (esDivisible) {
               subtotal = cantidadUsada * precioUnitario;
             } else {
-              const vidaUtil = reserva.lote?.producto?.categoria?.vidaUtilPromedioPorUsos;
+              const vidaUtil = reserva.lote?.producto?.vidaUtilPromedioPorUsos;
               if (vidaUtil && vidaUtil > 0) {
                 const valorResidual = (reserva.precioProducto || 0) * 0.1;
                 subtotal = ((reserva.precioProducto || 0) - valorResidual) / vidaUtil;
