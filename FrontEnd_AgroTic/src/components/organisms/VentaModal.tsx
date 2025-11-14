@@ -7,6 +7,7 @@ import { createVenta } from '../../services/ventaService';
 import type { Cultivo } from '../../types/cultivos.types';
 import { getCosechasAbiertasByCultivo } from '../../services/cosechasService';
 import type { Cosecha } from '../../types/cosechas.types';
+import jsPDF from 'jspdf';
 
 interface VentaModalProps {
   isOpen: boolean;
@@ -30,6 +31,8 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
    const [cosechasDisponibles, setCosechasDisponibles] = useState<Cosecha[]>([]);
    const [selectedHarvests, setSelectedHarvests] = useState<Array<{id: string, cantidad: number}>>([]);
    const [totalAvailable, setTotalAvailable] = useState<number>(0);
+   const [saleCompleted, setSaleCompleted] = useState(false);
+   const [saleData, setSaleData] = useState<any>(null);
 
    const isPerenne = cultivo?.tipoCultivo?.esPerenne || false;
 
@@ -39,6 +42,8 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
    useEffect(() => {
      if (isOpen && cultivo) {
        loadCosechasDisponibles();
+       setSaleCompleted(false);
+       setSaleData(null);
      }
    }, [isOpen, cultivo]);
 
@@ -127,8 +132,21 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
       // They should only be finalized when explicitly requested via "Cerrar venta de cosecha actual" button.
       // This prevents premature finalization when registering sales.
 
+      // Set sale data for success view
+      const total = formData.cantidad * (formData.precioUnitario || 0);
+      setSaleData({
+        cultivo: cultivo?.tipoCultivo?.nombre + ' - ' + cultivo?.nombrecultivo,
+        zona: cultivo?.lote,
+        cantidad: formData.cantidad,
+        unidadMedida: formData.unidadMedida,
+        precioUnitario: formData.precioUnitario,
+        total: total,
+        fecha: fechaValue,
+        cosechasSeleccionadas: selectedHarvests.length
+      });
+      setSaleCompleted(true);
+
       onSuccess();
-      onClose();
     } catch (error: any) {
       console.error('Error creating venta:', error);
       alert('Error al registrar venta: ' + (error.response?.data?.message || error.message));
@@ -139,6 +157,150 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
 
   const handleChange = (field: keyof CreateVentaDto, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePrintReceipt = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow && saleData) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Recibo de Venta</title>
+            <style>
+              body {
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                line-height: 1.4;
+                margin: 0;
+                padding: 10px;
+                max-width: 300px;
+                margin: 0 auto;
+              }
+              .receipt {
+                border: 1px dashed #000;
+                padding: 15px;
+                text-align: center;
+              }
+              .header {
+                font-weight: bold;
+                font-size: 14px;
+                margin-bottom: 10px;
+                border-bottom: 1px dashed #000;
+                padding-bottom: 5px;
+              }
+              .line {
+                display: flex;
+                justify-content: space-between;
+                margin: 5px 0;
+              }
+              .total {
+                font-weight: bold;
+                font-size: 14px;
+                border-top: 1px dashed #000;
+                padding-top: 5px;
+                margin-top: 10px;
+              }
+              .footer {
+                margin-top: 15px;
+                font-size: 10px;
+                border-top: 1px dashed #000;
+                padding-top: 5px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="receipt">
+              <div class="header">
+                AGROTIC<br>
+                Sistema de Gestión Agrícola<br>
+                RECIBO DE VENTA
+              </div>
+              <div class="line"><span>Fecha:</span><span>${new Date(saleData.fecha).toLocaleDateString()}</span></div>
+              <div class="line"><span>Hora:</span><span>${new Date().toLocaleTimeString()}</span></div>
+              <div class="line"><span>Cultivo:</span><span>${saleData.cultivo}</span></div>
+              <div class="line"><span>Zona:</span><span>${saleData.zona}</span></div>
+              <div class="line"><span>Cantidad:</span><span>${saleData.cantidad} ${saleData.unidadMedida}</span></div>
+              <div class="line"><span>Precio Unit.:</span><span>$${saleData.precioUnitario}</span></div>
+              <div class="line"><span>Cosechas Sel.:</span><span>${saleData.cosechasSeleccionadas}</span></div>
+              <div class="total">
+                <div class="line"><span>TOTAL:</span><span>$${saleData.total.toFixed(2)}</span></div>
+              </div>
+              <div class="footer">
+                ¡Gracias por su compra!<br>
+                AgroTic - Tecnología Agrícola
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!saleData) return;
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [80, 150] // Receipt size
+    });
+
+    // Set font
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(10);
+
+    let y = 10;
+
+    // Header
+    doc.setFontSize(12);
+    doc.text('AGROTIC', 40, y, { align: 'center' });
+    y += 5;
+    doc.setFontSize(8);
+    doc.text('Sistema de Gestión Agrícola', 40, y, { align: 'center' });
+    y += 5;
+    doc.text('RECIBO DE VENTA', 40, y, { align: 'center' });
+    y += 8;
+
+    // Line
+    doc.line(5, y, 75, y);
+    y += 5;
+
+    // Details
+    doc.setFontSize(8);
+    doc.text(`Fecha: ${new Date(saleData.fecha).toLocaleDateString()}`, 5, y);
+    y += 4;
+    doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 5, y);
+    y += 4;
+    doc.text(`Cultivo: ${saleData.cultivo}`, 5, y);
+    y += 4;
+    doc.text(`Zona: ${saleData.zona}`, 5, y);
+    y += 4;
+    doc.text(`Cantidad: ${saleData.cantidad} ${saleData.unidadMedida}`, 5, y);
+    y += 4;
+    doc.text(`Precio Unit.: $${saleData.precioUnitario}`, 5, y);
+    y += 4;
+    doc.text(`Cosechas Sel.: ${saleData.cosechasSeleccionadas}`, 5, y);
+    y += 8;
+
+    // Total line
+    doc.line(5, y, 75, y);
+    y += 5;
+    doc.setFontSize(10);
+    doc.text(`TOTAL: $${saleData.total.toFixed(2)}`, 5, y);
+    y += 8;
+
+    // Footer
+    doc.line(5, y, 75, y);
+    y += 5;
+    doc.setFontSize(6);
+    doc.text('¡Gracias por su compra!', 40, y, { align: 'center' });
+    y += 3;
+    doc.text('AgroTic - Tecnología Agrícola', 40, y, { align: 'center' });
+
+    // Save the PDF
+    doc.save(`recibo-venta-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   // If this is a transient crop that has been completely sold, show completion message
@@ -191,8 +353,39 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
             )}
           </div>
         </ModalHeader>
-        <form onSubmit={handleSubmit}>
-          <ModalBody>
+        {saleCompleted ? (
+          <>
+            <ModalBody>
+              <div className="text-center py-8">
+                <div className="text-green-600 text-2xl font-semibold mb-4">✅ Venta Exitosa</div>
+                <p className="text-gray-700 mb-6">La venta ha sido registrada correctamente.</p>
+                <div className="bg-gray-50 p-4 rounded-lg text-left max-w-md mx-auto">
+                  <h3 className="font-semibold mb-2">Detalles de la Venta:</h3>
+                  <p><strong>Cultivo:</strong> {saleData?.cultivo}</p>
+                  <p><strong>Zona:</strong> {saleData?.zona}</p>
+                  <p><strong>Fecha:</strong> {new Date(saleData?.fecha).toLocaleDateString()}</p>
+                  <p><strong>Cantidad:</strong> {saleData?.cantidad} {saleData?.unidadMedida}</p>
+                  <p><strong>Precio Unitario:</strong> ${saleData?.precioUnitario}</p>
+                  <p><strong>Total:</strong> ${saleData?.total?.toFixed(2)}</p>
+                  <p><strong>Cosechas Seleccionadas:</strong> {saleData?.cosechasSeleccionadas}</p>
+                </div>
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <CustomButton onClick={handlePrintReceipt} variant="solid">
+                Imprimir Recibo
+              </CustomButton>
+              <CustomButton onClick={handleDownloadPDF} variant="solid">
+                Descargar PDF
+              </CustomButton>
+              <CustomButton onClick={onClose} variant="bordered">
+                Cerrar
+              </CustomButton>
+            </ModalFooter>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <ModalBody>
             <div className="grid grid-cols-2 gap-6">
               {/* Panel izquierdo: Información del cultivo y selecciones */}
               <div className="space-y-4">
@@ -310,6 +503,7 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
             </CustomButton>
           </ModalFooter>
         </form>
+        )}
       </ModalContent>
     </Modal>
   );
