@@ -372,7 +372,7 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
                 <div className="mb-4">
                   <p className="text-sm text-gray-600 mb-2">Imagen actual:</p>
                   <img
-                    src={`http://localhost:3000${editItem.producto.imgUrl}`}
+                    src={`${import.meta.env.VITE_API_URL}${editItem.producto.imgUrl}`}
                     alt="Imagen actual del producto"
                     className="w-32 h-32 object-cover rounded-lg border"
                   />

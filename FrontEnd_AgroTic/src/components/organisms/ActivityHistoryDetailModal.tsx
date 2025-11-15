@@ -324,17 +324,17 @@ const ActivityHistoryDetailModal: React.FC<ActivityHistoryDetailModalProps> = ({
               <h3 className="font-semibold mb-2">Imagen de Evidencia</h3>
               <div className="flex justify-center">
                 <img
-                  src={`http://localhost:3000${activity.imgUrl}`}
+                  src={`${import.meta.env.VITE_API_URL}${activity.imgUrl}`}
                   alt="Evidencia de actividad"
                   className="max-w-full max-h-96 rounded-lg shadow-md"
                   onLoad={() => {
-                    console.log(`[${new Date().toISOString()}] ✅ FRONTEND: Image rendered successfully for activity ${activity.id} - Full URL: http://localhost:3000${activity.imgUrl}`);
+                    console.log(`[${new Date().toISOString()}] ✅ FRONTEND: Image rendered successfully for activity ${activity.id} - Full URL: ${import.meta.env.VITE_API_URL}${activity.imgUrl}`);
                   }}
                   onError={(e) => {
-                    console.error(`[${new Date().toISOString()}] ❌ FRONTEND: Error rendering image for activity ${activity.id} - Attempted URL: http://localhost:3000${activity.imgUrl} - Original stored URL: ${activity.imgUrl}`);
+                    console.error(`[${new Date().toISOString()}] ❌ FRONTEND: Error rendering image for activity ${activity.id} - Attempted URL: ${import.meta.env.VITE_API_URL}${activity.imgUrl} - Original stored URL: ${activity.imgUrl}`);
                     // Try alternative URL construction
                     if (activity.imgUrl) {
-                      const alternativeUrl = `http://localhost:3000/uploads/${activity.imgUrl.split('/').pop()}`;
+                      const alternativeUrl = `${import.meta.env.VITE_API_URL}/uploads/${activity.imgUrl.split('/').pop()}`;
                       console.log(`[${new Date().toISOString()}] 🔄 FRONTEND: Trying alternative URL: ${alternativeUrl}`);
                       e.currentTarget.src = alternativeUrl;
                     }
