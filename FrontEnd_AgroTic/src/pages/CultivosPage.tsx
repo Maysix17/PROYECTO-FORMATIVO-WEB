@@ -17,6 +17,7 @@ import EstadosFenologicosModal from "../components/organisms//EstadosFenologicos
 import HarvestSellModal from "../components/organisms/HarvestSellModal";
 import { FinancialAnalysisModal } from "../components/organisms/FinancialAnalysisModal";
 import MqttManagementModal from "../components/molecules/MqttManagementModal";
+import CategoriaActividadModal from "../components/organisms/CategoriaActividadModal";
 import Swal from 'sweetalert2';
 import apiClient from '../lib/axios/axios';
 import {
@@ -41,6 +42,7 @@ const CultivosPage: React.FC = () => {
   const [isHarvestSellModalOpen, setIsHarvestSellModalOpen] = useState(false);
   const [isFinancialAnalysisModalOpen, setIsFinancialAnalysisModalOpen] = useState(false);
   const [isMqttManagementModalOpen, setIsMqttManagementModalOpen] = useState(false);
+  const [isCategoriaActividadModalOpen, setIsCategoriaActividadModalOpen] = useState(false);
   const [selectedCultivo, setSelectedCultivo] = useState<Cultivo | null>(null);
   const [selectedCultivoForDetails, setSelectedCultivoForDetails] = useState<Cultivo | null>(null);
   const [selectedCosechaId, setSelectedCosechaId] = useState<string>("");
@@ -235,6 +237,7 @@ const CultivosPage: React.FC = () => {
           onManageTipoCultivo={() => setIsTipoCultivoModalOpen(true)}
           onManageVariedad={() => setIsVariedadModalOpen(true)}
           onManageEstados={() => setIsEstadosFenologicosModalOpen(true)}
+          onManageCategoriaActividad={() => setIsCategoriaActividadModalOpen(true)}
         />
 
         {/* Tabla escritorio */}
@@ -537,6 +540,11 @@ const CultivosPage: React.FC = () => {
       <MqttManagementModal
         isOpen={isMqttManagementModalOpen}
         onClose={() => setIsMqttManagementModalOpen(false)}
+      />
+
+      <CategoriaActividadModal
+        isOpen={isCategoriaActividadModalOpen}
+        onClose={() => setIsCategoriaActividadModalOpen(false)}
       />
     </div>
   );

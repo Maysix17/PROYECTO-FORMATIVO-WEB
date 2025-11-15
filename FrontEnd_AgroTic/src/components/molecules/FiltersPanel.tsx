@@ -18,6 +18,7 @@ interface FiltersPanelProps {
   onManageTipoCultivo?: () => void;
   onManageVariedad?: () => void;
   onManageEstados?: () => void;
+  onManageCategoriaActividad?: () => void;
 }
 
 const FiltersPanel: React.FC<FiltersPanelProps> = ({
@@ -31,6 +32,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
   onManageTipoCultivo,
   onManageVariedad,
   onManageEstados,
+  onManageCategoriaActividad,
 }) => {
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
 
@@ -139,6 +141,13 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
                   onClick={onManageEstados}
                 >
                   Gestión Estados Fenológicos
+                </DropdownItem>
+                <DropdownItem
+                  key="categoria-actividad"
+                  startContent={<CogIcon className="w-4 h-4" />}
+                  onClick={onManageCategoriaActividad}
+                >
+                  Gestionar Categorías de Actividad
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
