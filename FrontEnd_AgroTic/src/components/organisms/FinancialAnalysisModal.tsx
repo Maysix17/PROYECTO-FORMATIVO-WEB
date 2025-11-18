@@ -6,7 +6,7 @@ import apiClient from '../../lib/axios/axios';
 import * as XLSX from 'xlsx';
 
 interface FinanzasCosecha {
-  id: string;
+  id?: string;
   fkCosechaId: string;
   cantidadCosechada: number;
   precioPorKilo: number;
@@ -18,10 +18,7 @@ interface FinanzasCosecha {
   ingresosTotales: number;
   ganancias: number;
   margenGanancia: number;
-  fechaCalculo: string;
-  cosecha?: {
-    fecha?: string;
-  };
+  fechaCalculo: Date;
 }
 
 interface FinancialAnalysisModalProps {

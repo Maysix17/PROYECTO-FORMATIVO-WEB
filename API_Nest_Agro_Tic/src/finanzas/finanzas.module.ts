@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FinanzasService } from './finanzas.service';
 import { FinanzasController } from './finanzas.controller';
-import { FinanzasCosecha } from './entities/finanzas_cosecha.entity';
 import { Cosecha } from '../cosechas/entities/cosecha.entity';
 import { ReservasXActividad } from '../reservas_x_actividad/entities/reservas_x_actividad.entity';
 import { Actividad } from '../actividades/entities/actividades.entity';
@@ -12,7 +11,6 @@ import { CultivosVariedadXZona } from '../cultivos_variedad_x_zona/entities/cult
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      FinanzasCosecha,
       Cosecha,
       ReservasXActividad,
       Actividad,

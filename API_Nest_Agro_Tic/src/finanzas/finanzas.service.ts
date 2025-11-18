@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { FinanzasCosecha } from './entities/finanzas_cosecha.entity';
+import { FinanzasDataDto } from './dto/finanzas-data.dto';
 import { Cosecha } from '../cosechas/entities/cosecha.entity';
 import { ReservasXActividad } from '../reservas_x_actividad/entities/reservas_x_actividad.entity';
 import { Actividad } from '../actividades/entities/actividades.entity';
@@ -11,8 +11,6 @@ import { CultivosVariedadXZona } from '../cultivos_variedad_x_zona/entities/cult
 @Injectable()
 export class FinanzasService {
   constructor(
-    @InjectRepository(FinanzasCosecha)
-    private readonly finanzasRepo: Repository<FinanzasCosecha>,
     @InjectRepository(Cosecha)
     private readonly cosechaRepo: Repository<Cosecha>,
     @InjectRepository(ReservasXActividad)
@@ -25,7 +23,7 @@ export class FinanzasService {
     private readonly cultivosVariedadXZonaRepo: Repository<CultivosVariedadXZona>,
   ) {}
 
-  async calcularFinanzasCosecha(cosechaId: string): Promise<FinanzasCosecha> {
+  async calcularFinanzasCosecha(cosechaId: string): Promise<FinanzasDataDto> {
     console.log(
       `[DEBUG] ================= INICIO CÁLCULO FINANZAS COSECHA ${cosechaId} =================`,
     );
@@ -130,21 +128,18 @@ export class FinanzasService {
       fechaCalculo: new Date(),
     };
 
-    console.log('[DEBUG] ---------- DATOS A GUARDAR EN DB ----------');
+    console.log('[DEBUG] ---------- DATOS CALCULADOS ----------');
     console.log(JSON.stringify(finanzasData, null, 2));
     console.log('-------------------------------------------------');
-
-    const finanzas = this.finanzasRepo.create(finanzasData);
-    const resultado = await this.finanzasRepo.save(finanzas);
 
     console.log(
       `[DEBUG] ================= FIN CÁLCULO FINANZAS COSECHA ${cosechaId} =================`,
     );
 
-    return resultado;
+    return finanzasData;
   }
 
-  async calcularFinanzasCultivoDinamico(cultivoId: string): Promise<FinanzasCosecha> {
+  async calcularFinanzasCultivoDinamico(cultivoId: string): Promise<FinanzasDataDto> {
     // Obtener todas las cosechas del cultivo
     const cosechas = await this.cosechaRepo.find({
       where: { fkCultivosVariedadXZonaId: cultivoId },
@@ -192,7 +187,7 @@ export class FinanzasService {
     const margenGanancia = costoTotalProduccion > 0 ? (ganancias / totalIngresos) * 100 : 0;
 
     // Crear registro dinámico (no persistente, solo para visualización)
-    const finanzas = this.finanzasRepo.create({
+    const finanzas: FinanzasDataDto = {
       fkCosechaId: cultivoId, // Usamos el ID del cultivo como referencia
       cantidadCosechada: totalCosechado,
       precioPorKilo: precioPromedioKilo,
@@ -204,7 +199,7 @@ export class FinanzasService {
       ganancias,
       margenGanancia,
       fechaCalculo: new Date(),
-    });
+    };
 
     return finanzas;
   }
@@ -305,32 +300,17 @@ export class FinanzasService {
     return precioTotal / ventas.length;
   }
 
-  async obtenerFinanzasCosecha(cosechaId: string): Promise<FinanzasCosecha | null> {
-    return await this.finanzasRepo.findOne({
-      where: { fkCosechaId: cosechaId },
-      relations: ['cosecha'],
-    });
+  async obtenerFinanzasCosecha(cosechaId: string): Promise<FinanzasDataDto | null> {
+    // Since we removed persistence, this always returns null
+    return null;
   }
 
-  async obtenerFinanzasCultivo(cultivoId: string): Promise<FinanzasCosecha[]> {
-    // Obtener todas las cosechas del cultivo
-    const cosechas = await this.cosechaRepo.find({
-      where: { fkCultivosVariedadXZonaId: cultivoId },
-    });
-
-    const finanzas: FinanzasCosecha[] = [];
-
-    for (const cosecha of cosechas) {
-      const finanza = await this.obtenerFinanzasCosecha(cosecha.id);
-      if (finanza) {
-        finanzas.push(finanza);
-      }
-    }
-
-    return finanzas;
+  async obtenerFinanzasCultivo(cultivoId: string): Promise<FinanzasDataDto[]> {
+    // Since we removed persistence, this always returns empty array
+    return [];
   }
 
-  async calcularFinanzasCultivoActividades(cultivoId: string): Promise<FinanzasCosecha> {
+  async calcularFinanzasCultivoActividades(cultivoId: string): Promise<FinanzasDataDto> {
     console.log(`[DEBUG] ================= INICIO CÁLCULO FINANZAS CULTIVO ACTIVIDADES ${cultivoId} =================`);
 
     // Buscar actividades del cultivo
@@ -365,7 +345,7 @@ export class FinanzasService {
     console.log('[DEBUG] ---------------------------------------');
 
     // Crear resultado con costos estimados (sin ingresos ya que no hay ventas)
-    const finanzas = this.finanzasRepo.create({
+    const finanzas: FinanzasDataDto = {
       fkCosechaId: cultivoId, // Usamos el ID del cultivo como referencia
       cantidadCosechada: 0, // No hay cosecha aún
       precioPorKilo: 0, // No hay ventas aún
@@ -377,7 +357,7 @@ export class FinanzasService {
       ganancias: -(costoTotalProduccion), // Pérdida estimada (solo costos)
       margenGanancia: 0, // No aplicable sin ingresos
       fechaCalculo: new Date(),
-    });
+    };
 
     console.log(`[DEBUG] ================= FIN CÁLCULO FINANZAS CULTIVO ACTIVIDADES ${cultivoId} =================`);
 
