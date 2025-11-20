@@ -52,6 +52,23 @@ export interface EstadoMqtt {
   mensaje?: string;
 }
 
+// Interfaces para gestión de umbrales
+export interface SensorThreshold {
+  minimo: number;
+  maximo: number;
+}
+
+export interface UmbralesConfig {
+  [sensorKey: string]: SensorThreshold;
+}
+
+export interface UmbralesResponse {
+  success: boolean;
+  message?: string;
+  data?: any;
+  timestamp?: string;
+}
+
 class ZonasService {
   private baseUrl = '/zonas';
 
@@ -188,8 +205,133 @@ class MedicionSensorService {
   }
 }
 
+class UmbralesService {
+  private baseUrl = '/mqtt-config';
+
+  async getUmbrales(zonaMqttConfigId: string): Promise<UmbralesConfig> {
+    try {
+      const response = await axios.get(`${this.baseUrl}/zona-mqtt/${zonaMqttConfigId}/umbrales`);
+      
+      // Verificar si la respuesta tiene la estructura esperada
+      if (response.data && response.data.umbrales) {
+        return response.data.umbrales;
+      }
+      
+      // Si no hay umbrales definidos, devolver objeto vacío
+      return {};
+    } catch (error: any) {
+      console.error('Error al obtener umbrales:', error);
+      throw new Error(`Error al obtener umbrales: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  async updateUmbrales(zonaMqttConfigId: string, umbrales: UmbralesConfig): Promise<void> {
+    try {
+      // Validación local antes de enviar
+      this.validateUmbralesData(umbrales);
+      
+      const response = await axios.put(`${this.baseUrl}/zona-mqtt/${zonaMqttConfigId}/umbrales`, {
+        umbrales
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Error al actualizar umbrales');
+      }
+    } catch (error: any) {
+      console.error('Error al actualizar umbrales:', error);
+      throw new Error(`Error al actualizar umbrales: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  async validateValue(sensorKey: string, valor: number, umbrales: UmbralesConfig): Promise<{ isValid: boolean; status: 'normal' | 'bajo' | 'alto' }> {
+    try {
+      // Validación local 
+      const result = this.validateThresholdLocally(sensorKey, valor, umbrales);
+      return result;
+    } catch (error: any) {
+      console.error('Error al validar valor:', error);
+      // En caso de error, devolver resultado conservador
+      return { isValid: false, status: 'normal' };
+    }
+  }
+
+  // Método de validación local de umbrales
+  private validateThresholdLocally(sensorKey: string, valor: number, umbrales: UmbralesConfig): { isValid: boolean; status: 'normal' | 'bajo' | 'alto' } {
+    const threshold = umbrales[sensorKey];
+    
+    if (!threshold) {
+      // No hay umbrales definidos para este sensor
+      return { isValid: true, status: 'normal' };
+    }
+
+    if (typeof valor !== 'number' || isNaN(valor)) {
+      throw new Error('El valor debe ser un número válido');
+    }
+
+    if (typeof threshold.minimo !== 'number' || typeof threshold.maximo !== 'number') {
+      throw new Error('Los umbrales deben tener valores numéricos');
+    }
+
+    if (threshold.minimo >= threshold.maximo) {
+      throw new Error('El valor mínimo debe ser menor que el máximo');
+    }
+
+    if (valor < threshold.minimo) {
+      return { isValid: false, status: 'bajo' };
+    }
+
+    if (valor > threshold.maximo) {
+      return { isValid: false, status: 'alto' };
+    }
+
+    return { isValid: true, status: 'normal' };
+  }
+
+  // Validación de estructura de datos de umbrales
+  private validateUmbralesData(umbrales: UmbralesConfig): void {
+    if (typeof umbrales !== 'object' || umbrales === null) {
+      throw new Error('Los umbrales deben ser un objeto válido');
+    }
+
+    for (const [sensorKey, threshold] of Object.entries(umbrales)) {
+      if (typeof threshold !== 'object' || threshold === null) {
+        throw new Error(`El umbral para ${sensorKey} debe ser un objeto`);
+      }
+
+      const { minimo, maximo } = threshold;
+      
+      if (typeof minimo !== 'number' || typeof maximo !== 'number') {
+        throw new Error(`Los valores mínimo y máximo para ${sensorKey} deben ser números`);
+      }
+
+      if (minimo >= maximo) {
+        throw new Error(`El valor mínimo debe ser menor que el máximo para ${sensorKey}`);
+      }
+
+      if (isNaN(minimo) || isNaN(maximo)) {
+        throw new Error(`Los valores para ${sensorKey} no pueden ser NaN`);
+      }
+    }
+  }
+
+  // Método utilitario para validar umbrales completos
+  validateCompleteUmbralesStructure(umbrales: any): umbrales is UmbralesConfig {
+    if (typeof umbrales !== 'object' || umbrales === null) {
+      return false;
+    }
+
+    try {
+      this.validateUmbralesData(umbrales);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 export const zonasService = new ZonasService();
 export const mqttConfigService = new MqttConfigService();
 export const medicionSensorService = new MedicionSensorService();
+export const umbralesService = new UmbralesService();
 
-console.log('zonasService.ts: Exporting services:', { zonasService, mqttConfigService, medicionSensorService });
+console.log('zonasService.ts: Exporting services:', { zonasService, mqttConfigService, medicionSensorService, umbralesService });

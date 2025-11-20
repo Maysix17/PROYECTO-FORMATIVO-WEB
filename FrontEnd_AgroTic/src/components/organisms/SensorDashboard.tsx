@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardBody, CardHeader, Spinner, Badge, Button } from '@heroui/react';
+import { Card, CardBody, CardHeader, Spinner, Badge, Button, Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-import { medicionSensorService, zonasService } from '../../services/zonasService';
+import { medicionSensorService, zonasService, umbralesService, mqttConfigService, type UmbralesConfig } from '../../services/zonasService';
 import { useMqttSocket } from '../../hooks/useMqttSocket';
 import CustomButton from '../atoms/Boton';
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import MqttManagementModal from '../molecules/MqttManagementModal';
 import ZoneSelectionModal from '../molecules/ZoneSelectionModal';
 import SensorSearchModal from './SensorSearchModal';
+import ThresholdConfigModal from '../molecules/ThresholdConfigModal';
 
 interface SensorDashboardProps {
   filters: Record<string, any>;
@@ -21,6 +22,9 @@ interface SensorData {
     lastUpdate: string;
     zonaNombre: string;
     cultivoNombres?: string[];
+    zonaMqttConfigId?: string;
+    thresholdStatus?: 'normal' | 'bajo' | 'alto';
+    hasThresholds?: boolean;
   };
 }
 
@@ -31,8 +35,14 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
   const [showMqttManagementModal, setShowMqttManagementModal] = useState(false);
   const [showZoneSelectionModal, setShowZoneSelectionModal] = useState(false);
   const [showSensorSearchModal, setShowSensorSearchModal] = useState(false);
+  const [showThresholdConfigModal, setShowThresholdConfigModal] = useState(false);
+  const [showZoneMqttConfigSelection, setShowZoneMqttConfigSelection] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedSensors, setSelectedSensors] = useState<string[]>([]);
+  const [umbrales, setUmbrales] = useState<Record<string, UmbralesConfig>>({});
+  const [isLoadingThresholds, setIsLoadingThresholds] = useState(false);
+  const [thresholdError, setThresholdError] = useState<string | null>(null);
+  const [selectedZonaMqttConfigId, setSelectedZonaMqttConfigId] = useState<string>('');
 
   // Use MQTT socket hook for real-time updates
   const { lecturas, isConnected } = useMqttSocket();
@@ -83,6 +93,30 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
             const newValue = Number(medicion.valor);
 
             if (selectedSensors.length === 0 || selectedSensors.includes(sensorKey)) {
+              // Find active zona-mqtt-config for this zone
+              const activeZonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.estado === true);
+              const zonaMqttConfigId = activeZonaMqttConfig?.id;
+              
+              // Validate threshold if available
+              let thresholdStatus: 'normal' | 'bajo' | 'alto' = 'normal';
+              let hasThresholds = false;
+              
+              if (zonaMqttConfigId && umbrales[zonaMqttConfigId]) {
+                const configUmbrales = umbrales[zonaMqttConfigId];
+                hasThresholds = Object.keys(configUmbrales).length > 0;
+                
+                if (configUmbrales[sensorKey]) {
+                  const threshold = configUmbrales[sensorKey];
+                  if (newValue < threshold.minimo) {
+                    thresholdStatus = 'bajo';
+                  } else if (newValue > threshold.maximo) {
+                    thresholdStatus = 'alto';
+                  } else {
+                    thresholdStatus = 'normal';
+                  }
+                }
+              }
+
               if (!newData[sensorKey]) {
               newData[sensorKey] = {
                 unit: medicion.unidad,
@@ -91,6 +125,9 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
                 lastUpdate: medicion.fechaMedicion,
                 zonaNombre: zona.nombre,
                 cultivoNombres,
+                zonaMqttConfigId,
+                thresholdStatus,
+                hasThresholds,
               };
               hasUpdates = true;
             } else {
@@ -98,6 +135,9 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
               if (new Date(medicion.fechaMedicion) > new Date(newData[sensorKey].lastUpdate)) {
                 newData[sensorKey].lastValue = newValue;
                 newData[sensorKey].lastUpdate = medicion.fechaMedicion;
+                newData[sensorKey].thresholdStatus = thresholdStatus;
+                newData[sensorKey].hasThresholds = hasThresholds;
+                newData[sensorKey].zonaMqttConfigId = zonaMqttConfigId;
               }
               // Keep only last 50 values
               if (newData[sensorKey].history.length > 50) {
@@ -116,6 +156,7 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
 
   const loadInitialData = async () => {
     setIsLoading(true);
+    setThresholdError(null);
     try {
       const [mediciones, zonasData] = await Promise.all([
         medicionSensorService.getAll(),
@@ -125,10 +166,51 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
       setZonas(zonasData);
 
       processMediciones(mediciones, zonasData);
+      
+      // Load umbrales for each zona-mqtt-config
+      await loadUmbralesForZonas(zonasData);
+      
     } catch (error) {
       console.error('Error loading sensor data:', error);
+      setThresholdError('Error al cargar datos de sensores: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadUmbralesForZonas = async (zonasData: any[]) => {
+    setIsLoadingThresholds(true);
+    setThresholdError(null);
+    
+    try {
+      const umbralesMap: Record<string, UmbralesConfig> = {};
+      
+      // Get all unique zona-mqtt-config IDs from zonas
+      const zonaMqttConfigPromises = zonasData.map(async (zona) => {
+        if (zona.zonaMqttConfigs && zona.zonaMqttConfigs.length > 0) {
+          for (const zonaMqttConfig of zona.zonaMqttConfigs) {
+            if (zonaMqttConfig.estado) { // Only active configs
+              try {
+                const umbrales = await umbralesService.getUmbrales(zonaMqttConfig.id);
+                umbralesMap[zonaMqttConfig.id] = umbrales;
+              } catch (error) {
+                console.warn(`Error loading umbrales for config ${zonaMqttConfig.id}:`, error);
+                // Continue with other configs even if one fails
+              }
+            }
+          }
+        }
+      });
+      
+      await Promise.all(zonaMqttConfigPromises);
+      
+      setUmbrales(umbralesMap);
+      
+    } catch (error) {
+      console.error('Error loading umbrales:', error);
+      setThresholdError('Error al cargar umbrales: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+    } finally {
+      setIsLoadingThresholds(false);
     }
   };
 
@@ -140,6 +222,30 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
       if (!zona) return;
 
       const cultivoNombres = zona.cultivosVariedad?.map((cv: any) => cv.cultivoXVariedad?.variedad?.tipoCultivo?.nombre).filter(Boolean) as string[];
+      
+      // Find active zona-mqtt-config for this zone
+      const activeZonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.estado === true);
+      const zonaMqttConfigId = activeZonaMqttConfig?.id;
+      
+      // Validate threshold if available
+      let thresholdStatus: 'normal' | 'bajo' | 'alto' = 'normal';
+      let hasThresholds = false;
+      
+      if (zonaMqttConfigId && umbrales[zonaMqttConfigId]) {
+        const configUmbrales = umbrales[zonaMqttConfigId];
+        hasThresholds = Object.keys(configUmbrales).length > 0;
+        
+        if (configUmbrales[medicion.key]) {
+          const threshold = configUmbrales[medicion.key];
+          if (medicion.valor < threshold.minimo) {
+            thresholdStatus = 'bajo';
+          } else if (medicion.valor > threshold.maximo) {
+            thresholdStatus = 'alto';
+          } else {
+            thresholdStatus = 'normal';
+          }
+        }
+      }
 
       if (!data[medicion.key]) {
         data[medicion.key] = {
@@ -149,6 +255,9 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
           lastUpdate: medicion.fechaMedicion,
           zonaNombre: zona.nombre,
           cultivoNombres,
+          zonaMqttConfigId,
+          thresholdStatus,
+          hasThresholds,
         };
       }
 
@@ -168,10 +277,78 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
       if (new Date(medicion.fechaMedicion) > new Date(data[medicion.key].lastUpdate)) {
         data[medicion.key].lastValue = medicion.valor;
         data[medicion.key].lastUpdate = medicion.fechaMedicion;
+        data[medicion.key].thresholdStatus = thresholdStatus;
+        data[medicion.key].hasThresholds = hasThresholds;
+        data[medicion.key].zonaMqttConfigId = zonaMqttConfigId;
       }
     });
 
     setSensorData(data);
+  };
+
+  const getAvailableSensors = (): string[] => {
+    return Object.keys(sensorData);
+  };
+
+  const getAvailableZoneMqttConfigs = () => {
+    const configs: Array<{ id: string; zonaNombre: string; configNombre: string }> = [];
+    
+    zonas.forEach(zona => {
+      if (zona.zonaMqttConfigs) {
+        zona.zonaMqttConfigs.forEach((zm: any) => {
+          if (zm.estado) {
+            configs.push({
+              id: zm.id,
+              zonaNombre: zona.nombre,
+              configNombre: zm.mqttConfig?.nombre || 'Configuración sin nombre'
+            });
+          }
+        });
+      }
+    });
+    
+    return configs;
+  };
+
+  const handleThresholdConfigClick = () => {
+    const availableConfigs = getAvailableZoneMqttConfigs();
+    
+    if (availableConfigs.length === 0) {
+      setThresholdError('No hay configuraciones de zona-MQTT activas disponibles para configurar umbrales.');
+      return;
+    }
+    
+    if (availableConfigs.length === 1) {
+      // If only one config, open modal directly
+      setSelectedZonaMqttConfigId(availableConfigs[0].id);
+      setShowThresholdConfigModal(true);
+    } else {
+      // If multiple configs, show selection
+      setShowZoneMqttConfigSelection(true);
+    }
+  };
+
+  const handleZoneMqttConfigSelect = (configId: string) => {
+    setSelectedZonaMqttConfigId(configId);
+    setShowZoneMqttConfigSelection(false);
+    setShowThresholdConfigModal(true);
+  };
+
+  const handleThresholdConfigSave = () => {
+    // Reload umbrales and refresh sensor data
+    loadUmbralesForZonas(zonas);
+    // Force reprocessing of current data with new thresholds
+    const mediciones = Object.values(sensorData).flatMap(sensor => 
+      sensor.history.map(h => ({
+        key: Object.keys(sensorData).find(k => sensorData[k] === sensor)!,
+        valor: h.value,
+        unidad: sensor.unit,
+        fechaMedicion: h.timestamp,
+        fkZonaId: h.zonaId,
+        fkMqttConfigId: sensor.zonaMqttConfigId || ''
+      }))
+    );
+    processMediciones(mediciones, zonas);
   };
 
   const applyFilters = (data: SensorData): SensorData => {
@@ -238,6 +415,114 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
     const index = sensorEntries.findIndex(([k]) => k === sensorKey);
     const highlightColor = `hsl(${index * 137.5 % 360}, 70%, 50%)`;
 
+    // Determine card colors based on threshold status
+    const getCardStyles = () => {
+      if (!data.hasThresholds) {
+        return {
+          cardBg: 'bg-gradient-to-br from-green-50 to-blue-50',
+          borderColor: 'border-green-100',
+          textColor: 'text-green-600',
+          unitColor: 'text-green-700',
+          valueColor: 'text-green-600'
+        };
+      }
+
+      switch (data.thresholdStatus) {
+        case 'normal':
+          return {
+            cardBg: 'bg-gradient-to-br from-green-50 to-green-100',
+            borderColor: 'border-green-200',
+            textColor: 'text-green-600',
+            unitColor: 'text-green-700',
+            valueColor: 'text-green-600'
+          };
+        case 'bajo':
+          return {
+            cardBg: 'bg-gradient-to-br from-red-50 to-red-100',
+            borderColor: 'border-red-200',
+            textColor: 'text-red-600',
+            unitColor: 'text-red-700',
+            valueColor: 'text-red-600'
+          };
+        case 'alto':
+          return {
+            cardBg: 'bg-gradient-to-br from-red-50 to-red-100',
+            borderColor: 'border-red-200',
+            textColor: 'text-red-600',
+            unitColor: 'text-red-700',
+            valueColor: 'text-red-600'
+          };
+        default:
+          return {
+            cardBg: 'bg-gradient-to-br from-green-50 to-blue-50',
+            borderColor: 'border-green-100',
+            textColor: 'text-green-600',
+            unitColor: 'text-green-700',
+            valueColor: 'text-green-600'
+          };
+      }
+    };
+
+    const styles = getCardStyles();
+
+    // Get status badge configuration
+    const getStatusBadge = () => {
+      if (!data.hasThresholds) {
+        return {
+          color: 'success' as const,
+          text: 'Sin Umbrales',
+          icon: '🔧'
+        };
+      }
+
+      switch (data.thresholdStatus) {
+        case 'normal':
+          return {
+            color: 'success' as const,
+            text: 'Normal',
+            icon: '✅'
+          };
+        case 'bajo':
+          return {
+            color: 'danger' as const,
+            text: 'Alerta Baja',
+            icon: '⚠️'
+          };
+        case 'alto':
+          return {
+            color: 'danger' as const,
+            text: 'Alerta Alta',
+            icon: '⚠️'
+          };
+        default:
+          return {
+            color: 'warning' as const,
+            text: 'Desconocido',
+            icon: '❓'
+          };
+      }
+    };
+
+    const statusBadge = getStatusBadge();
+
+    // Get threshold range info if available
+    const getThresholdRange = () => {
+      if (!data.hasThresholds || !data.zonaMqttConfigId || !umbrales[data.zonaMqttConfigId]) {
+        return null;
+      }
+
+      const configUmbrales = umbrales[data.zonaMqttConfigId];
+      const sensorThreshold = configUmbrales[sensorKey];
+
+      if (sensorThreshold) {
+        return `Rango: ${sensorThreshold.minimo} - ${sensorThreshold.maximo} ${data.unit}`;
+      }
+
+      return null;
+    };
+
+    const thresholdRange = getThresholdRange();
+
     return (
       <Card className="w-full max-w-xs" style={isSelected ? { border: `2px solid ${highlightColor}`, boxShadow: `0 6px 12px ${highlightColor}70, 0 10px 20px ${highlightColor}50` } : {}}>
         <CardHeader className="flex items-center justify-between pb-2">
@@ -248,19 +533,24 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
               {data.cultivoNombres && data.cultivoNombres.length > 0 && <p>Cultivos: {data.cultivoNombres.join(', ')}</p>}
             </div>
           </div>
-          <Badge color="success" variant="flat" className="ml-2">
-            Activo
+          <Badge color={statusBadge.color} variant="flat" className="ml-2">
+            {statusBadge.icon} {statusBadge.text}
           </Badge>
         </CardHeader>
         <CardBody className="pt-0">
           <div className="space-y-3">
-            <div className="text-center bg-gradient-to-br from-green-50 to-blue-50 rounded-lg p-3 border border-green-100">
-              <div className="text-3xl font-bold text-green-600 mb-1">
-                {Number(data.lastValue).toFixed(2)} <span className="text-lg text-green-700">{data.unit}</span>
+            <div className={`text-center rounded-lg p-3 border ${styles.cardBg} ${styles.borderColor}`}>
+              <div className={`text-3xl font-bold mb-1 ${styles.valueColor}`}>
+                {Number(data.lastValue).toFixed(2)} <span className={`text-lg ${styles.unitColor}`}>{data.unit}</span>
               </div>
               <div className="text-xs text-gray-600 font-medium">
                 Última actualización: {new Date(data.lastUpdate).toLocaleString()}
               </div>
+              {thresholdRange && (
+                <div className="text-xs text-gray-500 mt-1 font-medium">
+                  {thresholdRange}
+                </div>
+              )}
             </div>
 
           </div>
@@ -302,6 +592,14 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
               <CustomButton
                 variant="light"
                 size="sm"
+                label="Configurar Umbrales"
+                onClick={handleThresholdConfigClick}
+                className="rounded-lg px-3 py-1 h-8 text-orange-600 border-orange-200 hover:bg-orange-50"
+              />
+
+              <CustomButton
+                variant="light"
+                size="sm"
                 label="Gestionar Broker"
                 onClick={() => setShowMqttManagementModal(true)}
                 className="rounded-lg px-3 py-1 h-8 text-gray-600"
@@ -325,6 +623,11 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
               <p className="mt-2 text-gray-600">
                 {isLoading ? 'Cargando datos de sensores...' : 'Esperando datos de sensores...'}
               </p>
+              {isLoadingThresholds && (
+                <div className="mt-2">
+                  <p className="text-sm text-orange-600">Cargando umbrales...</p>
+                </div>
+              )}
             </div>
           ) : sensorEntries.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -463,11 +766,79 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
         />
       )}
 
+      {showThresholdConfigModal && selectedZonaMqttConfigId && (
+        <ThresholdConfigModal
+          isOpen={showThresholdConfigModal}
+          onClose={() => {
+            setShowThresholdConfigModal(false);
+            setSelectedZonaMqttConfigId('');
+          }}
+          zonaMqttConfigId={selectedZonaMqttConfigId}
+          availableSensors={getAvailableSensors()}
+          onSave={handleThresholdConfigSave}
+        />
+      )}
+
+      {showZoneMqttConfigSelection && (
+        <Modal isOpen={showZoneMqttConfigSelection} onOpenChange={setShowZoneMqttConfigSelection} size="lg">
+          <ModalContent>
+            <ModalHeader>
+              <h2 className="text-lg font-semibold">Seleccionar Configuración de Zona-MQTT</h2>
+            </ModalHeader>
+            <ModalBody className="p-6">
+              <div className="space-y-3">
+                {getAvailableZoneMqttConfigs().map((config) => (
+                  <div
+                    key={config.id}
+                    onClick={() => handleZoneMqttConfigSelect(config.id)}
+                    className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-gray-900">{config.zonaNombre}</h3>
+                        <p className="text-sm text-gray-600">{config.configNombre}</p>
+                      </div>
+                      <div className="text-orange-500">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
+
       {showSensorSearchModal && (
         <SensorSearchModal
           isOpen={showSensorSearchModal}
           onClose={() => setShowSensorSearchModal(false)}
         />
+      )}
+
+      {/* Threshold error display */}
+      {thresholdError && (
+        <div className="fixed bottom-4 right-4 bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg max-w-md z-50">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-800">{thresholdError}</p>
+              <button
+                onClick={() => setThresholdError(null)}
+                className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -7,10 +7,16 @@ import {
   Param,
   Delete,
   BadRequestException,
+  Put,
+  NotFoundException,
+  Query,
 } from '@nestjs/common';
 import { MqttConfigService } from './mqtt_config.service';
 import { CreateMqttConfigDto } from './dto/create-mqtt_config.dto';
 import { UpdateMqttConfigDto } from './dto/update-mqtt_config.dto';
+import { UpdateUmbralesDto } from './dto/update-umbrales.dto';
+import { UmbralesResponseDto, UpdateUmbralesResponseDto } from './dto/umbrales-response.dto';
+import { ValidateThresholdDto } from './dto/validate-threshold.dto';
 import { MqttService } from '../mqtt/mqtt.service';
 
 @Controller('mqtt-config')
@@ -249,5 +255,57 @@ export class MqttConfigController {
     const protocol = testData.protocol === 'wss' ? 'wss' : testData.protocol === 'ws' ? 'ws' : 'mqtt';
     const port = testData.port || (protocol === 'wss' ? '8884' : protocol === 'ws' ? '8883' : '1883');
     return `${protocol}://${testData.host}:${port}`;
+  }
+
+  /**
+   * Obtener umbrales de una configuración zona-mqtt específica
+   */
+  @Get('zona-mqtt/:id/umbrales')
+  async getUmbrales(@Param('id') id: string) {
+    try {
+      return await this.mqttConfigService.getUmbrales(id);
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Actualizar umbrales de una configuración zona-mqtt específica
+   */
+  @Put('zona-mqtt/:id/umbrales')
+  async updateUmbrales(
+    @Param('id') id: string,
+    @Body() updateUmbralesDto: UpdateUmbralesDto
+  ) {
+    try {
+      return await this.mqttConfigService.updateUmbrales(id, updateUmbralesDto);
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Validar si un valor excede los umbrales establecidos
+   */
+  @Post('zona-mqtt/:id/validate-threshold')
+  async validateThreshold(
+    @Param('id') id: string,
+    @Body() validateThresholdDto: ValidateThresholdDto
+  ) {
+    try {
+      const { sensorType, value } = validateThresholdDto;
+      return await this.mqttConfigService.validateThreshold(id, sensorType, value);
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      }
+      throw error;
+    }
   }
 }

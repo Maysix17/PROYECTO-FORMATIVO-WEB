@@ -26,6 +26,16 @@ export class ZonaMqttConfig {
   @Column({ name: 'zmc_estado', type: 'boolean', default: true })
   estado: boolean; // true = conectado/activado, false = desconectado/desactivado
 
+  @Column({
+    name: 'zmc_umbrales',
+    type: 'jsonb',
+    default: {} as any
+  })
+  umbrales: Record<string, {
+    minimo: number;
+    maximo: number;
+  }>;
+
   @CreateDateColumn({ name: 'zmc_created_at' })
   createdAt: Date;
 

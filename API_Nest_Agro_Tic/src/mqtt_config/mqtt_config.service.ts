@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
 import { MqttConfig } from './entities/mqtt_config.entity';
 import { ZonaMqttConfig } from './entities/zona_mqtt_config.entity';
 import { CreateMqttConfigDto } from './dto/create-mqtt_config.dto';
 import { UpdateMqttConfigDto } from './dto/update-mqtt_config.dto';
+import { UpdateUmbralesDto } from './dto/update-umbrales.dto';
+import { UmbralesResponseDto, UpdateUmbralesResponseDto } from './dto/umbrales-response.dto';
+import { classToPlain } from 'class-transformer';
 
 @Injectable()
 export class MqttConfigService {
@@ -166,5 +169,110 @@ export class MqttConfigService {
   async isZonaMqttConfigActive(id: string): Promise<boolean> {
     const zmc = await this.zonaMqttConfigRepository.findOne({ where: { id } });
     return !!(zmc && zmc.estado);
+  }
+
+  /**
+   * Obtener umbrales de una configuración zona-mqtt específica
+   */
+  async getUmbrales(zonaMqttConfigId: string): Promise<UmbralesResponseDto> {
+    const zonaMqttConfig = await this.zonaMqttConfigRepository.findOne({
+      where: { id: zonaMqttConfigId },
+      relations: ['mqttConfig', 'zona'],
+    });
+
+    if (!zonaMqttConfig) {
+      throw new NotFoundException(`Configuración zona-mqtt con ID ${zonaMqttConfigId} no encontrada`);
+    }
+
+    // Transformar los umbrales a formato DTO
+    const umbrales: Record<string, any> = {};
+    if (zonaMqttConfig.umbrales) {
+      Object.entries(zonaMqttConfig.umbrales).forEach(([key, value]) => {
+        umbrales[key] = {
+          minimo: value.minimo,
+          maximo: value.maximo,
+        };
+      });
+    }
+
+    return {
+      id: zonaMqttConfig.id,
+      fkZonaMqttConfigId: zonaMqttConfig.id,
+      umbrales,
+      estado: zonaMqttConfig.estado,
+      createdAt: zonaMqttConfig.createdAt,
+      updatedAt: zonaMqttConfig.updatedAt,
+      zonaNombre: zonaMqttConfig.zona?.nombre,
+      mqttConfigNombre: zonaMqttConfig.mqttConfig?.nombre,
+      mqttConfigHost: zonaMqttConfig.mqttConfig?.host,
+      mqttConfigPort: zonaMqttConfig.mqttConfig?.port,
+    };
+  }
+
+  /**
+   * Actualizar umbrales de una configuración zona-mqtt específica
+   */
+  async updateUmbrales(zonaMqttConfigId: string, updateUmbralesDto: UpdateUmbralesDto): Promise<UpdateUmbralesResponseDto> {
+    const zonaMqttConfig = await this.zonaMqttConfigRepository.findOne({
+      where: { id: zonaMqttConfigId },
+      relations: ['mqttConfig', 'zona'],
+    });
+
+    if (!zonaMqttConfig) {
+      throw new NotFoundException(`Configuración zona-mqtt con ID ${zonaMqttConfigId} no encontrada`);
+    }
+
+    // Actualizar los umbrales
+    await this.zonaMqttConfigRepository.update(zonaMqttConfigId, {
+      umbrales: updateUmbralesDto.umbrales,
+    });
+
+    // Obtener la configuración actualizada
+    const updatedConfig = await this.getUmbrales(zonaMqttConfigId);
+
+    return {
+      success: true,
+      message: 'Umbrales actualizados exitosamente',
+      data: updatedConfig,
+      timestamp: new Date(),
+    };
+  }
+
+  /**
+   * Validar si un valor excede los umbrales establecidos
+   */
+  async validateThreshold(zonaMqttConfigId: string, sensorType: string, value: number): Promise<{
+    exceeds: boolean;
+    threshold?: { minimo: number; maximo: number };
+    message: string;
+  }> {
+    const zonaMqttConfig = await this.zonaMqttConfigRepository.findOne({
+      where: { id: zonaMqttConfigId },
+    });
+
+    if (!zonaMqttConfig) {
+      throw new NotFoundException(`Configuración zona-mqtt con ID ${zonaMqttConfigId} no encontrada`);
+    }
+
+    const umbrales = zonaMqttConfig.umbrales || {};
+    const threshold = umbrales[sensorType];
+
+    if (!threshold) {
+      return {
+        exceeds: false,
+        message: `No hay umbrales definidos para el tipo de sensor: ${sensorType}`,
+      };
+    }
+
+    const exceeds = value < threshold.minimo || value > threshold.maximo;
+    const message = exceeds 
+      ? `El valor ${value} está fuera del rango permitido [${threshold.minimo}, ${threshold.maximo}]`
+      : `El valor ${value} está dentro del rango permitido [${threshold.minimo}, ${threshold.maximo}]`;
+
+    return {
+      exceeds,
+      threshold,
+      message,
+    };
   }
 }
