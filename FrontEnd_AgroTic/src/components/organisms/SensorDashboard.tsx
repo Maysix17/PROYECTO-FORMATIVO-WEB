@@ -36,13 +36,15 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
   const [showZoneSelectionModal, setShowZoneSelectionModal] = useState(false);
   const [showSensorSearchModal, setShowSensorSearchModal] = useState(false);
   const [showThresholdConfigModal, setShowThresholdConfigModal] = useState(false);
-  const [showZoneMqttConfigSelection, setShowZoneMqttConfigSelection] = useState(false);
+  const [showCultivoSelection, setShowCultivoSelection] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedSensors, setSelectedSensors] = useState<string[]>([]);
   const [umbrales, setUmbrales] = useState<Record<string, UmbralesConfig>>({});
   const [isLoadingThresholds, setIsLoadingThresholds] = useState(false);
   const [thresholdError, setThresholdError] = useState<string | null>(null);
   const [selectedZonaMqttConfigId, setSelectedZonaMqttConfigId] = useState<string>('');
+  const [selectedCultivo, setSelectedCultivo] = useState<string>('');
+  const [selectedZonaNombre, setSelectedZonaNombre] = useState<string>('');
 
   // Use MQTT socket hook for real-time updates
   const { lecturas, isConnected } = useMqttSocket();
@@ -290,47 +292,75 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
     return Object.keys(sensorData);
   };
 
-  const getAvailableZoneMqttConfigs = () => {
-    const configs: Array<{ id: string; zonaNombre: string; configNombre: string }> = [];
-    
+
+
+  const getAllAvailableCrops = () => {
+    const crops: Array<{
+      id: string;
+      cultivoNombre: string;
+      variedadNombre?: string;
+      zonaNombre: string;
+      zonaMqttConfigId: string;
+      ubicacion: string;
+    }> = [];
+
     zonas.forEach(zona => {
-      if (zona.zonaMqttConfigs) {
-        zona.zonaMqttConfigs.forEach((zm: any) => {
-          if (zm.estado) {
-            configs.push({
-              id: zm.id,
-              zonaNombre: zona.nombre,
-              configNombre: zm.mqttConfig?.nombre || 'Configuración sin nombre'
-            });
-          }
+      const activeZonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.estado);
+      if (!activeZonaMqttConfig || !zona.cultivosVariedad) return;
+
+      zona.cultivosVariedad.forEach((cv: any) => {
+        const cultivoNombre = cv.cultivoXVariedad?.variedad?.tipoCultivo?.nombre;
+        const variedadNombre = cv.cultivoXVariedad?.variedad?.nombre;
+        
+        if (!cultivoNombre) return;
+
+        crops.push({
+          id: `${zona.id}-${cv.cultivoXVariedad?.variedad?.id || cultivoNombre}`,
+          cultivoNombre,
+          variedadNombre: variedadNombre !== cultivoNombre ? variedadNombre : undefined,
+          zonaNombre: zona.nombre,
+          zonaMqttConfigId: activeZonaMqttConfig.id,
+          ubicacion: `${zona.nombre}${cv.ubicacion ? ` - ${cv.ubicacion}` : ''}`
         });
-      }
+      });
     });
-    
-    return configs;
+
+    return crops;
   };
 
   const handleThresholdConfigClick = () => {
-    const availableConfigs = getAvailableZoneMqttConfigs();
+    const availableCrops = getAllAvailableCrops();
     
-    if (availableConfigs.length === 0) {
-      setThresholdError('No hay configuraciones de zona-MQTT activas disponibles para configurar umbrales.');
+    if (availableCrops.length === 0) {
+      setThresholdError('No hay cultivos disponibles para configurar umbrales.');
       return;
     }
     
-    if (availableConfigs.length === 1) {
-      // If only one config, open modal directly
-      setSelectedZonaMqttConfigId(availableConfigs[0].id);
+    if (availableCrops.length === 1) {
+      // If only one crop, open threshold modal directly
+      const crop = availableCrops[0];
+      setSelectedZonaMqttConfigId(crop.zonaMqttConfigId);
+      setSelectedZonaNombre(crop.zonaNombre);
+      setSelectedCultivo(crop.cultivoNombre + (crop.variedadNombre ? ` - ${crop.variedadNombre}` : ''));
       setShowThresholdConfigModal(true);
     } else {
-      // If multiple configs, show selection
-      setShowZoneMqttConfigSelection(true);
+      // If multiple crops, show crop selection
+      setShowCultivoSelection(true);
     }
   };
 
-  const handleZoneMqttConfigSelect = (configId: string) => {
-    setSelectedZonaMqttConfigId(configId);
-    setShowZoneMqttConfigSelection(false);
+
+
+  const handleCultivoSelect = (cropIndex: number) => {
+    const availableCrops = getAllAvailableCrops();
+    const selectedCrop = availableCrops[cropIndex];
+    
+    if (!selectedCrop) return;
+    
+    setSelectedZonaMqttConfigId(selectedCrop.zonaMqttConfigId);
+    setSelectedZonaNombre(selectedCrop.zonaNombre);
+    setSelectedCultivo(selectedCrop.cultivoNombre + (selectedCrop.variedadNombre ? ` - ${selectedCrop.variedadNombre}` : ''));
+    setShowCultivoSelection(false);
     setShowThresholdConfigModal(true);
   };
 
@@ -772,33 +802,51 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
           onClose={() => {
             setShowThresholdConfigModal(false);
             setSelectedZonaMqttConfigId('');
+            setSelectedCultivo('');
+            setSelectedZonaNombre('');
           }}
           zonaMqttConfigId={selectedZonaMqttConfigId}
           availableSensors={getAvailableSensors()}
+          cultivoNombre={selectedCultivo || undefined}
           onSave={handleThresholdConfigSave}
         />
       )}
 
-      {showZoneMqttConfigSelection && (
-        <Modal isOpen={showZoneMqttConfigSelection} onOpenChange={setShowZoneMqttConfigSelection} size="lg">
+
+
+      {showCultivoSelection && (
+        <Modal isOpen={showCultivoSelection} onOpenChange={setShowCultivoSelection} size="lg">
           <ModalContent>
             <ModalHeader>
-              <h2 className="text-lg font-semibold">Seleccionar Configuración de Zona-MQTT</h2>
+              <h2 className="text-lg font-semibold">
+                Alertas de cultivo
+              </h2>
             </ModalHeader>
             <ModalBody className="p-6">
               <div className="space-y-3">
-                {getAvailableZoneMqttConfigs().map((config) => (
+                <p className="text-sm text-gray-600 mb-4">
+                  Selecciona el cultivo específico para configurar sus umbrales:
+                </p>
+                {getAllAvailableCrops().map((crop, index) => (
                   <div
-                    key={config.id}
-                    onClick={() => handleZoneMqttConfigSelect(config.id)}
-                    className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-colors"
+                    key={index}
+                    onClick={() => handleCultivoSelect(index)}
+                    className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-green-300 hover:bg-green-50 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-medium text-gray-900">{config.zonaNombre}</h3>
-                        <p className="text-sm text-gray-600">{config.configNombre}</p>
+                        <h3 className="font-medium text-gray-900">
+                          {crop.cultivoNombre}
+                          {crop.variedadNombre && ` - ${crop.variedadNombre}`}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          📍 {crop.ubicacion}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Zona: {crop.zonaNombre}
+                        </p>
                       </div>
-                      <div className="text-orange-500">
+                      <div className="text-green-500">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>

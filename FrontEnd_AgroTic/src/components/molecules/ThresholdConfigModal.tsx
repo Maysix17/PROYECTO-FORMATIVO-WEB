@@ -10,6 +10,7 @@ interface ThresholdConfigModalProps {
   onClose: () => void;
   zonaMqttConfigId: string;
   availableSensors: string[];
+  cultivoNombre?: string;
   onSave?: () => void;
 }
 
@@ -18,6 +19,7 @@ const ThresholdConfigModal: React.FC<ThresholdConfigModalProps> = ({
   onClose,
   zonaMqttConfigId,
   availableSensors,
+  cultivoNombre,
   onSave,
 }) => {
   console.log('ThresholdConfigModal: Component starting, props:', { 
@@ -249,6 +251,11 @@ const ThresholdConfigModal: React.FC<ThresholdConfigModalProps> = ({
         <ModalHeader>
           <h2 className="text-lg font-semibold">
             Configuración de Umbrales de Sensores
+            {cultivoNombre && (
+              <span className="text-base font-normal text-gray-600 block mt-1">
+                {cultivoNombre}
+              </span>
+            )}
           </h2>
         </ModalHeader>
 
