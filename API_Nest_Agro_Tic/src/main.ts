@@ -11,7 +11,7 @@ async function bootstrap() {
 
   app.use(
     cors({
-      origin: configService.get('FRONTEND_URL') || 'http://localhost:5173',
+      origin: configService.get('FRONTEND_URL')?.split(',').map(s => s.trim()) || ['http://localhost:5173'],
       credentials: true,
     }),
   );

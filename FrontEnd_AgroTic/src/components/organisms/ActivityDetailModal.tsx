@@ -197,9 +197,9 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
                     Usuario Responsable
                   </h3>
                   <div className="space-y-2">
-                    {(activity as any).responsableNombre ? (
+                    {(activity as any).nombreResponsable ? (
                       <div className="p-3 bg-white rounded border">
-                        <div className="font-medium text-gray-900">{(activity as any).responsableNombre}</div>
+                        <div className="font-medium text-gray-900">{(activity as any).nombreResponsable}</div>
                         <div className="text-sm text-gray-600">DNI: {(activity as any).responsableDni}</div>
                       </div>
                     ) : activity.dniResponsable ? (

@@ -350,8 +350,8 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
 
   const getResponsibleUser = (activity: ExtendedActividad) => {
     // Show the main responsible user (the one who created/initiated the activity)
-    if ((activity as any).responsableNombre) {
-      return (activity as any).responsableNombre;
+    if ((activity as any).nombreResponsable) {
+      return (activity as any).nombreResponsable;
     }
     return 'Sin responsable';
   };

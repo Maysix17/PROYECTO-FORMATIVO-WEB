@@ -4,10 +4,20 @@ import { AuthenticationGuard } from './common/guards/authentication.guard';
 import { AuthorizationGuard } from './common/guards/authorization.guard';
 import { Permisos } from './permisos/decorators/permisos.decorator';
 
-@UseGuards(AuthenticationGuard, AuthorizationGuard)
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
+
+  // Health check endpoint - no authentication required
+  @Get('/health')
+  getHealth() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'API Nest AgroTic',
+      version: '1.0.0'
+    };
+  }
 
   @Permisos({
     recurso: 'productos',

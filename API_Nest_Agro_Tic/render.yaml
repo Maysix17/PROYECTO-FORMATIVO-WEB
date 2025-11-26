@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: api-nest-agrotic
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - fromSecret: db_host
+      - fromSecret: db_port
+      - fromSecret: db_username
+      - fromSecret: db_password
+      - fromSecret: db_database
+      - fromSecret: redis_host
+      - fromSecret: redis_port
+      - fromSecret: jwt_secret
+      - fromSecret: jwt_refresh_secret
+      - fromSecret: mail_host
+      - fromSecret: mail_port
+      - fromSecret: mail_user
+      - fromSecret: mail_password
+      - fromSecret: mail_from
+      - key: FRONTEND_URL
+        value: https://tu-frontend.vercel.app,https://tu-app-expo.vercel.app
+
+  - type: pserv
+    name: api-nest-agrotic-db
+    runtime: postgres
+    ipAllowList: [] # only accessible from other services
+
+  - type: pserv
+    name: api-nest-agrotic-redis
+    runtime: redis
+    ipAllowList: [] # only accessible from other services
