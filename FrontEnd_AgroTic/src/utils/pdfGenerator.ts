@@ -1091,8 +1091,8 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
 
         try {
           const canvas = await renderLineChartToCanvas({
-            width: 500, // Standardized 500x500
-            height: 500,
+            width: 500, // Standardized 500x300
+            height: 300,
             data: chartData,
             title: '', // No title in chart, we have it above
             subtitle: '',
@@ -1105,8 +1105,8 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
           });
 
           const imgData = canvas.toDataURL('image/png');
-          pdf.addImage(imgData, 'PNG', 20, yPosition, 170, 170); // 500x500 scaled to fit PDF width
-          yPosition += 180; // Increased spacing for larger charts
+          pdf.addImage(imgData, 'PNG', 20, yPosition, 170, 102); // 500x300 scaled to fit PDF width
+          yPosition += 120; // Adjusted spacing for compact charts
 
           // Clean period info below chart
           pdf.setFontSize(9);
