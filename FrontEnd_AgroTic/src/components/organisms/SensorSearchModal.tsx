@@ -211,7 +211,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
           <MagnifyingGlassIcon className="w-6 h-6" />
-          Búsqueda de Sensores por Cultivo y Zona
+          Reportes de Sensores 
         </ModalHeader>
         <ModalBody>
           {/* Search Input */}
@@ -320,25 +320,11 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
                                       onValueChange={() => toggleSensorSelection(uniqueKey)}
                                       className="w-full [&>span>svg]:text-black"
                                     >
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                          <span className="font-semibold text-gray-800">{sensor.key}</span>
-                                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                            {sensor.unidad}
-                                          </span>
-                                        </div>
-                                        <div className="text-sm text-gray-600">
-                                          <span className="font-medium text-green-600">{sensor.valor}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                          {new Date(sensor.fechaMedicion).toLocaleDateString('es-ES', {
-                                            year: 'numeric',
-                                            month: 'short',
-                                            day: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                          })}
-                                        </div>
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-gray-800">{sensor.key}</span>
+                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                          {sensor.unidad}
+                                        </span>
                                       </div>
                                     </Checkbox>
                                   </div>

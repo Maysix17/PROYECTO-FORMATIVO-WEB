@@ -614,7 +614,7 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
                 color="primary"
                 variant="solid"
                 onClick={() => setShowSensorSearchModal(true)}
-                label="Buscar Sensores"
+                label="Exportar Datos"
                 icon={<MagnifyingGlassIcon className="w-4 h-4" />}
                 className="rounded-lg px-3 py-1 h-8"
               />
