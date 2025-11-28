@@ -44,6 +44,22 @@ export class ReportDataRequestDto {
   end_date?: string;
 
   @IsOptional()
-  @IsIn(['hourly', 'daily', 'weekly'])
-  group_by?: 'hourly' | 'daily' | 'weekly';
+  @IsIn(['hourly', 'daily', 'weekly', 'time_slot'])
+  group_by?: 'hourly' | 'daily' | 'weekly' | 'time_slot';
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @IsIn(['morning', 'afternoon', 'evening', 'night'], { each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((v: string) => v.trim());
+    }
+    return value;
+  })
+  time_ranges?: ('morning' | 'afternoon' | 'evening' | 'night')[];
+
+  @IsOptional()
+  @IsIn(['morning', 'afternoon', 'evening', 'night'])
+  time_range?: 'morning' | 'afternoon' | 'evening' | 'night';
 }

@@ -46,5 +46,8 @@ export class ReportDataResponseDto {
   period: string; // e.g., "2023-01-01" for daily, "2023-01-01 10:00" for hourly
 
   @Expose()
+  timeSlot?: number; // 0: 0-6am, 1: 6am-12pm, 2: 12pm-6pm, 3: 6pm-12am
+
+  @Expose()
   statistics: SensorStatisticsDto[];
 }

@@ -14,10 +14,13 @@ import {
   Spinner,
   Chip,
   Checkbox,
+  Select,
+  SelectItem,
 } from '@heroui/react';
 import { MagnifyingGlassIcon, XMarkIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { medicionSensorService } from '../../services/zonasService';
 import { generateSensorSearchPDF } from '../../utils/pdfGenerator';
+import apiClient from '../../lib/axios/axios';
 import DateRangeInput from '../atoms/DateRangeInput';
 
 interface SensorSearchModalProps {
@@ -60,7 +63,9 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSensors, setSelectedSensors] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
-  const [dateRanges, setDateRanges] = useState<Map<string, [Date | null, Date | null]>>(new Map());
+  const [globalStartDate, setGlobalStartDate] = useState('');
+  const [globalEndDate, setGlobalEndDate] = useState('');
+  const [selectedTimeRanges, setSelectedTimeRanges] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
@@ -114,28 +119,6 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
     setSelectedSensors(newSelected);
   };
 
-  const handleDateRangeChange = (cardKey: string, dates: [Date | null, Date | null]) => {
-    const newDateRanges = new Map(dateRanges);
-    newDateRanges.set(cardKey, dates);
-    setDateRanges(newDateRanges);
-  };
-
-  const getFilteredSensorData = (item: CultivoZonaSensor) => {
-    const cardKey = `${item.cultivoId}-${item.zonaId}`;
-    const dateRange = dateRanges.get(cardKey);
-
-    if (!dateRange || (!dateRange[0] && !dateRange[1])) {
-      return item.uniqueSensorData;
-    }
-
-    const [startDate, endDate] = dateRange;
-    return item.uniqueSensorData.filter(sensor => {
-      const sensorDate = new Date(sensor.fechaMedicion);
-      if (startDate && sensorDate < startDate) return false;
-      if (endDate && sensorDate > endDate) return false;
-      return true;
-    });
-  };
 
   const handleExportPDF = async () => {
     if (selectedSensors.size === 0) {
@@ -187,11 +170,16 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
           variedadNombre: cultivoInfo.variedadNombre,
           tipoCultivoNombre: cultivoInfo.tipoCultivoNombre,
           sensorData: sensorInfo,
-          cultivoData: cultivoInfo
+          cultivoData: cultivoInfo,
+          timeRanges: Array.from(selectedTimeRanges).length > 0 ? Array.from(selectedTimeRanges) : undefined,
+          startDate: globalStartDate || undefined,
+          endDate: globalEndDate || undefined
         };
       });
 
-      console.log('Selected details for PDF:', selectedDetails);
+      console.log('🎯 FRONTEND: Selected details for PDF:', selectedDetails);
+      console.log('🎯 FRONTEND: Global filters - startDate:', globalStartDate, 'endDate:', globalEndDate, 'selectedTimeRanges:', Array.from(selectedTimeRanges));
+      console.log('🎯 FRONTEND: About to call generateSensorSearchPDF with filters applied');
       await generateSensorSearchPDF(selectedDetails);
     } catch (error) {
       console.error('Error exporting PDF:', error);
@@ -237,6 +225,62 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
             />
           </div>
 
+          {/* Global Filters */}
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Fecha Inicio</label>
+              <Input
+                type="date"
+                value={globalStartDate}
+                onChange={(e) => setGlobalStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Fecha Fin</label>
+              <Input
+                type="date"
+                value={globalEndDate}
+                onChange={(e) => setGlobalEndDate(e.target.value)}
+                min={globalStartDate}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Rango Horario</label>
+              <div className="space-y-2">
+                {[
+                  { key: 'morning', label: 'Mañana (6-12)', hours: '6:00-12:00' },
+                  { key: 'afternoon', label: 'Tarde (12-18)', hours: '12:00-18:00' },
+                  { key: 'evening', label: 'Noche (18-24)', hours: '18:00-24:00' },
+                  { key: 'night', label: 'Madrugada (0-6)', hours: '00:00-6:00' }
+                ].map((range) => (
+                  <Checkbox
+                    key={range.key}
+                    isSelected={selectedTimeRanges.has(range.key)}
+                    onValueChange={(isSelected) => {
+                      const newSelected = new Set(selectedTimeRanges);
+                      if (isSelected) {
+                        newSelected.add(range.key);
+                      } else {
+                        newSelected.delete(range.key);
+                      }
+                      setSelectedTimeRanges(newSelected);
+                    }}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{range.label}</span>
+                      <span className="text-xs text-gray-500">{range.hours}</span>
+                    </div>
+                  </Checkbox>
+                ))}
+              </div>
+              {selectedTimeRanges.size > 0 && (
+                <div className="mt-2 text-xs text-gray-600">
+                  {selectedTimeRanges.size} rango(s) seleccionado(s)
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Loading State */}
           {isLoading && (
             <div className="text-center py-8">
@@ -255,7 +299,6 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
               ) : (
                 filteredData.map((item, index) => {
                   const cardKey = `${item.cultivoId}-${item.zonaId}`;
-                  const filteredSensorData = getFilteredSensorData(item);
                   return (
                     <Card key={cardKey} className="w-full shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-200">
                       <CardHeader className="pb-3 bg-gradient-to-r from-green-50 to-blue-50 border-b border-gray-100">
@@ -270,68 +313,47 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
                             </p>
                             <div className="flex items-center gap-4">
                               <Badge
-                                color={filteredSensorData.length === item.uniqueSensorData.length ? "success" : "warning"}
+                                color="success"
                                 variant="flat"
                                 className="text-xs"
                               >
-                                {filteredSensorData.length} de {item.uniqueSensorData.length} sensor(es)
+                                {item.uniqueSensorData.length} sensor(es)
                               </Badge>
                             </div>
                           </div>
                         </div>
                       </CardHeader>
                       <CardBody className="pt-4">
-                        {/* Date Range Filter */}
-                        <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Filtrar por rango de fechas:
-                          </label>
-                          <DateRangeInput
-                            onChange={(dates) => handleDateRangeChange(cardKey, dates)}
-                          />
-                        </div>
-
-                        {/* Filtered Sensor Data */}
+                        {/* Sensor Data */}
                         <div>
                           <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
                             <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                             Datos de Mediciones
-                            {filteredSensorData.length !== item.uniqueSensorData.length && (
-                              <Chip size="sm" color="primary" variant="flat">
-                                Filtrado ({filteredSensorData.length})
-                              </Chip>
-                            )}
                           </h4>
-                          {filteredSensorData.length === 0 ? (
-                            <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg">
-                              <p className="text-sm">No hay datos en el rango de fechas seleccionado</p>
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                              {filteredSensorData.map((sensor, sensorIndex) => {
-                                const uniqueKey = `${item.cultivoId}-${item.zonaId}-${sensor.key}`;
-                                return (
-                                  <div
-                                    key={uniqueKey}
-                                    className="p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors duration-150 shadow-sm hover:shadow-md"
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {item.uniqueSensorData.map((sensor: SensorData, sensorIndex: number) => {
+                              const uniqueKey = `${item.cultivoId}-${item.zonaId}-${sensor.key}`;
+                              return (
+                                <div
+                                  key={uniqueKey}
+                                  className="p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors duration-150 shadow-sm hover:shadow-md"
+                                >
+                                  <Checkbox
+                                    isSelected={selectedSensors.has(uniqueKey)}
+                                    onValueChange={() => toggleSensorSelection(uniqueKey)}
+                                    className="w-full [&>span>svg]:text-black"
                                   >
-                                    <Checkbox
-                                      isSelected={selectedSensors.has(uniqueKey)}
-                                      onValueChange={() => toggleSensorSelection(uniqueKey)}
-                                      className="w-full [&>span>svg]:text-black"
-                                    >
-                                      <div className="flex justify-between items-center">
-                                        <span className="font-semibold text-gray-800">{sensor.key}</span>
-                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                          {sensor.unidad}
-                                        </span>
-                                      </div>
-                                    </Checkbox>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-semibold text-gray-800">{sensor.key}</span>
+                                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                        {sensor.unidad}
+                                      </span>
+                                    </div>
+                                  </Checkbox>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </CardBody>
                     </Card>

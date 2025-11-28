@@ -39,7 +39,8 @@ interface ExportReportModalProps {
     sensores: string[];
     startDate: string;
     endDate: string;
-    groupBy: 'hourly' | 'daily' | 'weekly';
+    groupBy: 'hourly' | 'daily' | 'weekly' | 'time_slot';
+    timeRange?: 'morning' | 'afternoon' | 'evening' | 'night';
   }) => void;
 }
 
@@ -59,7 +60,8 @@ const ExportReportModal: React.FC<ExportReportModalProps> = ({
   // Step 2: Date filtering
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [groupBy, setGroupBy] = useState<'hourly' | 'daily' | 'weekly'>('daily');
+  const [groupBy, setGroupBy] = useState<'hourly' | 'daily' | 'weekly' | 'time_slot'>('daily');
+  const [timeRange, setTimeRange] = useState<'morning' | 'afternoon' | 'evening' | 'night' | ''>('');
 
   // Step 3: Sensor selection
   const [availableSensors, setAvailableSensors] = useState<{
@@ -169,9 +171,10 @@ const ExportReportModal: React.FC<ExportReportModalProps> = ({
         med_keys: [], // Get all available sensor keys first
         cultivo_ids,
         zona_ids,
-        start_date: startDate,
-        end_date: endDate,
-        group_by: groupBy
+        start_date: startDate + 'T00:00:00.000Z',
+        end_date: endDate + 'T23:59:59.999Z',
+        group_by: groupBy,
+        time_range: timeRange || undefined
       });
 
       // Process response to get unique sensor keys and their associated data
@@ -227,7 +230,8 @@ const ExportReportModal: React.FC<ExportReportModalProps> = ({
       sensores: selectedSensors,
       startDate,
       endDate,
-      groupBy
+      groupBy,
+      timeRange: timeRange || undefined
     });
     
     onClose();
@@ -240,6 +244,7 @@ const ExportReportModal: React.FC<ExportReportModalProps> = ({
     setStartDate("");
     setEndDate("");
     setGroupBy('daily');
+    setTimeRange('');
     setAvailableSensors([]);
     setSelectedSensors([]);
     setErrorCombinations(null);
@@ -394,13 +399,31 @@ const ExportReportModal: React.FC<ExportReportModalProps> = ({
                 <Select
                   selectedKeys={[groupBy]}
                   onSelectionChange={(keys) => {
-                    const value = Array.from(keys)[0] as 'hourly' | 'daily' | 'weekly';
+                    const value = Array.from(keys)[0] as 'hourly' | 'daily' | 'weekly' | 'time_slot';
                     setGroupBy(value);
                   }}
                 >
                   <SelectItem key="hourly">Hourly</SelectItem>
                   <SelectItem key="daily">Daily</SelectItem>
                   <SelectItem key="weekly">Weekly</SelectItem>
+                  <SelectItem key="time_slot">Time Slots (4 per day)</SelectItem>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Time Range (Optional)</label>
+                <Select
+                  selectedKeys={timeRange ? [timeRange] : []}
+                  onSelectionChange={(keys) => {
+                    const value = Array.from(keys)[0] as 'morning' | 'afternoon' | 'evening' | 'night' | '';
+                    setTimeRange(value);
+                  }}
+                >
+                  <SelectItem key="">All Day</SelectItem>
+                  <SelectItem key="morning">Morning (6:00 - 12:00)</SelectItem>
+                  <SelectItem key="afternoon">Afternoon (12:00 - 18:00)</SelectItem>
+                  <SelectItem key="evening">Evening (18:00 - 24:00)</SelectItem>
+                  <SelectItem key="night">Night (00:00 - 6:00)</SelectItem>
                 </Select>
               </div>
 

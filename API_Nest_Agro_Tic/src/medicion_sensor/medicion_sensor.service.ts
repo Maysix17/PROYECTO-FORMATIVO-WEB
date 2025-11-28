@@ -323,7 +323,22 @@ export class MedicionSensorService {
       start_date,
       end_date,
       group_by = 'daily',
+      time_range,
+      time_ranges,
     } = request;
+
+    console.log('=== REPORT DATA REQUEST ===');
+    console.log('Fecha y hora actual:', new Date().toISOString());
+    console.log('Parámetros recibidos:', {
+      med_keys,
+      cultivo_ids,
+      zona_ids,
+      start_date,
+      end_date,
+      group_by,
+      time_range,
+      time_ranges,
+    });
 
     // Build the query with joins
     let query = this.medicionSensorRepository
@@ -362,6 +377,72 @@ export class MedicionSensorService {
       });
     }
 
+    // Add time range filter
+    if (time_ranges && time_ranges.length > 0) {
+      const hourConditions: string[] = [];
+      const hourParams: any = {};
+
+      time_ranges.forEach((range, index) => {
+        let hourStart: number, hourEnd: number;
+        switch (range) {
+          case 'morning':
+            hourStart = 6;
+            hourEnd = 12;
+            break;
+          case 'afternoon':
+            hourStart = 12;
+            hourEnd = 18;
+            break;
+          case 'evening':
+            hourStart = 18;
+            hourEnd = 24;
+            break;
+          case 'night':
+            hourStart = 0;
+            hourEnd = 6;
+            break;
+          default:
+            hourStart = 0;
+            hourEnd = 24;
+        }
+        hourConditions.push(`(EXTRACT(hour from ms.fechaMedicion) >= :hourStart${index} AND EXTRACT(hour from ms.fechaMedicion) < :hourEnd${index})`);
+        hourParams[`hourStart${index}`] = hourStart;
+        hourParams[`hourEnd${index}`] = hourEnd;
+      });
+
+      query = query.andWhere(`(${hourConditions.join(' OR ')})`, hourParams);
+      console.log(`Filtro de rangos horarios aplicado: ${time_ranges.join(', ')}`);
+    } else if (time_range) {
+      // Backward compatibility
+      let hourStart: number, hourEnd: number;
+      switch (time_range) {
+        case 'morning':
+          hourStart = 6;
+          hourEnd = 12;
+          break;
+        case 'afternoon':
+          hourStart = 12;
+          hourEnd = 18;
+          break;
+        case 'evening':
+          hourStart = 18;
+          hourEnd = 24;
+          break;
+        case 'night':
+          hourStart = 0;
+          hourEnd = 6;
+          break;
+        default:
+          hourStart = 0;
+          hourEnd = 24;
+      }
+      query = query.andWhere('EXTRACT(hour from ms.fechaMedicion) >= :hourStart AND EXTRACT(hour from ms.fechaMedicion) < :hourEnd', {
+        hourStart,
+        hourEnd,
+      });
+      console.log(`Filtro de rango horario aplicado (legacy): ${hourStart}:00 - ${hourEnd}:00`);
+    }
+
     // Determine date format for grouping
     let dateFormat: string;
     switch (group_by) {
@@ -371,6 +452,9 @@ export class MedicionSensorService {
       case 'weekly':
         dateFormat =
           "TO_CHAR(DATE_TRUNC('week', ms.fechaMedicion), 'YYYY-MM-DD')";
+        break;
+      case 'time_slot':
+        dateFormat = "TO_CHAR(ms.fechaMedicion, 'YYYY-MM-DD') || '-' || CASE WHEN EXTRACT(hour from ms.fechaMedicion) < 6 THEN '0' WHEN EXTRACT(hour from ms.fechaMedicion) < 12 THEN '1' WHEN EXTRACT(hour from ms.fechaMedicion) < 18 THEN '2' ELSE '3' END";
         break;
       case 'daily':
       default:
@@ -416,6 +500,12 @@ export class MedicionSensorService {
     for (const row of rawResults) {
       const key = `${row.cultivoid}-${row.zonaid}-${row.period}`;
 
+      let timeSlot: number | undefined;
+      if (group_by === 'time_slot') {
+        const parts = row.period.split('-');
+        timeSlot = parseInt(parts[parts.length - 1]);
+      }
+
       if (!groupedData.has(key)) {
         groupedData.set(key, {
           cultivoId: row.cultivoid,
@@ -425,6 +515,7 @@ export class MedicionSensorService {
           zonaNombre: row.zonanombre,
           cvzId: row.cvzid,
           period: row.period,
+          timeSlot,
           statistics: [],
         });
       }
@@ -442,7 +533,12 @@ export class MedicionSensorService {
       groupedData.get(key)!.statistics.push(stats);
     }
 
-    return Array.from(groupedData.values());
+    const result = Array.from(groupedData.values());
+    console.log(`Total de registros procesados: ${rawResults.length}`);
+    console.log(`Total de grupos de reporte generados: ${result.length}`);
+    console.log('Primeros 3 resultados:', result.slice(0, 3));
+    console.log('=== FIN REPORT DATA REQUEST ===\n');
+    return result;
   }
 
   async getCultivosZonas(): Promise<CultivosZonasResponseDto[]> {

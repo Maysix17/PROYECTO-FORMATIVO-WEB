@@ -23,6 +23,14 @@ export interface ChartConfig {
   unidad?: string;
 }
 
+// Color palette for time slots - vibrant and distinct colors
+const timeSlotColors = [
+  '#8884d8', // Purple - 6am-12pm
+  '#82ca9d', // Green - 12pm-6pm
+  '#ffc658', // Yellow - 6pm-12am
+  '#ff7300', // Orange - 12am-6am
+];
+
 // Soft color palette for clean, professional charts
 const colorPalette = [
   '#6b7280', // Gray
@@ -37,17 +45,15 @@ const colorPalette = [
   '#374151'  // Dark Gray (repeated)
 ];
 
-// Format time labels to always show date and time
+// Format time labels to show only date (no time)
 const formatTimeLabel = (value: string, _data: any[]) => {
   if (!value) return '';
   const date = new Date(value);
 
-  // Always show date and time for sensor data
+  // Show only date for cleaner charts
   return date.toLocaleDateString([], {
     month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    day: 'numeric'
   });
 };
 
@@ -109,11 +115,23 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
 
   // Get data keys for lines
   const dataKeys = multiLine ? Object.keys(data[0] || {}).filter(key => key !== 'time') : ['value'];
-  
+
   // Use sensor key as the line name if provided
   const getLineName = (key: string) => {
     if (sensorKey && key === 'value') return `Sensor ${sensorKey}`;
     return key.charAt(0).toUpperCase() + key.slice(1);
+  };
+
+  // Get color for line based on time slot
+  const getLineColor = (key: string, index: number) => {
+    if (multiLine) {
+      // Use time slot colors for specific keys
+      if (key === '6am-12pm') return timeSlotColors[0];
+      if (key === '12pm-6pm') return timeSlotColors[1];
+      if (key === '6pm-12am') return timeSlotColors[2];
+      if (key === '12am-6am') return timeSlotColors[3];
+    }
+    return colorPalette[index % colorPalette.length];
   };
 
   // Calculate optimal chart dimensions
@@ -187,14 +205,13 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
               textAnchor="end"
               height={50}
             />
-            <YAxis 
+            <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ 
-                fontSize: 10, 
-                fill: '#6b7280',
-                fontWeight: 500
-              }}
+              tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }}
+              interval={0}
+              tickCount={10}
+              domain={['dataMin - 5', 'dataMax + 5']}
               label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
             />
             <Tooltip content={<CustomTooltip unidad={unidad} />} />
@@ -231,14 +248,13 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
               textAnchor="end"
               height={50}
             />
-            <YAxis 
+            <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ 
-                fontSize: 10, 
-                fill: '#6b7280',
-                fontWeight: 500
-              }}
+              tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }}
+              interval={0}
+              tickCount={10}
+              domain={['dataMin - 5', 'dataMax + 5']}
               label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
             />
             <Tooltip content={<CustomTooltip unidad={unidad} />} />
@@ -278,24 +294,23 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
               textAnchor="end"
               height={50}
             />
-            <YAxis 
+            <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ 
-                fontSize: 10, 
-                fill: '#6b7280',
-                fontWeight: 500
-              }}
+              tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }}
+              interval={0}
+              tickCount={10}
+              domain={['dataMin - 5', 'dataMax + 5']}
               label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
             />
             <Tooltip content={<CustomTooltip unidad={unidad} />} />
             {multiLine && <Legend />}
-            {dataKeys.map((key, _index) => (
+            {dataKeys.map((key, index) => (
               <Line
                 key={key}
                 type="monotone"
                 dataKey={key}
-                stroke="#2563eb" // Color azul
+                stroke={getLineColor(key, index)}
                 strokeWidth={2}
                 dot={false} // Sin puntos marcados
                 activeDot={false}
@@ -442,14 +457,13 @@ export const renderBarChartToCanvas = async (config: ChartConfig): Promise<HTMLC
             textAnchor="end"
             height={50}
           />
-          <YAxis 
+          <YAxis
             axisLine={false}
             tickLine={false}
-            tick={{ 
-              fontSize: 10, 
-              fill: '#6b7280',
-              fontWeight: 500
-            }}
+            tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }}
+            interval={0}
+            tickCount={10}
+            domain={['dataMin - 5', 'dataMax + 5']}
             label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
           />
           <Tooltip content={<CustomTooltip unidad={unidad} />} />
