@@ -241,6 +241,21 @@ export const generatePDFReport = async (
 
       reportData.forEach((item) => {
         item.statistics.forEach((stat) => {
+          // Filtrar valores por defecto o inválidos
+          if (
+            stat.avg === 999 ||
+            stat.avg === -999 ||
+            isNaN(stat.avg) ||
+            stat.min === 999 ||
+            stat.min === -999 ||
+            isNaN(stat.min) ||
+            stat.max === 999 ||
+            stat.max === -999 ||
+            isNaN(stat.max)
+          ) {
+            return;
+          }
+
           if (!sensorData[stat.med_key]) {
             sensorData[stat.med_key] = {};
           }
@@ -364,7 +379,12 @@ export const generatePDFReport = async (
             const date = item.period.split("-").slice(0, 3).join("-");
             const slot = item.timeSlot || 0;
             const stat = item.statistics.find((s) => s.med_key === sensorKey);
-            if (stat) {
+            if (
+              stat &&
+              stat.avg !== 999 &&
+              stat.avg !== -999 &&
+              !isNaN(stat.avg)
+            ) {
               if (!dateSlotData[date]) {
                 dateSlotData[date] = {};
               }

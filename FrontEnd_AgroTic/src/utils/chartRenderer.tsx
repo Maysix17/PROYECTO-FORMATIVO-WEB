@@ -57,6 +57,42 @@ const formatTimeLabel = (value: string, _data: any[]) => {
   });
 };
 
+// Calculate smart Y-axis domain based on data
+const calculateYAxisDomain = (data: ChartDataPoint[], dataKeys: string[]) => {
+  let minValue = Infinity;
+  let maxValue = -Infinity;
+
+  data.forEach(point => {
+    dataKeys.forEach(key => {
+      const value = point[key];
+      if (typeof value === 'number' && !isNaN(value)) {
+        minValue = Math.min(minValue, value);
+        maxValue = Math.max(maxValue, value);
+      }
+    });
+  });
+
+  if (minValue === Infinity || maxValue === -Infinity) {
+    return [0, 100]; // Default range
+  }
+
+  // Calculate range and nice intervals
+  const range = maxValue - minValue;
+  const padding = range * 0.1; // 10% padding
+
+  let niceMin = Math.floor((minValue - padding) / 5) * 5;
+  let niceMax = Math.ceil((maxValue + padding) / 5) * 5;
+
+  // Ensure minimum range
+  if (niceMax - niceMin < 10) {
+    const center = (niceMin + niceMax) / 2;
+    niceMin = center - 5;
+    niceMax = center + 5;
+  }
+
+  return [niceMin, niceMax];
+};
+
 // Custom tooltip component
 const CustomTooltip = ({ active, payload, label, unidad }: any) => {
   if (active && payload && payload.length) {
@@ -115,6 +151,9 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
 
   // Get data keys for lines
   const dataKeys = multiLine ? Object.keys(data[0] || {}).filter(key => key !== 'time') : ['value'];
+
+  // Calculate Y-axis domain
+  const yAxisDomain = calculateYAxisDomain(data, dataKeys);
 
   // Use sensor key as the line name if provided
   const getLineName = (key: string) => {
@@ -209,9 +248,7 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }}
-              interval={0}
-              tickCount={10}
-              domain={['dataMin - 5', 'dataMax + 5']}
+              domain={yAxisDomain}
               label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
             />
             <Tooltip content={<CustomTooltip unidad={unidad} />} />
@@ -252,9 +289,7 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }}
-              interval={0}
-              tickCount={10}
-              domain={['dataMin - 5', 'dataMax + 5']}
+              domain={yAxisDomain}
               label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
             />
             <Tooltip content={<CustomTooltip unidad={unidad} />} />
@@ -298,13 +333,10 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }}
-              interval={0}
-              tickCount={10}
-              domain={['dataMin - 5', 'dataMax + 5']}
+              domain={yAxisDomain}
               label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
             />
             <Tooltip content={<CustomTooltip unidad={unidad} />} />
-            {multiLine && <Legend />}
             {dataKeys.map((key, index) => (
               <Line
                 key={key}
@@ -391,10 +423,13 @@ export const renderBarChartToCanvas = async (config: ChartConfig): Promise<HTMLC
   // Calculate optimal chart dimensions
   const chartHeight = height - 80; // Reserve space for title and subtitle
 
+  // Calculate Y-axis domain for bars
+  const yAxisDomain = calculateYAxisDomain(data, ['value']);
+
   const chartContent = (
-    <div style={{ 
-      width: '100%', 
-      height: '100%', 
+    <div style={{
+      width: '100%',
+      height: '100%',
       backgroundColor: '#ffffff',
       border: '1px solid #e5e7eb',
       borderRadius: '8px',
@@ -461,9 +496,7 @@ export const renderBarChartToCanvas = async (config: ChartConfig): Promise<HTMLC
             axisLine={false}
             tickLine={false}
             tick={{ fontSize: 10, fill: '#6b7280', fontWeight: 500 }}
-            interval={0}
-            tickCount={10}
-            domain={['dataMin - 5', 'dataMax + 5']}
+            domain={yAxisDomain}
             label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
           />
           <Tooltip content={<CustomTooltip unidad={unidad} />} />
@@ -538,6 +571,9 @@ export const renderAreaChartToCanvas = async (config: ChartConfig): Promise<HTML
   // Calculate optimal chart dimensions
   const chartHeight = height - 80; // Reserve space for title and subtitle
 
+  // Calculate Y-axis domain for bars
+  const yAxisDomain = calculateYAxisDomain(data, ['value']);
+
   const chartContent = (
     <div style={{ 
       width: '100%', 
@@ -603,14 +639,15 @@ export const renderAreaChartToCanvas = async (config: ChartConfig): Promise<HTML
             textAnchor="end"
             height={50}
           />
-          <YAxis 
+          <YAxis
             axisLine={false}
             tickLine={false}
-            tick={{ 
-              fontSize: 10, 
+            tick={{
+              fontSize: 10,
               fill: '#6b7280',
               fontWeight: 500
             }}
+            domain={yAxisDomain}
             label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px', fill: '#6b7280' } } : undefined}
           />
           <Tooltip content={<CustomTooltip unidad={unidad} />} />
