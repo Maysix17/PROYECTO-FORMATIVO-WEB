@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cosecha } from './entities/cosecha.entity';
@@ -33,8 +37,13 @@ export class CosechasService {
     }
 
     // Calcular rendimiento por planta si se proporciona cantidad de plantas cosechadas
-    if (createCosechaDto.cantidad_plantas_cosechadas && createCosechaDto.cantidad_plantas_cosechadas > 0) {
-      (createCosechaDto as any).rendimientoPorPlanta = createCosechaDto.cantidad / createCosechaDto.cantidad_plantas_cosechadas;
+    if (
+      createCosechaDto.cantidad_plantas_cosechadas &&
+      createCosechaDto.cantidad_plantas_cosechadas > 0
+    ) {
+      (createCosechaDto as any).rendimientoPorPlanta =
+        createCosechaDto.cantidad /
+        createCosechaDto.cantidad_plantas_cosechadas;
     }
 
     const cosecha = this.cosechaRepository.create({
@@ -62,7 +71,7 @@ export class CosechasService {
         'cultivosVariedadXZona.cultivoXVariedad',
         'cultivosVariedadXZona.cultivoXVariedad.variedad',
         'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
-        'cultivosVariedadXZona.zona'
+        'cultivosVariedadXZona.zona',
       ],
     });
   }
@@ -73,14 +82,14 @@ export class CosechasService {
 
     return await this.cosechaRepository.find({
       where: {
-        fecha: todayString
+        fecha: todayString,
       },
       relations: [
         'cultivosVariedadXZona',
         'cultivosVariedadXZona.cultivoXVariedad',
         'cultivosVariedadXZona.cultivoXVariedad.variedad',
         'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
-        'cultivosVariedadXZona.zona'
+        'cultivosVariedadXZona.zona',
       ],
     });
   }
@@ -93,7 +102,7 @@ export class CosechasService {
         'cultivosVariedadXZona.cultivoXVariedad',
         'cultivosVariedadXZona.cultivoXVariedad.variedad',
         'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
-        'cultivosVariedadXZona.zona'
+        'cultivosVariedadXZona.zona',
       ],
     });
     if (!cosecha) {
@@ -133,10 +142,13 @@ export class CosechasService {
     }
 
     // Verificar si hay ventas activas para esta cosecha
-    const hasActiveSales = cosecha.cosechasVentas && cosecha.cosechasVentas.length > 0;
+    const hasActiveSales =
+      cosecha.cosechasVentas && cosecha.cosechasVentas.length > 0;
 
     if (!hasActiveSales) {
-      throw new BadRequestException(`La cosecha ${id} no tiene ventas activas para cerrar`);
+      throw new BadRequestException(
+        `La cosecha ${id} no tiene ventas activas para cerrar`,
+      );
     }
 
     // Marcar la cosecha como cerrada para ventas (esto previene nuevas ventas)
@@ -145,32 +157,47 @@ export class CosechasService {
   }
 
   async closeAllHarvestSalesByCultivo(cvzId: string): Promise<Cosecha[]> {
-    console.log(`[DEBUG] closeAllHarvestSalesByCultivo called for cvzId: ${cvzId}`);
+    console.log(
+      `[DEBUG] closeAllHarvestSalesByCultivo called for cvzId: ${cvzId}`,
+    );
 
     // Buscar todas las cosechas del cultivo que no estén cerradas y que tengan ventas
     const cosechasConVentas = await this.cosechaRepository.find({
       where: {
         fkCultivosVariedadXZonaId: cvzId,
-        cerrado: false
+        cerrado: false,
       },
-      relations: ['cosechasVentas', 'cultivosVariedadXZona', 'cultivosVariedadXZona.cultivoXVariedad', 'cultivosVariedadXZona.cultivoXVariedad.variedad', 'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo', 'cultivosVariedadXZona.cultivoXVariedad.cultivo'],
+      relations: [
+        'cosechasVentas',
+        'cultivosVariedadXZona',
+        'cultivosVariedadXZona.cultivoXVariedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
+        'cultivosVariedadXZona.cultivoXVariedad.cultivo',
+      ],
     });
 
-    console.log(`[DEBUG] Found ${cosechasConVentas.length} open harvests for cvzId: ${cvzId}`);
-
-    // Filtrar solo las que tienen ventas activas
-    const cosechasAbiertasConVentas = cosechasConVentas.filter(cosecha =>
-      cosecha.cosechasVentas && cosecha.cosechasVentas.length > 0
+    console.log(
+      `[DEBUG] Found ${cosechasConVentas.length} open harvests for cvzId: ${cvzId}`,
     );
 
-    console.log(`[DEBUG] Found ${cosechasAbiertasConVentas.length} open harvests with sales for cvzId: ${cvzId}`);
+    // Filtrar solo las que tienen ventas activas
+    const cosechasAbiertasConVentas = cosechasConVentas.filter(
+      (cosecha) => cosecha.cosechasVentas && cosecha.cosechasVentas.length > 0,
+    );
+
+    console.log(
+      `[DEBUG] Found ${cosechasAbiertasConVentas.length} open harvests with sales for cvzId: ${cvzId}`,
+    );
 
     if (cosechasAbiertasConVentas.length === 0) {
-      throw new BadRequestException(`No hay cosechas abiertas con ventas activas para cerrar en el cultivo ${cvzId}`);
+      throw new BadRequestException(
+        `No hay cosechas abiertas con ventas activas para cerrar en el cultivo ${cvzId}`,
+      );
     }
 
     // Marcar todas las cosechas como cerradas
-    const cosechasCerradas = cosechasAbiertasConVentas.map(cosecha => {
+    const cosechasCerradas = cosechasAbiertasConVentas.map((cosecha) => {
       cosecha.cerrado = true;
       return cosecha;
     });
@@ -196,7 +223,11 @@ export class CosechasService {
     }
 
     // Calcular cantidad vendida dinámicamente desde la tabla intermedia
-    const cantidadVendida = cosecha.cosechasVentas?.reduce((total, cv) => total + parseFloat(cv.cantidadVendida.toString()), 0) || 0;
+    const cantidadVendida =
+      cosecha.cosechasVentas?.reduce(
+        (total, cv) => total + parseFloat(cv.cantidadVendida.toString()),
+        0,
+      ) || 0;
 
     // Cantidad disponible = cantidad cosechada - cantidad vendida
     return parseFloat(cosecha.cantidad.toString()) - cantidadVendida;
@@ -204,13 +235,24 @@ export class CosechasService {
 
   async findAllWithDisponible(): Promise<Cosecha[]> {
     const cosechas = await this.cosechaRepository.find({
-      relations: ['cosechasVentas', 'cultivosVariedadXZona', 'cultivosVariedadXZona.cultivoXVariedad', 'cultivosVariedadXZona.cultivoXVariedad.variedad', 'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo'],
+      relations: [
+        'cosechasVentas',
+        'cultivosVariedadXZona',
+        'cultivosVariedadXZona.cultivoXVariedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
+      ],
     });
 
     // Calcular cantidad disponible dinámicamente para cada cosecha
-    return cosechas.map(cosecha => {
-      const cantidadVendida = cosecha.cosechasVentas?.reduce((total, cv) => total + parseFloat(cv.cantidadVendida.toString()), 0) || 0;
-      (cosecha as any).cantidadDisponible = parseFloat(cosecha.cantidad.toString()) - cantidadVendida;
+    return cosechas.map((cosecha) => {
+      const cantidadVendida =
+        cosecha.cosechasVentas?.reduce(
+          (total, cv) => total + parseFloat(cv.cantidadVendida.toString()),
+          0,
+        ) || 0;
+      (cosecha as any).cantidadDisponible =
+        parseFloat(cosecha.cantidad.toString()) - cantidadVendida;
       return cosecha;
     });
   }
@@ -218,52 +260,102 @@ export class CosechasService {
   async getCosechasByCultivo(cvzId: string): Promise<Cosecha[]> {
     const cosechas = await this.cosechaRepository.find({
       where: { fkCultivosVariedadXZonaId: cvzId },
-      relations: ['cosechasVentas', 'cultivosVariedadXZona', 'cultivosVariedadXZona.cultivoXVariedad', 'cultivosVariedadXZona.cultivoXVariedad.variedad', 'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo'],
+      relations: [
+        'cosechasVentas',
+        'cultivosVariedadXZona',
+        'cultivosVariedadXZona.cultivoXVariedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
+      ],
     });
 
     // Calcular cantidad disponible dinámicamente para cada cosecha
-    return cosechas.map(cosecha => {
-      const cantidadVendida = cosecha.cosechasVentas?.reduce((total, cv) => total + parseFloat(cv.cantidadVendida.toString()), 0) || 0;
-      const cantidadDisponible = parseFloat(cosecha.cantidad.toString()) - cantidadVendida;
+    return cosechas.map((cosecha) => {
+      const cantidadVendida =
+        cosecha.cosechasVentas?.reduce(
+          (total, cv) => total + parseFloat(cv.cantidadVendida.toString()),
+          0,
+        ) || 0;
+      const cantidadDisponible =
+        parseFloat(cosecha.cantidad.toString()) - cantidadVendida;
       (cosecha as any).cantidadDisponible = cantidadDisponible;
 
       // DEBUG: Imprimir cálculo de cantidad disponible
       console.log(`[DEBUG] Cosecha ${cosecha.id}:`);
-      console.log(`  - Cantidad total: ${cosecha.cantidad} (tipo: ${typeof cosecha.cantidad})`);
-      console.log(`  - Cantidad vendida: ${cantidadVendida} (tipo: ${typeof cantidadVendida})`);
-      console.log(`  - Cantidad disponible: ${cantidadDisponible} (tipo: ${typeof cantidadDisponible})`);
-      console.log(`  - Ventas registradas:`, cosecha.cosechasVentas?.map(cv => ({ id: cv.id, cantidad: cv.cantidadVendida, tipo: typeof cv.cantidadVendida })) || []);
+      console.log(
+        `  - Cantidad total: ${cosecha.cantidad} (tipo: ${typeof cosecha.cantidad})`,
+      );
+      console.log(
+        `  - Cantidad vendida: ${cantidadVendida} (tipo: ${typeof cantidadVendida})`,
+      );
+      console.log(
+        `  - Cantidad disponible: ${cantidadDisponible} (tipo: ${typeof cantidadDisponible})`,
+      );
+      console.log(
+        `  - Ventas registradas:`,
+        cosecha.cosechasVentas?.map((cv) => ({
+          id: cv.id,
+          cantidad: cv.cantidadVendida,
+          tipo: typeof cv.cantidadVendida,
+        })) || [],
+      );
 
       return cosecha;
     });
   }
 
   async getCosechasAbiertasByCultivo(cvzId: string): Promise<Cosecha[]> {
-    console.log(`[DEBUG] getCosechasAbiertasByCultivo llamado para cvzId: ${cvzId}`);
+    console.log(
+      `[DEBUG] getCosechasAbiertasByCultivo llamado para cvzId: ${cvzId}`,
+    );
 
     const cosechas = await this.cosechaRepository.find({
       where: {
         fkCultivosVariedadXZonaId: cvzId,
-        cerrado: false
+        cerrado: false,
       },
-      relations: ['cosechasVentas', 'cultivosVariedadXZona', 'cultivosVariedadXZona.cultivoXVariedad', 'cultivosVariedadXZona.cultivoXVariedad.variedad', 'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo'],
+      relations: [
+        'cosechasVentas',
+        'cultivosVariedadXZona',
+        'cultivosVariedadXZona.cultivoXVariedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad',
+        'cultivosVariedadXZona.cultivoXVariedad.variedad.tipoCultivo',
+      ],
     });
 
     console.log(`[DEBUG] Cosechas encontradas (abiertas): ${cosechas.length}`);
 
     // Calcular cantidad disponible dinámicamente para cada cosecha abierta
-    return cosechas.map(cosecha => {
-      const cantidadVendida = cosecha.cosechasVentas?.reduce((total, cv) => total + parseFloat(cv.cantidadVendida.toString()), 0) || 0;
-      const cantidadDisponible = parseFloat(cosecha.cantidad.toString()) - cantidadVendida;
+    return cosechas.map((cosecha) => {
+      const cantidadVendida =
+        cosecha.cosechasVentas?.reduce(
+          (total, cv) => total + parseFloat(cv.cantidadVendida.toString()),
+          0,
+        ) || 0;
+      const cantidadDisponible =
+        parseFloat(cosecha.cantidad.toString()) - cantidadVendida;
       (cosecha as any).cantidadDisponible = cantidadDisponible;
 
       // DEBUG: Imprimir cálculo de cantidad disponible para cosechas abiertas
       console.log(`[DEBUG] Cosecha ABIERTA ${cosecha.id}:`);
-      console.log(`  - Cantidad total: ${cosecha.cantidad} (tipo: ${typeof cosecha.cantidad})`);
-      console.log(`  - Cantidad vendida: ${cantidadVendida} (tipo: ${typeof cantidadVendida})`);
-      console.log(`  - Cantidad disponible: ${cantidadDisponible} (tipo: ${typeof cantidadDisponible})`);
+      console.log(
+        `  - Cantidad total: ${cosecha.cantidad} (tipo: ${typeof cosecha.cantidad})`,
+      );
+      console.log(
+        `  - Cantidad vendida: ${cantidadVendida} (tipo: ${typeof cantidadVendida})`,
+      );
+      console.log(
+        `  - Cantidad disponible: ${cantidadDisponible} (tipo: ${typeof cantidadDisponible})`,
+      );
       console.log(`  - Estado cerrado: ${cosecha.cerrado}`);
-      console.log(`  - Ventas registradas:`, cosecha.cosechasVentas?.map(cv => ({ id: cv.id, cantidad: cv.cantidadVendida, tipo: typeof cv.cantidadVendida })) || []);
+      console.log(
+        `  - Ventas registradas:`,
+        cosecha.cosechasVentas?.map((cv) => ({
+          id: cv.id,
+          cantidad: cv.cantidadVendida,
+          tipo: typeof cv.cantidadVendida,
+        })) || [],
+      );
 
       return cosecha;
     });
@@ -274,16 +366,18 @@ export class CosechasService {
     const cosechasAbiertas = await this.cosechaRepository.find({
       where: {
         fkCultivosVariedadXZonaId: cvzId,
-        cerrado: false
-      }
+        cerrado: false,
+      },
     });
 
     if (cosechasAbiertas.length === 0) {
-      throw new BadRequestException(`No hay cosechas abiertas para cerrar en el cultivo ${cvzId}`);
+      throw new BadRequestException(
+        `No hay cosechas abiertas para cerrar en el cultivo ${cvzId}`,
+      );
     }
 
     // Marcar todas las cosechas como cerradas
-    const cosechasCerradas = cosechasAbiertas.map(cosecha => {
+    const cosechasCerradas = cosechasAbiertas.map((cosecha) => {
       cosecha.cerrado = true;
       return cosecha;
     });
@@ -293,11 +387,13 @@ export class CosechasService {
   }
 
   private emitHarvestNotification(cosecha: Cosecha): void {
-    console.log(`[DEBUG] Emitting harvest notification for cosecha: ${cosecha.id}`);
+    console.log(
+      `[DEBUG] Emitting harvest notification for cosecha: ${cosecha.id}`,
+    );
     this.notificationsGateway.emitNotificationToAll({
       type: 'new_harvest',
       data: cosecha,
-      message: 'Nueva cosecha registrada'
+      message: 'Nueva cosecha registrada',
     });
   }
 }

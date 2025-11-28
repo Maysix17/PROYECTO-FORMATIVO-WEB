@@ -50,13 +50,24 @@ export class ActividadesController {
     @Body() dto: CreateActividadeDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    console.log('ActividadesController create - dto.fechaAsignacion:', dto.fechaAsignacion);
-    console.log('ActividadesController create - dto.fechaAsignacion type:', typeof dto.fechaAsignacion);
-    console.log('ActividadesController create - dto.fechaAsignacion ISO:', dto.fechaAsignacion.toISOString());
+    console.log(
+      'ActividadesController create - dto.fechaAsignacion:',
+      dto.fechaAsignacion,
+    );
+    console.log(
+      'ActividadesController create - dto.fechaAsignacion type:',
+      typeof dto.fechaAsignacion,
+    );
+    console.log(
+      'ActividadesController create - dto.fechaAsignacion ISO:',
+      dto.fechaAsignacion.toISOString(),
+    );
 
     const imgUrl = file ? `/uploads/actividades/${file.filename}` : '';
     // Load user from database using userId from guard
-    const usuario = await this.usuarioRepository.findOne({ where: { id: req.userId } });
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: req.userId },
+    });
     if (!usuario) {
       throw new Error('Usuario no encontrado');
     }
@@ -130,10 +141,23 @@ export class ActividadesController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     const imgUrl = file ? `/uploads/evidencias/${file.filename}` : undefined;
-    console.log(`[${new Date().toISOString()}] 📡 CONTROLLER: Finalizing activity ${id} - Generated image URL: ${imgUrl || 'No image'}`);
-    console.log(`[${new Date().toISOString()}] 📡 CONTROLLER: File details:`, file ? { filename: file.filename, originalname: file.originalname, size: file.size } : 'No file');
+    console.log(
+      `[${new Date().toISOString()}] 📡 CONTROLLER: Finalizing activity ${id} - Generated image URL: ${imgUrl || 'No image'}`,
+    );
+    console.log(
+      `[${new Date().toISOString()}] 📡 CONTROLLER: File details:`,
+      file
+        ? {
+            filename: file.filename,
+            originalname: file.originalname,
+            size: file.size,
+          }
+        : 'No file',
+    );
     // Load user from database using userId from guard
-    const usuario = await this.usuarioRepository.findOne({ where: { id: req.userId } });
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: req.userId },
+    });
     if (!usuario) {
       throw new Error('Usuario no encontrado');
     }

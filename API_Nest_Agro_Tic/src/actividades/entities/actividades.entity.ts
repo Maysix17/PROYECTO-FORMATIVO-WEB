@@ -23,22 +23,49 @@ export class Actividad {
   @Column({ name: 'act_fecha_asignacion', type: 'date' })
   fechaAsignacion: Date;
 
-  @Column({ name: 'act_horas_dedicadas', type: 'numeric', nullable: true, default: null })
+  @Column({
+    name: 'act_horas_dedicadas',
+    type: 'numeric',
+    nullable: true,
+    default: null,
+  })
   horasDedicadas?: number;
 
   @Column({ name: 'act_precio_hora', type: 'numeric', nullable: true })
   precioHora?: number;
 
-  @Column({ name: 'act_observacion', type: 'varchar', length: 255, nullable: true, default: null })
+  @Column({
+    name: 'act_observacion',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    default: null,
+  })
   observacion?: string;
 
-  @Column({ name: 'act_estado', type: 'boolean', nullable: true, default: true })
+  @Column({
+    name: 'act_estado',
+    type: 'boolean',
+    nullable: true,
+    default: true,
+  })
   estado?: boolean;
 
-  @Column({ name: 'act_fecha_finalizacion', type: 'timestamp', nullable: true, default: null })
+  @Column({
+    name: 'act_fecha_finalizacion',
+    type: 'timestamp',
+    nullable: true,
+    default: null,
+  })
   fechaFinalizacion?: Date;
 
-  @Column({ name: 'act_img_url', type: 'varchar', length: 255, nullable: true, default: null })
+  @Column({
+    name: 'act_img_url',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    default: null,
+  })
   imgUrl?: string;
 
   @Column({ name: 'fk_id_cultivo_variedad_x_zona' })
@@ -63,5 +90,4 @@ export class Actividad {
 
   @OneToMany(() => ReservasXActividad, (r) => r.actividad)
   reservas?: ReservasXActividad[];
-
 }

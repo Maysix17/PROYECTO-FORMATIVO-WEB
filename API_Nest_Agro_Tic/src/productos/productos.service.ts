@@ -44,7 +44,11 @@ export class ProductosService {
     return entity;
   }
 
-  async update(id: string, updateDto: UpdateProductosDto, userDni?: number): Promise<Producto> {
+  async update(
+    id: string,
+    updateDto: UpdateProductosDto,
+    userDni?: number,
+  ): Promise<Producto> {
     const entity = await this.findOne(id);
     Object.assign(entity, updateDto);
     const savedEntity = await this.productoRepo.save(entity);
@@ -63,7 +67,7 @@ export class ProductosService {
           'Ajuste',
           0, // No quantity change for product data updates
           `Ajuste manual de inventario: modificación de datos del producto ${savedEntity.nombre}`,
-          userDni
+          userDni,
         );
       }
     }
@@ -91,7 +95,9 @@ export class ProductosService {
       });
 
       if (!tipoMovimiento) {
-        console.warn(`Tipo de movimiento "${tipoMovimientoNombre}" no encontrado.`);
+        console.warn(
+          `Tipo de movimiento "${tipoMovimientoNombre}" no encontrado.`,
+        );
         return;
       }
 
@@ -117,15 +123,21 @@ export class ProductosService {
       };
 
       await this.movimientosInventarioService.create(createDto);
-      console.log(`✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`);
+      console.log(
+        `✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`,
+      );
     } catch (error) {
       console.error(`❌ Error creando movimiento: ${error.message}`);
     }
   }
 
-  async createWithLote(createDto: CreateProductoWithLoteDto, userDni?: number): Promise<Producto> {
+  async createWithLote(
+    createDto: CreateProductoWithLoteDto,
+    userDni?: number,
+  ): Promise<Producto> {
     // Start transaction
-    const queryRunner = this.productoRepo.manager.connection.createQueryRunner();
+    const queryRunner =
+      this.productoRepo.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
@@ -145,7 +157,8 @@ export class ProductosService {
       const savedProducto = await queryRunner.manager.save(Producto, producto);
 
       // Calculate cantidadDisponible = stock * capacidadPresentacion
-      const cantidadDisponible = createDto.stock * (savedProducto.capacidadPresentacion || 1);
+      const cantidadDisponible =
+        createDto.stock * (savedProducto.capacidadPresentacion || 1);
 
       // Create lot inventory
       const loteInventario = queryRunner.manager.create(LotesInventario, {
@@ -155,12 +168,24 @@ export class ProductosService {
         stock: createDto.stock,
         esParcial: false, // Default to false
         cantidadParcial: 0, // Default to 0
-        fechaVencimiento: createDto.fechaVencimiento ? new Date(createDto.fechaVencimiento) : undefined,
+        fechaVencimiento: createDto.fechaVencimiento
+          ? new Date(createDto.fechaVencimiento)
+          : undefined,
       });
-      const savedLote = await queryRunner.manager.save(LotesInventario, loteInventario);
+      const savedLote = await queryRunner.manager.save(
+        LotesInventario,
+        loteInventario,
+      );
 
       // Create movement record for ENTRADA
-      await this.createMovementRecord(queryRunner, savedLote.id, 'Entrada', cantidadDisponible, `Entrada de producto: ${savedProducto.nombre}`, userDni);
+      await this.createMovementRecord(
+        queryRunner,
+        savedLote.id,
+        'Entrada',
+        cantidadDisponible,
+        `Entrada de producto: ${savedProducto.nombre}`,
+        userDni,
+      );
 
       // Commit transaction
       await queryRunner.commitTransaction();

@@ -27,18 +27,45 @@ export class ActividadesService {
     dniResponsable: number,
   ): Promise<Actividad> {
     console.log('ActividadesService create - dniResponsable:', dniResponsable);
-    console.log('ActividadesService create - dto.fechaAsignacion:', dto.fechaAsignacion);
-    console.log('ActividadesService create - dto.fechaAsignacion type:', typeof dto.fechaAsignacion);
-    console.log('ActividadesService create - dto.fechaAsignacion ISO:', dto.fechaAsignacion.toISOString());
-    console.log('ActividadesService create - dto.fechaAsignacion local:', dto.fechaAsignacion.toLocaleDateString());
+    console.log(
+      'ActividadesService create - dto.fechaAsignacion:',
+      dto.fechaAsignacion,
+    );
+    console.log(
+      'ActividadesService create - dto.fechaAsignacion type:',
+      typeof dto.fechaAsignacion,
+    );
+    console.log(
+      'ActividadesService create - dto.fechaAsignacion ISO:',
+      dto.fechaAsignacion.toISOString(),
+    );
+    console.log(
+      'ActividadesService create - dto.fechaAsignacion local:',
+      dto.fechaAsignacion.toLocaleDateString(),
+    );
 
-    const actividad: Actividad = this.actividadesRepo.create({ ...dto, dniResponsable });
-    console.log('ActividadesService create - actividad.fechaAsignacion after create:', actividad.fechaAsignacion);
-    console.log('ActividadesService create - actividad.fechaAsignacion ISO after create:', actividad.fechaAsignacion.toISOString());
+    const actividad: Actividad = this.actividadesRepo.create({
+      ...dto,
+      dniResponsable,
+    });
+    console.log(
+      'ActividadesService create - actividad.fechaAsignacion after create:',
+      actividad.fechaAsignacion,
+    );
+    console.log(
+      'ActividadesService create - actividad.fechaAsignacion ISO after create:',
+      actividad.fechaAsignacion.toISOString(),
+    );
 
     const saved = await this.actividadesRepo.save(actividad);
-    console.log('ActividadesService create - saved.fechaAsignacion:', saved.fechaAsignacion);
-    console.log('ActividadesService create - saved.fechaAsignacion ISO:', saved.fechaAsignacion.toISOString());
+    console.log(
+      'ActividadesService create - saved.fechaAsignacion:',
+      saved.fechaAsignacion,
+    );
+    console.log(
+      'ActividadesService create - saved.fechaAsignacion ISO:',
+      saved.fechaAsignacion.toISOString(),
+    );
 
     return saved;
   }
@@ -94,7 +121,10 @@ export class ActividadesService {
 
   async findByDateRange(start: string, end: string): Promise<Actividad[]> {
     const actividades = await this.actividadesRepo.find({
-      where: { fechaAsignacion: Between(new Date(start), new Date(end)), estado: true },
+      where: {
+        fechaAsignacion: Between(new Date(start), new Date(end)),
+        estado: true,
+      },
       relations: [
         'categoriaActividad',
         'cultivoVariedadZona',
@@ -172,7 +202,9 @@ export class ActividadesService {
     });
 
     if (!lote || !lote.producto) {
-      throw new NotFoundException(`Lote con ID ${loteId} no encontrado o sin producto`);
+      throw new NotFoundException(
+        `Lote con ID ${loteId} no encontrado o sin producto`,
+      );
     }
 
     const dto: CreateReservasXActividadDto = {
@@ -186,7 +218,13 @@ export class ActividadesService {
     const reserva = await this.reservasXActividadService.create(dto);
 
     // Create movement record for RESERVA
-    await this.createMovementRecord(loteId, reserva.id, 'Reserva', cantidadReservada, `Reserva para actividad agrícola`);
+    await this.createMovementRecord(
+      loteId,
+      reserva.id,
+      'Reserva',
+      cantidadReservada,
+      `Reserva para actividad agrícola`,
+    );
 
     return reserva;
   }
@@ -200,15 +238,22 @@ export class ActividadesService {
   ): Promise<void> {
     try {
       // Import required entities and repositories
-      const { TipoMovimiento } = await import('../tipos_movimiento/entities/tipos_movimiento.entity');
+      const { TipoMovimiento } = await import(
+        '../tipos_movimiento/entities/tipos_movimiento.entity'
+      );
 
       // Find the movement type
-      const tipoMovimiento = await this.reservasXActividadRepo.manager.findOne(TipoMovimiento, {
-        where: { nombre: tipoMovimientoNombre },
-      });
+      const tipoMovimiento = await this.reservasXActividadRepo.manager.findOne(
+        TipoMovimiento,
+        {
+          where: { nombre: tipoMovimientoNombre },
+        },
+      );
 
       if (!tipoMovimiento) {
-        console.warn(`Tipo de movimiento "${tipoMovimientoNombre}" no encontrado.`);
+        console.warn(
+          `Tipo de movimiento "${tipoMovimientoNombre}" no encontrado.`,
+        );
         return;
       }
 
@@ -221,9 +266,12 @@ export class ActividadesService {
       if (reserva?.actividad?.dniResponsable) {
         // Get user details for responsable string
         const { Usuario } = await import('../usuarios/entities/usuario.entity');
-        const usuario = await this.reservasXActividadRepo.manager.findOne(Usuario, {
-          where: { dni: reserva.actividad.dniResponsable },
-        });
+        const usuario = await this.reservasXActividadRepo.manager.findOne(
+          Usuario,
+          {
+            where: { dni: reserva.actividad.dniResponsable },
+          },
+        );
         if (usuario) {
           responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
         }
@@ -240,7 +288,9 @@ export class ActividadesService {
       };
 
       await this.movimientosInventarioService.create(createDto);
-      console.log(`✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`);
+      console.log(
+        `✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`,
+      );
     } catch (error) {
       console.error(`❌ Error creando movimiento: ${error.message}`);
     }
@@ -265,7 +315,9 @@ export class ActividadesService {
       if (lote.reservas) {
         for (const reserva of lote.reservas) {
           if (reserva.estado && reserva.estado.nombre !== 'Confirmada') {
-            cantidadReservadaActiva += (reserva.cantidadReservada || 0) - (reserva.cantidadDevuelta || 0);
+            cantidadReservadaActiva +=
+              (reserva.cantidadReservada || 0) -
+              (reserva.cantidadDevuelta || 0);
           }
         }
       }
@@ -273,7 +325,8 @@ export class ActividadesService {
       // Available quantity includes cantidadDisponible + cantidadParcial - active reservations
       const cantidadDisponibleNum = Number(lote.cantidadDisponible) || 0;
       const cantidadParcialNum = Number(lote.cantidadParcial) || 0;
-      const available = cantidadDisponibleNum + cantidadParcialNum - cantidadReservadaActiva;
+      const available =
+        cantidadDisponibleNum + cantidadParcialNum - cantidadReservadaActiva;
       if (available >= cantidadReservada) {
         return this.createReservation(
           actividadId,
@@ -328,7 +381,9 @@ export class ActividadesService {
     });
   }
   async findByCultivoVariedadZonaId(cvzId: string): Promise<Actividad[]> {
-    console.log(`[${new Date().toISOString()}] 🔍 BACKEND: Finding activities for CVZ ID: ${cvzId}`);
+    console.log(
+      `[${new Date().toISOString()}] 🔍 BACKEND: Finding activities for CVZ ID: ${cvzId}`,
+    );
     const actividades = await this.actividadesRepo.find({
       where: { fkCultivoVariedadZonaId: cvzId },
       relations: [
@@ -352,23 +407,32 @@ export class ActividadesService {
       order: { fechaAsignacion: 'DESC' },
     });
 
-    console.log(`[${new Date().toISOString()}] 📊 BACKEND: Found ${actividades.length} activities for CVZ ${cvzId}`);
+    console.log(
+      `[${new Date().toISOString()}] 📊 BACKEND: Found ${actividades.length} activities for CVZ ${cvzId}`,
+    );
     actividades.forEach((act, idx) => {
-      console.log(`[${new Date().toISOString()}] 👥 BACKEND: Activity ${idx + 1} (${act.id}) - Usuarios asignados: ${act.usuariosAsignados?.length || 0}`);
+      console.log(
+        `[${new Date().toISOString()}] 👥 BACKEND: Activity ${idx + 1} (${act.id}) - Usuarios asignados: ${act.usuariosAsignados?.length || 0}`,
+      );
       if (act.usuariosAsignados && act.usuariosAsignados.length > 0) {
         act.usuariosAsignados.forEach((uxa, uidx) => {
-          console.log(`[${new Date().toISOString()}] 👤 BACKEND:   User ${uidx + 1}: ${uxa.usuario?.nombres} ${uxa.usuario?.apellidos} (DNI: ${uxa.usuario?.dni}, Activo: ${uxa.activo})`);
+          console.log(
+            `[${new Date().toISOString()}] 👤 BACKEND:   User ${uidx + 1}: ${uxa.usuario?.nombres} ${uxa.usuario?.apellidos} (DNI: ${uxa.usuario?.dni}, Activo: ${uxa.activo})`,
+          );
         });
       }
     });
 
     // Enrich with responsable information
     const enriched = await this.enrichActividadesWithResponsable(actividades);
-    console.log(`[${new Date().toISOString()}] ✅ BACKEND: Enriched activities with responsable info`);
+    console.log(
+      `[${new Date().toISOString()}] ✅ BACKEND: Enriched activities with responsable info`,
+    );
 
     // Add cost calculations for finalized activities
-    const enrichedWithCosts = enriched.map(actividad => {
-      if (actividad.estado === false && actividad.reservas) { // finalized
+    const enrichedWithCosts = enriched.map((actividad) => {
+      if (actividad.estado === false && actividad.reservas) {
+        // finalized
         const costData = this.calculateActivityCosts(actividad);
         (actividad as any).costData = costData;
       }
@@ -378,9 +442,15 @@ export class ActividadesService {
     return enrichedWithCosts;
   }
 
-  private async enrichActividadesWithResponsable(actividades: Actividad[]): Promise<Actividad[]> {
+  private async enrichActividadesWithResponsable(
+    actividades: Actividad[],
+  ): Promise<Actividad[]> {
     // Get all unique DNI responsables
-    const dniResponsables = [...new Set(actividades.map(act => act.dniResponsable).filter(dni => dni))];
+    const dniResponsables = [
+      ...new Set(
+        actividades.map((act) => act.dniResponsable).filter((dni) => dni),
+      ),
+    ];
 
     if (dniResponsables.length === 0) {
       return actividades;
@@ -389,20 +459,24 @@ export class ActividadesService {
     // Fetch user information for responsables
     const { Usuario } = await import('../usuarios/entities/usuario.entity');
     const usuarios = await this.actividadesRepo.manager.find(Usuario, {
-      where: dniResponsables.map(dni => ({ dni })),
+      where: dniResponsables.map((dni) => ({ dni })),
     });
 
     // Create a map of DNI to user info
-    const userMap = new Map<string, { nombres: string; apellidos: string }>();
-    usuarios.forEach(user => {
-      userMap.set(user.dni.toString(), { nombres: user.nombres, apellidos: user.apellidos });
+    const userMap = new Map<number, { nombres: string; apellidos: string }>();
+    usuarios.forEach((user) => {
+      userMap.set(user.dni, {
+        nombres: user.nombres,
+        apellidos: user.apellidos,
+      });
     });
 
     // Enrich actividades with responsable info and reorder to show responsable first
-    const enriched = actividades.map(actividad => {
-      if (actividad.dniResponsable && userMap.has(actividad.dniResponsable.toString())) {
-        const user = userMap.get(actividad.dniResponsable.toString())!;
-        (actividad as any).nombreResponsable = `${user.nombres} ${user.apellidos}`;
+    const enriched = actividades.map((actividad) => {
+      if (actividad.dniResponsable && userMap.has(actividad.dniResponsable)) {
+        const user = userMap.get(actividad.dniResponsable)!;
+        (actividad as any).responsableNombre =
+          `${user.nombres} ${user.apellidos}`;
         (actividad as any).responsableDni = actividad.dniResponsable;
       }
       return actividad;
@@ -417,37 +491,42 @@ export class ActividadesService {
     if (!actividad.reservas) return null;
 
     let totalInputsCost = 0;
-    const reservationsWithCosts = actividad.reservas.map(reserva => {
+    const reservationsWithCosts = actividad.reservas.map((reserva) => {
       const cantidadUsada = reserva.cantidadUsada || 0;
       let unitPrice = 0;
       let subtotal = 0;
 
       // Check if product is divisible (consumable) or not (tool)
-      const esDivisible = reserva.lote?.producto?.categoria?.esDivisible ?? true; // Default true for compatibility
+      const esDivisible =
+        reserva.lote?.producto?.categoria?.esDivisible ?? true; // Default true for compatibility
 
       if (esDivisible) {
         // Logic for divisible products (consumables)
-        unitPrice = reserva.capacidadPresentacionProducto > 0
-          ? reserva.precioProducto / reserva.capacidadPresentacionProducto
-          : 0;
+        unitPrice =
+          reserva.capacidadPresentacionProducto > 0
+            ? reserva.precioProducto / reserva.capacidadPresentacionProducto
+            : 0;
         subtotal = cantidadUsada * unitPrice;
       } else {
         // Logic for non-divisible products (tools) - depreciation per use
-        const vidaUtilPromedioPorUsos = reserva.lote?.producto?.vidaUtilPromedioPorUsos;
+        const vidaUtilPromedioPorUsos =
+          reserva.lote?.producto?.vidaUtilPromedioPorUsos;
 
         if (vidaUtilPromedioPorUsos && vidaUtilPromedioPorUsos > 0) {
           // Residual value = 10% of product price
           const valorResidual = reserva.precioProducto * 0.1;
-          const costoPorUso = (reserva.precioProducto - valorResidual) / vidaUtilPromedioPorUsos;
+          const costoPorUso =
+            (reserva.precioProducto - valorResidual) / vidaUtilPromedioPorUsos;
 
           // Each use counts as 1 usage
           unitPrice = costoPorUso;
           subtotal = costoPorUso; // Since cantidadUsada represents number of uses
         } else {
           // Fallback: if no useful life defined, use normal logic
-          unitPrice = reserva.capacidadPresentacionProducto > 0
-            ? reserva.precioProducto / reserva.capacidadPresentacionProducto
-            : 0;
+          unitPrice =
+            reserva.capacidadPresentacionProducto > 0
+              ? reserva.precioProducto / reserva.capacidadPresentacionProducto
+              : 0;
           subtotal = cantidadUsada * unitPrice;
         }
       }

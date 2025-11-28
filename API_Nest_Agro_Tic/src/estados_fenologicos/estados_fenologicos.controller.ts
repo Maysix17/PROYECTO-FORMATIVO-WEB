@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { EstadosFenologicosService } from './estados_fenologicos.service';
 import { EstadoFenologico } from './entities/estado_fenologico.entity';
 
@@ -7,7 +15,14 @@ export class EstadosFenologicosController {
   constructor(private readonly estadosService: EstadosFenologicosService) {}
 
   @Post()
-  async create(@Body() createEstadoDto: { nombre: string; descripcion?: string; orden: number }) {
+  async create(
+    @Body()
+    createEstadoDto: {
+      nombre: string;
+      descripcion?: string;
+      orden: number;
+    },
+  ) {
     return await this.estadosService.create(createEstadoDto);
   }
 
@@ -22,7 +37,15 @@ export class EstadosFenologicosController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateEstadoDto: Partial<{ nombre: string; descripcion?: string; orden: number }>) {
+  async update(
+    @Param('id') id: string,
+    @Body()
+    updateEstadoDto: Partial<{
+      nombre: string;
+      descripcion?: string;
+      orden: number;
+    }>,
+  ) {
     return await this.estadosService.update(+id, updateEstadoDto);
   }
 

@@ -13,7 +13,14 @@ import { MovimientosInventarioModule } from '../movimientos_inventario/movimient
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ReservasXActividad, Actividad, EstadoReserva, LotesInventario, MovimientosInventario, TipoMovimiento]),
+    TypeOrmModule.forFeature([
+      ReservasXActividad,
+      Actividad,
+      EstadoReserva,
+      LotesInventario,
+      MovimientosInventario,
+      TipoMovimiento,
+    ]),
     UsuariosXActividadesModule,
     MovimientosInventarioModule,
   ],

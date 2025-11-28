@@ -169,9 +169,16 @@ export class AuthService {
     // Store session in Redis cache (with error handling)
     try {
       const ttl = 30 * 24 * 60 * 60;
-      await this.cacheManager.set(`session:${usuario.id}`, refreshTokenHash, ttl);
+      await this.cacheManager.set(
+        `session:${usuario.id}`,
+        refreshTokenHash,
+        ttl,
+      );
     } catch (redisError) {
-      this.logger.warn(`Failed to store session in Redis for user ${usuario.id}:`, redisError.message);
+      this.logger.warn(
+        `Failed to store session in Redis for user ${usuario.id}:`,
+        redisError.message,
+      );
       // Continue with login even if Redis fails - database session is still valid
     }
 
@@ -330,7 +337,9 @@ export class AuthService {
   async logout(userId: string) {
     console.log(`AuthService: Starting logout for userId: ${userId}`);
     try {
-      console.log(`AuthService: Invalidating database sessions for user ${userId}`);
+      console.log(
+        `AuthService: Invalidating database sessions for user ${userId}`,
+      );
       // Invalidate all active sessions in database
       const updateResult = await this.sessionRepository.update(
         { usuario: { id: userId }, isActive: true },
@@ -344,11 +353,16 @@ export class AuthService {
         await this.cacheManager.del(`session:${userId}`);
         console.log(`AuthService: Redis session deleted successfully`);
       } catch (redisError) {
-        this.logger.warn(`Failed to delete Redis session for user ${userId}:`, redisError.message);
+        this.logger.warn(
+          `Failed to delete Redis session for user ${userId}:`,
+          redisError.message,
+        );
         // Continue with logout even if Redis fails
       }
 
-      console.log(`AuthService: Logout completed successfully for user ${userId}`);
+      console.log(
+        `AuthService: Logout completed successfully for user ${userId}`,
+      );
       return { message: 'Sesión cerrada exitosamente' };
     } catch (error) {
       console.error(`AuthService: Logout failed for user ${userId}:`, error);
@@ -356,7 +370,10 @@ export class AuthService {
       try {
         await this.cacheManager.del(`session:${userId}`);
       } catch (redisError) {
-        this.logger.warn(`Failed to delete Redis session for user ${userId} during error recovery:`, redisError.message);
+        this.logger.warn(
+          `Failed to delete Redis session for user ${userId} during error recovery:`,
+          redisError.message,
+        );
       }
       throw error;
     }

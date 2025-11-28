@@ -27,7 +27,7 @@ export class MqttGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Connection details:`, {
       id: client.id,
       handshake: client.handshake,
-      transport: client.conn.transport.name
+      transport: client.conn.transport.name,
     });
   }
 
@@ -43,13 +43,24 @@ export class MqttGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // Emitir estado de conexión MQTT por zona
-  emitEstadoConexion(estado: { zonaId: string; conectado: boolean; mensaje?: string }) {
-    this.logger.log(`Emitiendo estado MQTT para zona ${estado.zonaId}:`, estado);
+  emitEstadoConexion(estado: {
+    zonaId: string;
+    conectado: boolean;
+    mensaje?: string;
+  }) {
+    this.logger.log(
+      `Emitiendo estado MQTT para zona ${estado.zonaId}:`,
+      estado,
+    );
     this.server.emit('estadoConexion', estado);
   }
 
   // Método para emitir estado de conexión inicial para una zona
-  emitEstadoConexionInicial(zonaId: string, conectado: boolean, mensaje: string = '') {
+  emitEstadoConexionInicial(
+    zonaId: string,
+    conectado: boolean,
+    mensaje: string = '',
+  ) {
     this.emitEstadoConexion({ zonaId, conectado, mensaje });
   }
 }

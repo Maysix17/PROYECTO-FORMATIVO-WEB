@@ -10,7 +10,12 @@ import { MovimientosInventarioModule } from '../movimientos_inventario/movimient
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Producto, MovimientosInventario, TipoMovimiento, Usuario]),
+    TypeOrmModule.forFeature([
+      Producto,
+      MovimientosInventario,
+      TipoMovimiento,
+      Usuario,
+    ]),
     MovimientosInventarioModule,
   ],
   controllers: [ProductosController],

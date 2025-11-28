@@ -65,13 +65,19 @@ export class LotesInventarioController {
     @Body() updateLotesInventarioDto: UpdateLotesInventarioDto,
   ) {
     // Load user from database using userId from guard
-    const usuario = await this.usuarioRepository.findOne({ where: { id: req.userId } });
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: req.userId },
+    });
     if (!usuario) {
       throw new Error('Usuario no encontrado');
     }
     const userDni = usuario.dni;
     console.log('Controller: update called with userDni from DB:', userDni);
-    return this.lotesInventarioService.update(id, updateLotesInventarioDto, userDni);
+    return this.lotesInventarioService.update(
+      id,
+      updateLotesInventarioDto,
+      userDni,
+    );
   }
 
   @Delete(':id')

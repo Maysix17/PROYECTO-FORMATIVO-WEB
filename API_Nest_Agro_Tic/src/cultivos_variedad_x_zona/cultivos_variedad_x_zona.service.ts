@@ -19,7 +19,8 @@ export class CultivosVariedadXZonaService {
   ): Promise<CultivosVariedadXZona> {
     const cvz = this.cvzRepository.create({
       ...createCultivosVariedadXZonaDto,
-      cantidadPlantasActual: createCultivosVariedadXZonaDto.cantidadPlantasInicial,
+      cantidadPlantasActual:
+        createCultivosVariedadXZonaDto.cantidadPlantasInicial,
     });
     return await this.cvzRepository.save(cvz);
   }
@@ -59,7 +60,10 @@ export class CultivosVariedadXZonaService {
     if (cvz) {
       console.log(`[DEBUG] cultivoXVariedad:`, cvz.cultivoXVariedad);
       console.log(`[DEBUG] variedad:`, cvz.cultivoXVariedad?.variedad);
-      console.log(`[DEBUG] tipoCultivo:`, cvz.cultivoXVariedad?.variedad?.tipoCultivo);
+      console.log(
+        `[DEBUG] tipoCultivo:`,
+        cvz.cultivoXVariedad?.variedad?.tipoCultivo,
+      );
       console.log(`[DEBUG] zona:`, cvz.zona);
     }
     if (!cvz) {
@@ -70,7 +74,9 @@ export class CultivosVariedadXZonaService {
     return cvz;
   }
 
-  async getCropDetails(cvzId: string): Promise<{tipoCultivo: string, variedad: string, zona: string}> {
+  async getCropDetails(
+    cvzId: string,
+  ): Promise<{ tipoCultivo: string; variedad: string; zona: string }> {
     console.log(`[DEBUG] getCropDetails called for cvzId: ${cvzId}`);
     const cvz = await this.cvzRepository.findOne({
       where: { id: cvzId },
@@ -86,16 +92,20 @@ export class CultivosVariedadXZonaService {
       throw new NotFoundException(`Cultivo con id ${cvzId} no encontrado`);
     }
 
-    const tipoCultivo = cvz.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo desconocido';
-    const variedad = cvz.cultivoXVariedad?.variedad?.nombre || 'Variedad desconocida';
+    const tipoCultivo =
+      cvz.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo desconocido';
+    const variedad =
+      cvz.cultivoXVariedad?.variedad?.nombre || 'Variedad desconocida';
     const zona = cvz.zona?.nombre || 'Zona desconocida';
 
-    console.log(`[DEBUG] getCropDetails result: tipoCultivo=${tipoCultivo}, variedad=${variedad}, zona=${zona}`);
+    console.log(
+      `[DEBUG] getCropDetails result: tipoCultivo=${tipoCultivo}, variedad=${variedad}, zona=${zona}`,
+    );
 
     return {
       tipoCultivo,
       variedad,
-      zona
+      zona,
     };
   }
 
@@ -114,7 +124,10 @@ export class CultivosVariedadXZonaService {
   }
 
   // Nuevos métodos para características del cultivo
-  async actualizarCantidadPlantas(id: string, dto: UpdateCantidadPlantasDto): Promise<CultivosVariedadXZona> {
+  async actualizarCantidadPlantas(
+    id: string,
+    dto: UpdateCantidadPlantasDto,
+  ): Promise<CultivosVariedadXZona> {
     const cvz = await this.cvzRepository.findOne({ where: { id } });
     if (!cvz) {
       throw new NotFoundException(`Cultivo con id ${id} no encontrado`);
@@ -122,7 +135,9 @@ export class CultivosVariedadXZonaService {
 
     // Validar que no quede cantidad negativa
     if (dto.cantidad_plantas < 0) {
-      throw new NotFoundException('La cantidad de plantas no puede ser negativa');
+      throw new NotFoundException(
+        'La cantidad de plantas no puede ser negativa',
+      );
     }
 
     // Actualizar cantidad directamente con el valor proporcionado
@@ -132,7 +147,10 @@ export class CultivosVariedadXZonaService {
     return await this.cvzRepository.save(cvz);
   }
 
-  async actualizarEstadoFenologico(id: string, estadoId: number): Promise<CultivosVariedadXZona> {
+  async actualizarEstadoFenologico(
+    id: string,
+    estadoId: number,
+  ): Promise<CultivosVariedadXZona> {
     const cvz = await this.cvzRepository.findOne({ where: { id } });
     if (!cvz) {
       throw new NotFoundException(`Cultivo con id ${id} no encontrado`);
@@ -147,7 +165,7 @@ export class CultivosVariedadXZonaService {
   async calcularEdadCultivo(id: string): Promise<number> {
     const cvz = await this.cvzRepository.findOne({
       where: { id },
-      relations: ['cultivoXVariedad', 'cultivoXVariedad.cultivo']
+      relations: ['cultivoXVariedad', 'cultivoXVariedad.cultivo'],
     });
 
     if (!cvz?.cultivoXVariedad?.cultivo?.siembra) {
@@ -157,7 +175,8 @@ export class CultivosVariedadXZonaService {
     const fechaSiembra = new Date(cvz.cultivoXVariedad.cultivo.siembra);
     const hoy = new Date();
 
-    return Math.floor((hoy.getTime() - fechaSiembra.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.floor(
+      (hoy.getTime() - fechaSiembra.getTime()) / (1000 * 60 * 60 * 24),
+    );
   }
-
 }

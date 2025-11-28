@@ -27,7 +27,12 @@ export class Venta {
   @Column({ name: 'ven_unidad_medida', type: 'varchar', length: 2 })
   unidadMedida: string;
 
-  @Column({ name: 'ven_precio_unitario', type: 'numeric', precision: 10, scale: 2 })
+  @Column({
+    name: 'ven_precio_unitario',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+  })
   precioUnitario: number;
 
   @Column({ name: 'ven_precio_kilo', type: 'numeric', precision: 10, scale: 2 })

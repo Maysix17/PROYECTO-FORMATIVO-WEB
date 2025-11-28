@@ -1,4 +1,12 @@
-import { IsObject, IsNumber, IsOptional, Min, ValidatorConstraint, ValidationArguments, ValidateIf } from 'class-validator';
+import {
+  IsObject,
+  IsNumber,
+  IsOptional,
+  Min,
+  ValidatorConstraint,
+  ValidationArguments,
+  ValidateIf,
+} from 'class-validator';
 import { registerDecorator } from 'class-validator';
 import { UmbralResponseDto } from './umbrales-response.dto';
 
@@ -7,7 +15,7 @@ import { UmbralResponseDto } from './umbrales-response.dto';
  * y ambos valores son números válidos
  */
 export function IsThresholdValid(validationOptions?: any) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isThresholdValid',
       target: object.constructor,
@@ -29,7 +37,10 @@ export function IsThresholdValid(validationOptions?: any) {
             const typedThreshold = threshold as UmbralResponseDto;
 
             // Verificar que minimo y maximo existen y son números
-            if (typeof typedThreshold.minimo !== 'number' || typeof typedThreshold.maximo !== 'number') {
+            if (
+              typeof typedThreshold.minimo !== 'number' ||
+              typeof typedThreshold.maximo !== 'number'
+            ) {
               return false;
             }
 
@@ -53,7 +64,7 @@ export function IsThresholdValid(validationOptions?: any) {
         },
         defaultMessage(args: ValidationArguments) {
           return 'Cada umbral debe tener minimo < maximo y ambos valores deben ser números positivos';
-        }
+        },
       },
     });
   };
@@ -65,6 +76,9 @@ export function IsThresholdValid(validationOptions?: any) {
  */
 export class UpdateUmbralesDto {
   @IsObject()
-  @IsThresholdValid({ message: 'Cada umbral debe tener minimo < maximo y ambos valores deben ser números positivos' })
+  @IsThresholdValid({
+    message:
+      'Cada umbral debe tener minimo < maximo y ambos valores deben ser números positivos',
+  })
   umbrales: Record<string, { minimo: number; maximo: number }>;
 }

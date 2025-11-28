@@ -19,7 +19,12 @@ export class CosechasVentas {
   @Column({ name: 'fk_id_venta' })
   fkVentaId: string;
 
-  @Column({ name: 'cv_cantidad_vendida', type: 'numeric', precision: 10, scale: 2 })
+  @Column({
+    name: 'cv_cantidad_vendida',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+  })
   cantidadVendida: number;
 
   @ManyToOne(() => Cosecha, (cosecha) => cosecha.cosechasVentas)

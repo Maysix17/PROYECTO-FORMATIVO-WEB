@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsuarioXActividad } from './entities/usuarios_x_actividades.entity';
@@ -26,27 +31,44 @@ export class UsuariosXActividadesService {
 
     const notification = {
       id: savedEntity.id,
-      activityCategory: savedEntity.actividad?.categoriaActividad?.nombre || 'Sin categoría',
-      zone: savedEntity.actividad?.cultivoVariedadZona?.zona?.nombre || 'Sin zona',
+      activityCategory:
+        savedEntity.actividad?.categoriaActividad?.nombre || 'Sin categoría',
+      zone:
+        savedEntity.actividad?.cultivoVariedadZona?.zona?.nombre || 'Sin zona',
       assignmentDate: savedEntity.fechaAsignacion,
       assignedBy: assignedBy,
     };
 
-    this.notificationsGateway.emitNotificationToUser(savedEntity.fkUsuarioId, notification);
+    this.notificationsGateway.emitNotificationToUser(
+      savedEntity.fkUsuarioId,
+      notification,
+    );
 
     return savedEntity;
   }
 
   async findAll(): Promise<UsuarioXActividad[]> {
     return await this.uxActRepo.find({
-      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona']
+      relations: [
+        'usuario',
+        'actividad',
+        'actividad.categoriaActividad',
+        'actividad.cultivoVariedadZona',
+        'actividad.cultivoVariedadZona.zona',
+      ],
     });
   }
 
   async findOne(id: string): Promise<UsuarioXActividad> {
     const entity = await this.uxActRepo.findOne({
       where: { id },
-      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona'],
+      relations: [
+        'usuario',
+        'actividad',
+        'actividad.categoriaActividad',
+        'actividad.cultivoVariedadZona',
+        'actividad.cultivoVariedadZona.zona',
+      ],
     });
     if (!entity)
       throw new NotFoundException(
@@ -91,7 +113,13 @@ export class UsuariosXActividadesService {
   async findByUser(userId: string): Promise<UsuarioXActividad[]> {
     return await this.uxActRepo.find({
       where: { fkUsuarioId: userId, activo: true },
-      relations: ['usuario', 'actividad', 'actividad.categoriaActividad', 'actividad.cultivoVariedadZona', 'actividad.cultivoVariedadZona.zona'],
+      relations: [
+        'usuario',
+        'actividad',
+        'actividad.categoriaActividad',
+        'actividad.cultivoVariedadZona',
+        'actividad.cultivoVariedadZona.zona',
+      ],
       order: { fechaAsignacion: 'DESC' },
     });
   }

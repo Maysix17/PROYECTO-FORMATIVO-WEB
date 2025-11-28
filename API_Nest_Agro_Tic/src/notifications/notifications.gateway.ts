@@ -59,7 +59,8 @@ export class NotificationsGateway
       }
 
       // Fallback to auth/query params
-      token = token || client.handshake.auth.token || client.handshake.query.token;
+      token =
+        token || client.handshake.auth.token || client.handshake.query.token;
 
       if (!token) {
         this.logger.warn(`No token provided for client: ${client.id}`);
@@ -92,13 +93,17 @@ export class NotificationsGateway
 
   // Method to emit notification to a specific user
   emitNotificationToUser(userId: string, notification: any) {
-    this.logger.log(`Emitting notification to user ${userId}: ${JSON.stringify(notification)}`);
+    this.logger.log(
+      `Emitting notification to user ${userId}: ${JSON.stringify(notification)}`,
+    );
     this.server.to(userId).emit('newNotification', notification);
   }
 
   // Method to emit notification to all users (for broadcast)
   emitNotificationToAll(notification: any) {
-    this.logger.log(`Broadcasting notification to all users: ${JSON.stringify(notification)}`);
+    this.logger.log(
+      `Broadcasting notification to all users: ${JSON.stringify(notification)}`,
+    );
     this.server.emit('newNotification', notification);
   }
 

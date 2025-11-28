@@ -39,7 +39,10 @@ export class AuthController {
     @Body() loginDto: LoginAuthDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    console.log('AuthController: Login attempt for user with DNI:', loginDto.dni);
+    console.log(
+      'AuthController: Login attempt for user with DNI:',
+      loginDto.dni,
+    );
     console.log('AuthController: NODE_ENV:', process.env.NODE_ENV);
 
     const result = await this.authService.login(loginDto);
@@ -47,9 +50,18 @@ export class AuthController {
     const refreshMaxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
     const isProduction = process.env.NODE_ENV === 'production';
 
-    console.log('AuthController: Environment check - isProduction:', isProduction);
-    console.log('AuthController: Setting access_token cookie:', result.access_token ? 'present' : 'missing');
-    console.log('AuthController: Setting refresh_token cookie:', result.refresh_token ? 'present' : 'missing');
+    console.log(
+      'AuthController: Environment check - isProduction:',
+      isProduction,
+    );
+    console.log(
+      'AuthController: Setting access_token cookie:',
+      result.access_token ? 'present' : 'missing',
+    );
+    console.log(
+      'AuthController: Setting refresh_token cookie:',
+      result.refresh_token ? 'present' : 'missing',
+    );
 
     response.cookie('access_token', result.access_token, {
       httpOnly: true,
@@ -66,12 +78,10 @@ export class AuthController {
     });
 
     console.log('AuthController: Cookies set successfully, sending response');
-    console.log('AuthController: Response headers will include Set-Cookie headers');
-    return {
-      message: result.message,
-      access_token: result.access_token,
-      refresh_token: result.refresh_token
-    };
+    console.log(
+      'AuthController: Response headers will include Set-Cookie headers',
+    );
+    return { message: result.message };
   }
   @Post('refresh')
   @HttpCode(HttpStatus.OK)

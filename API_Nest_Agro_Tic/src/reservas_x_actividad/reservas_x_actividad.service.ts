@@ -57,7 +57,9 @@ export class ReservasXActividadService {
     // Copy financial data from product to ensure immutability
     // For non-divisible products (tools), capacity is always 1
     const esDivisible = lote.producto.categoria?.esDivisible ?? true;
-    const capacidadPresentacion = esDivisible ? lote.producto.capacidadPresentacion : 1;
+    const capacidadPresentacion = esDivisible
+      ? lote.producto.capacidadPresentacion
+      : 1;
 
     const entity = this.reservasXActividadRepo.create({
       ...createDto,
@@ -100,14 +102,19 @@ export class ReservasXActividadService {
     await this.reservasXActividadRepo.remove(entity);
   }
 
-  async finalizeActivity(finalizeDto: FinalizeActivityDto, file?: Express.Multer.File): Promise<void> {
+  async finalizeActivity(
+    finalizeDto: FinalizeActivityDto,
+    file?: Express.Multer.File,
+  ): Promise<void> {
     console.log('🔍 SERVICE: Starting finalizeActivity with:', {
       actividadId: finalizeDto.actividadId,
       reservas: finalizeDto.reservas,
       horas: finalizeDto.horas,
       precioHora: finalizeDto.precioHora,
       observacion: finalizeDto.observacion,
-      file: file ? { originalname: file.originalname, size: file.size } : 'No file'
+      file: file
+        ? { originalname: file.originalname, size: file.size }
+        : 'No file',
     });
 
     // Find the activity with relations
@@ -138,7 +145,12 @@ export class ReservasXActividadService {
       console.log('🔍 SERVICE: Processing reservation:', reservaDto);
       const reserva = await this.reservasXActividadRepo.findOne({
         where: { id: reservaDto.reservaId },
-        relations: ['actividad', 'lote', 'lote.producto', 'lote.producto.categoria'],
+        relations: [
+          'actividad',
+          'lote',
+          'lote.producto',
+          'lote.producto.categoria',
+        ],
       });
 
       if (!reserva) {
@@ -158,15 +170,18 @@ export class ReservasXActividadService {
       reserva.cantidadDevuelta = reservaDto.cantidadDevuelta || 0;
 
       // Determine if the product is consumable or non-consumable
-      const esConsumible = reserva.lote?.producto?.categoria?.esDivisible ?? true;
+      const esConsumible =
+        reserva.lote?.producto?.categoria?.esDivisible ?? true;
 
       if (esConsumible) {
         // For consumables: cantidad_usada = cantidad_reservada - cantidad_devuelta
-        reserva.cantidadUsada = reserva.cantidadReservada - reserva.cantidadDevuelta;
+        reserva.cantidadUsada =
+          reserva.cantidadReservada - reserva.cantidadDevuelta;
       } else {
         // For non-consumables: cantidad_usada = difference if not all returned
         if (reserva.cantidadDevuelta < reserva.cantidadReservada) {
-          reserva.cantidadUsada = reserva.cantidadReservada - reserva.cantidadDevuelta;
+          reserva.cantidadUsada =
+            reserva.cantidadReservada - reserva.cantidadDevuelta;
         } else {
           reserva.cantidadUsada = 0; // All returned, no usage
         }
@@ -181,21 +196,38 @@ export class ReservasXActividadService {
 
       // Create movement record for DEVOLUCIÓN if there's a return
       if (reserva.cantidadDevuelta > 0) {
-        const categoriaNombre = actividad.categoriaActividad?.nombre || 'Sin categoría';
+        const categoriaNombre =
+          actividad.categoriaActividad?.nombre || 'Sin categoría';
         const observacion = `Devolución por finalización de actividad agrícola: ${categoriaNombre}`;
-        await this.createMovementRecord(reserva.fkLoteId, reserva.id, 'Devolución', reserva.cantidadDevuelta, observacion);
+        await this.createMovementRecord(
+          reserva.fkLoteId,
+          reserva.id,
+          'Devolución',
+          reserva.cantidadDevuelta,
+          observacion,
+        );
       }
 
       // Update inventory proportionally only for consumables or when there's actual usage
       if (esConsumible || reserva.cantidadUsada > 0) {
-        await this.updateLoteInventoryProportionally(reserva.fkLoteId, reserva.cantidadUsada);
+        await this.updateLoteInventoryProportionally(
+          reserva.fkLoteId,
+          reserva.cantidadUsada,
+        );
       }
 
       // Create movement record for the usage with activity category (only if there's usage)
       if (reserva.cantidadUsada > 0) {
-        const categoriaNombre = actividad.categoriaActividad?.nombre || 'Sin categoría';
+        const categoriaNombre =
+          actividad.categoriaActividad?.nombre || 'Sin categoría';
         const observacion = `Salida por finalización de actividad agrícola: ${categoriaNombre}`;
-        await this.createMovementRecord(reserva.fkLoteId, reserva.id, 'Salida', reserva.cantidadUsada, observacion);
+        await this.createMovementRecord(
+          reserva.fkLoteId,
+          reserva.id,
+          'Salida',
+          reserva.cantidadUsada,
+          observacion,
+        );
       }
     }
 
@@ -209,33 +241,54 @@ export class ReservasXActividadService {
 
     // Handle file upload if provided
     if (file) {
-      console.log(`[${new Date().toISOString()}] 🔍 SERVICE: Handling file upload for activity ${finalizeDto.actividadId} - File: ${file.originalname}, Size: ${file.size} bytes`);
+      console.log(
+        `[${new Date().toISOString()}] 🔍 SERVICE: Handling file upload for activity ${finalizeDto.actividadId} - File: ${file.originalname}, Size: ${file.size} bytes`,
+      );
       const uploadDir = path.join(process.cwd(), 'uploads');
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
-        console.log(`[${new Date().toISOString()}] 📁 SERVICE: Created uploads directory: ${uploadDir}`);
+        console.log(
+          `[${new Date().toISOString()}] 📁 SERVICE: Created uploads directory: ${uploadDir}`,
+        );
       }
       const fileName = `imgUrl-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${file.originalname.split('.').pop()}`;
       const filePath = path.join(uploadDir, fileName);
-      console.log(`[${new Date().toISOString()}] 💾 SERVICE: Saving image to: ${filePath}`);
+      console.log(
+        `[${new Date().toISOString()}] 💾 SERVICE: Saving image to: ${filePath}`,
+      );
       fs.writeFileSync(filePath, file.buffer);
       actividad.imgUrl = `/uploads/${fileName}`;
-      console.log(`[${new Date().toISOString()}] ✅ SERVICE: Image saved successfully for activity ${finalizeDto.actividadId} - File: ${fileName}, Full URL: /uploads/${fileName}`);
+      console.log(
+        `[${new Date().toISOString()}] ✅ SERVICE: Image saved successfully for activity ${finalizeDto.actividadId} - File: ${fileName}, Full URL: /uploads/${fileName}`,
+      );
     } else {
-      console.log(`[${new Date().toISOString()}] 🔍 SERVICE: No image file provided for activity ${finalizeDto.actividadId}`);
+      console.log(
+        `[${new Date().toISOString()}] 🔍 SERVICE: No image file provided for activity ${finalizeDto.actividadId}`,
+      );
     }
 
-    console.log(`[${new Date().toISOString()}] 💾 SERVICE: Saving updated activity ${finalizeDto.actividadId} with image URL: ${actividad.imgUrl || 'No image'}`);
+    console.log(
+      `[${new Date().toISOString()}] 💾 SERVICE: Saving updated activity ${finalizeDto.actividadId} with image URL: ${actividad.imgUrl || 'No image'}`,
+    );
     await this.actividadRepo.save(actividad);
 
     // Update usuarios_x_actividades to set activo = false for this activity
-    await this.usuariosXActividadesService.finalizarByActividad(finalizeDto.actividadId);
+    await this.usuariosXActividadesService.finalizarByActividad(
+      finalizeDto.actividadId,
+    );
 
-    console.log(`[${new Date().toISOString()}] ✅ SERVICE: Activity ${finalizeDto.actividadId} finalized successfully with image evidence saved`);
+    console.log(
+      `[${new Date().toISOString()}] ✅ SERVICE: Activity ${finalizeDto.actividadId} finalized successfully with image evidence saved`,
+    );
   }
 
-  private async updateLoteInventoryProportionally(loteId: string, cantidadUsada: number): Promise<void> {
-    console.log(`🔄 Actualizando inventario del lote ${loteId} con cantidad usada: ${cantidadUsada}`);
+  private async updateLoteInventoryProportionally(
+    loteId: string,
+    cantidadUsada: number,
+  ): Promise<void> {
+    console.log(
+      `🔄 Actualizando inventario del lote ${loteId} con cantidad usada: ${cantidadUsada}`,
+    );
 
     const lote = await this.lotesInventarioRepo.findOne({
       where: { id: loteId },
@@ -251,7 +304,9 @@ export class ReservasXActividadService {
     }
 
     const capacidadPresentacion = lote.producto.capacidadPresentacion;
-    console.log(`📦 Capacidad de presentación del producto: ${capacidadPresentacion}`);
+    console.log(
+      `📦 Capacidad de presentación del producto: ${capacidadPresentacion}`,
+    );
 
     // Estado actual del lote
     const stockInicial = lote.stock || 0;
@@ -262,7 +317,9 @@ export class ReservasXActividadService {
     console.log(`  - Stock: ${stockInicial}`);
     console.log(`  - Cantidad disponible: ${cantidadDisponibleInicial}`);
     console.log(`  - Cantidad parcial: ${cantidadParcialInicial}`);
-    console.log(`  - Total disponible para mostrar: ${cantidadDisponibleInicial + cantidadParcialInicial}`);
+    console.log(
+      `  - Total disponible para mostrar: ${cantidadDisponibleInicial + cantidadParcialInicial}`,
+    );
 
     // Lógica de consumo: primero parcial, luego disponible
     let cantidadUsadaRestante = cantidadUsada;
@@ -283,7 +340,10 @@ export class ReservasXActividadService {
 
     // 2. Consumir de cantidad disponible (sí afecta stock)
     if (cantidadUsadaRestante > 0 && nuevaCantidadDisponible > 0) {
-      const cantidadConsumidaDeDisponible = Math.min(cantidadUsadaRestante, nuevaCantidadDisponible);
+      const cantidadConsumidaDeDisponible = Math.min(
+        cantidadUsadaRestante,
+        nuevaCantidadDisponible,
+      );
       nuevaCantidadDisponible -= cantidadConsumidaDeDisponible;
       cantidadUsadaRestante -= cantidadConsumidaDeDisponible;
 
@@ -293,15 +353,21 @@ export class ReservasXActividadService {
 
     // Verificar que se consumió todo
     if (cantidadUsadaRestante > 0) {
-      throw new Error(`No hay suficiente inventario en el lote ${loteId} para consumir ${cantidadUsada}`);
+      throw new Error(
+        `No hay suficiente inventario en el lote ${loteId} para consumir ${cantidadUsada}`,
+      );
     }
 
     // Calcular nuevo stock
     const nuevoStock = Math.max(0, stockInicial - stockAEliminar);
 
     console.log(`📊 Consumo realizado:`);
-    console.log(`  - Cantidad consumida de parcial: ${cantidadParcialInicial - nuevaCantidadParcial}`);
-    console.log(`  - Cantidad consumida de disponible: ${cantidadDisponibleInicial - nuevaCantidadDisponible}`);
+    console.log(
+      `  - Cantidad consumida de parcial: ${cantidadParcialInicial - nuevaCantidadParcial}`,
+    );
+    console.log(
+      `  - Cantidad consumida de disponible: ${cantidadDisponibleInicial - nuevaCantidadDisponible}`,
+    );
     console.log(`  - Stock eliminado: ${stockAEliminar}`);
     console.log(`  - Nuevo stock: ${nuevoStock}`);
 
@@ -309,7 +375,9 @@ export class ReservasXActividadService {
     console.log(`  - Stock: ${nuevoStock}`);
     console.log(`  - Cantidad disponible: ${nuevaCantidadDisponible}`);
     console.log(`  - Cantidad parcial: ${nuevaCantidadParcial}`);
-    console.log(`  - Total disponible para mostrar: ${nuevaCantidadDisponible + nuevaCantidadParcial}`);
+    console.log(
+      `  - Total disponible para mostrar: ${nuevaCantidadDisponible + nuevaCantidadParcial}`,
+    );
 
     // Actualizar el lote
     lote.stock = nuevoStock;
@@ -335,7 +403,9 @@ export class ReservasXActividadService {
       });
 
       if (!tipoMovimiento) {
-        console.warn(`Tipo de movimiento "${tipoMovimientoNombre}" no encontrado.`);
+        console.warn(
+          `Tipo de movimiento "${tipoMovimientoNombre}" no encontrado.`,
+        );
         return;
       }
 
@@ -344,9 +414,12 @@ export class ReservasXActividadService {
       if (userDni) {
         // Direct from parameter (for cases where user context is available)
         const { Usuario } = await import('../usuarios/entities/usuario.entity');
-        const usuario = await this.reservasXActividadRepo.manager.findOne(Usuario, {
-          where: { dni: userDni },
-        });
+        const usuario = await this.reservasXActividadRepo.manager.findOne(
+          Usuario,
+          {
+            where: { dni: userDni },
+          },
+        );
         if (usuario) {
           responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
         }
@@ -357,10 +430,15 @@ export class ReservasXActividadService {
           relations: ['actividad'],
         });
         if (reserva?.actividad?.dniResponsable) {
-          const { Usuario } = await import('../usuarios/entities/usuario.entity');
-          const usuario = await this.reservasXActividadRepo.manager.findOne(Usuario, {
-            where: { dni: reserva.actividad.dniResponsable },
-          });
+          const { Usuario } = await import(
+            '../usuarios/entities/usuario.entity'
+          );
+          const usuario = await this.reservasXActividadRepo.manager.findOne(
+            Usuario,
+            {
+              where: { dni: reserva.actividad.dniResponsable },
+            },
+          );
           if (usuario) {
             responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
           }
@@ -378,7 +456,9 @@ export class ReservasXActividadService {
       };
 
       await this.movimientosInventarioService.create(createDto);
-      console.log(`✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`);
+      console.log(
+        `✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`,
+      );
     } catch (error) {
       console.error(`❌ Error creando movimiento: ${error.message}`);
     }

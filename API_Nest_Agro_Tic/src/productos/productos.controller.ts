@@ -54,7 +54,9 @@ export class ProductosController {
     @Body() updateProductosDto: UpdateProductosDto,
   ) {
     // Load user from database using userId from guard
-    const usuario = await this.usuarioRepository.findOne({ where: { id: req.userId } });
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: req.userId },
+    });
     if (!usuario) {
       throw new Error('Usuario no encontrado');
     }
@@ -74,12 +76,17 @@ export class ProductosController {
     @Body() createProductoWithLoteDto: CreateProductoWithLoteDto,
   ) {
     // Load user from database using userId from guard
-    const usuario = await this.usuarioRepository.findOne({ where: { id: req.userId } });
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: req.userId },
+    });
     if (!usuario) {
       throw new Error('Usuario no encontrado');
     }
     const userDni = usuario.dni;
-    return this.productosService.createWithLote(createProductoWithLoteDto, userDni);
+    return this.productosService.createWithLote(
+      createProductoWithLoteDto,
+      userDni,
+    );
   }
 
   @Post('upload-image')

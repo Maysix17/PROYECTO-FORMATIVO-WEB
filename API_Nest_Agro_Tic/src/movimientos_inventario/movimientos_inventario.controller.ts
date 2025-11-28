@@ -38,7 +38,11 @@ export class MovimientosInventarioController {
     @Query('endDate') endDate?: string,
     @Query('productQuery') productQuery?: string,
   ) {
-    return this.movimientosInventarioService.filter(startDate, endDate, productQuery);
+    return this.movimientosInventarioService.filter(
+      startDate,
+      endDate,
+      productQuery,
+    );
   }
 
   @Get(':id')

@@ -12,7 +12,7 @@ import { MedicionSensorService } from './medicion_sensor.service';
 import { CreateMedicionSensorDto } from './dto/create-medicion_sensor.dto';
 import { UpdateMedicionSensorDto } from './dto/update-medicion_sensor.dto';
 import { SensorSearchResponseDto } from './dto/sensor-search-response.dto';
-import { HistoricalSensorDataRequestDto, HistoricalSensorDataResponseDto } from './dto/historical-sensor-data.dto';
+import { HistoricalSensorDataResponseDto } from './dto/historical-sensor-data.dto';
 import { ReportDataRequestDto } from './dto/report-data-request.dto';
 import { ReportDataResponseDto } from './dto/report-data-response.dto';
 import { CultivosZonasResponseDto } from './dto/cultivos-zonas-response.dto';
@@ -53,12 +53,21 @@ export class MedicionSensorController {
   }
 
   @Post('historical-data')
-  getHistoricalSensorData(@Body() request: HistoricalSensorDataRequestDto): Promise<HistoricalSensorDataResponseDto> {
-    return this.medicionSensorService.getHistoricalSensorData(request.sensorKeys);
+  getHistoricalSensorData(
+    @Body() body: { sensorKeys: string[]; startDate?: string; endDate?: string },
+  ): Promise<HistoricalSensorDataResponseDto> {
+    const { sensorKeys, startDate, endDate } = body;
+    return this.medicionSensorService.getHistoricalSensorData(
+      sensorKeys || [],
+      startDate,
+      endDate,
+    );
   }
 
   @Post('report-data')
-  getReportData(@Body() request: ReportDataRequestDto): Promise<ReportDataResponseDto[]> {
+  getReportData(
+    @Body() request: ReportDataRequestDto,
+  ): Promise<ReportDataResponseDto[]> {
     return this.medicionSensorService.getReportData(request);
   }
 

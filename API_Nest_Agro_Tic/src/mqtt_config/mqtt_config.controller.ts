@@ -15,7 +15,10 @@ import { MqttConfigService } from './mqtt_config.service';
 import { CreateMqttConfigDto } from './dto/create-mqtt_config.dto';
 import { UpdateMqttConfigDto } from './dto/update-mqtt_config.dto';
 import { UpdateUmbralesDto } from './dto/update-umbrales.dto';
-import { UmbralesResponseDto, UpdateUmbralesResponseDto } from './dto/umbrales-response.dto';
+import {
+  UmbralesResponseDto,
+  UpdateUmbralesResponseDto,
+} from './dto/umbrales-response.dto';
 import { ValidateThresholdDto } from './dto/validate-threshold.dto';
 import { MqttService } from '../mqtt/mqtt.service';
 
@@ -40,7 +43,10 @@ export class MqttConfigController {
           try {
             await this.mqttService.addConnection(config);
           } catch (error) {
-            console.error('Error creando conexión MQTT para nueva configuración:', error);
+            console.error(
+              'Error creando conexión MQTT para nueva configuración:',
+              error,
+            );
             // No propagar el error - la configuración se guardó correctamente
           }
         });
@@ -99,7 +105,10 @@ export class MqttConfigController {
     @Body() updateMqttConfigDto: UpdateMqttConfigDto,
   ) {
     const oldConfig = await this.mqttConfigService.findOne(id);
-    const updatedConfig = await this.mqttConfigService.update(id, updateMqttConfigDto);
+    const updatedConfig = await this.mqttConfigService.update(
+      id,
+      updateMqttConfigDto,
+    );
 
     // Gestionar conexiones MQTT basadas en cambios de estado
     if (oldConfig?.activa && !updatedConfig.activa) {
@@ -127,7 +136,10 @@ export class MqttConfigController {
   @Post('assign')
   async assignConfigToZona(@Body() body: { zonaId: string; configId: string }) {
     try {
-      const result = await this.mqttConfigService.assignConfigToZona(body.zonaId, body.configId);
+      const result = await this.mqttConfigService.assignConfigToZona(
+        body.zonaId,
+        body.configId,
+      );
 
       if (!result.success) {
         return { success: false, error: result.error };
@@ -143,7 +155,10 @@ export class MqttConfigController {
       console.error('Error assigning MQTT config to zona:', error);
 
       // Return validation errors as 400 Bad Request instead of 500 Internal Server Error
-      if (error.message && error.message.includes('Cannot assign configuration')) {
+      if (
+        error.message &&
+        error.message.includes('Cannot assign configuration')
+      ) {
         throw new BadRequestException(error.message);
       }
 
@@ -152,19 +167,34 @@ export class MqttConfigController {
   }
 
   @Post('unassign')
-  async unassignConfigFromZona(@Body() body: { zonaId: string; configId: string }) {
+  async unassignConfigFromZona(
+    @Body() body: { zonaId: string; configId: string },
+  ) {
     // Remover conexión MQTT antes de desasignar
-    const zonaMqttConfig = await this.mqttConfigService.getActiveZonaMqttConfig(body.zonaId);
+    const zonaMqttConfig = await this.mqttConfigService.getActiveZonaMqttConfig(
+      body.zonaId,
+    );
     if (zonaMqttConfig && zonaMqttConfig.mqttConfig?.id === body.configId) {
       await this.mqttService.removeConnection(zonaMqttConfig.id);
     }
 
-    await this.mqttConfigService.unassignConfigFromZona(body.zonaId, body.configId);
+    await this.mqttConfigService.unassignConfigFromZona(
+      body.zonaId,
+      body.configId,
+    );
     return { success: true };
   }
 
   @Post('test-connection')
-  async testConnection(@Body() testData: { host: string; port: string; protocol: string; topicBase: string }) {
+  async testConnection(
+    @Body()
+    testData: {
+      host: string;
+      port: string;
+      protocol: string;
+      topicBase: string;
+    },
+  ) {
     try {
       const startTime = Date.now();
 
@@ -177,7 +207,8 @@ export class MqttConfigController {
           client.end();
           resolve({
             success: false,
-            message: 'Timeout: No se recibió un mensaje JSON válido en 10 segundos',
+            message:
+              'Timeout: No se recibió un mensaje JSON válido en 10 segundos',
             latency: null,
           });
         }, 10000);
@@ -251,10 +282,36 @@ export class MqttConfigController {
     }
   }
 
-  private buildTestBrokerUrl(testData: { host: string; port: string; protocol: string }): string {
-    const protocol = testData.protocol === 'wss' ? 'wss' : testData.protocol === 'ws' ? 'ws' : 'mqtt';
-    const port = testData.port || (protocol === 'wss' ? '8884' : protocol === 'ws' ? '8883' : '1883');
+  private buildTestBrokerUrl(testData: {
+    host: string;
+    port: string;
+    protocol: string;
+  }): string {
+    const protocol =
+      testData.protocol === 'wss'
+        ? 'wss'
+        : testData.protocol === 'ws'
+          ? 'ws'
+          : 'mqtt';
+    const port =
+      testData.port ||
+      (protocol === 'wss' ? '8884' : protocol === 'ws' ? '8883' : '1883');
     return `${protocol}://${testData.host}:${port}`;
+  }
+
+  /**
+   * Obtener umbrales de una zona específica (usando la configuración activa)
+   */
+  @Get('zona/:zonaId/umbrales')
+  async getUmbralesByZona(@Param('zonaId') zonaId: string) {
+    try {
+      return await this.mqttConfigService.getUmbralesByZona(zonaId);
+    } catch (error: any) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -278,7 +335,7 @@ export class MqttConfigController {
   @Put('zona-mqtt/:id/umbrales')
   async updateUmbrales(
     @Param('id') id: string,
-    @Body() updateUmbralesDto: UpdateUmbralesDto
+    @Body() updateUmbralesDto: UpdateUmbralesDto,
   ) {
     try {
       return await this.mqttConfigService.updateUmbrales(id, updateUmbralesDto);
@@ -296,11 +353,15 @@ export class MqttConfigController {
   @Post('zona-mqtt/:id/validate-threshold')
   async validateThreshold(
     @Param('id') id: string,
-    @Body() validateThresholdDto: ValidateThresholdDto
+    @Body() validateThresholdDto: ValidateThresholdDto,
   ) {
     try {
       const { sensorType, value } = validateThresholdDto;
-      return await this.mqttConfigService.validateThreshold(id, sensorType, value);
+      return await this.mqttConfigService.validateThreshold(
+        id,
+        sensorType,
+        value,
+      );
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         throw new NotFoundException(error.message);

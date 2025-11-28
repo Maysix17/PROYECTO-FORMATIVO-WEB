@@ -5,11 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
-  imports: [
-    JwtModule.register({}),
-    ConfigModule,
-    CacheModule.register(),
-  ],
+  imports: [JwtModule.register({}), ConfigModule, CacheModule.register()],
   providers: [NotificationsGateway],
   exports: [NotificationsGateway],
 })

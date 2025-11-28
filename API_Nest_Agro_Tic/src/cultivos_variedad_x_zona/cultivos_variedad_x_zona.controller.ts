@@ -75,7 +75,10 @@ export class CultivosVariedadXZonaController {
     @Param('id') id: string,
     @Body() dto: UpdateEstadoFenologicoDto,
   ) {
-    return this.cultivosVariedadXZonaService.actualizarEstadoFenologico(id, dto.fk_estado_fenologico);
+    return this.cultivosVariedadXZonaService.actualizarEstadoFenologico(
+      id,
+      dto.fk_estado_fenologico,
+    );
   }
 
   @Get(':id/edad')
@@ -88,5 +91,4 @@ export class CultivosVariedadXZonaController {
     console.log(`[DEBUG] Controller getCropDetails called with id: ${id}`);
     return this.cultivosVariedadXZonaService.getCropDetails(id);
   }
-
 }

@@ -28,11 +28,14 @@ export class LotesInventarioService {
       where: { id: createDto.fkProductoId },
     });
     if (!producto) {
-      throw new NotFoundException(`Producto con ID ${createDto.fkProductoId} no encontrado`);
+      throw new NotFoundException(
+        `Producto con ID ${createDto.fkProductoId} no encontrado`,
+      );
     }
 
     // Calculate cantidadDisponible = stock * capacidadPresentacion
-    const cantidadDisponible = createDto.stock * (producto.capacidadPresentacion || 1);
+    const cantidadDisponible =
+      createDto.stock * (producto.capacidadPresentacion || 1);
 
     const entity = this.lotesInventarioRepo.create({
       ...createDto,
@@ -74,8 +77,19 @@ export class LotesInventarioService {
     const originalCantidadDisponible = entity.cantidadDisponible;
 
     // Check if any data was modified (for AJUSTE movement)
-    const hasProductUpdates = updateDto.nombre || updateDto.descripcion || updateDto.sku || updateDto.precioCompra || updateDto.capacidadPresentacion || updateDto.fkCategoriaId || updateDto.fkUnidadMedidaId || updateDto.vidaUtilPromedioPorUsos !== undefined;
-    const hasLoteUpdates = updateDto.fkBodegaId || updateDto.stock || updateDto.fechaVencimiento !== undefined;
+    const hasProductUpdates =
+      updateDto.nombre ||
+      updateDto.descripcion ||
+      updateDto.sku ||
+      updateDto.precioCompra ||
+      updateDto.capacidadPresentacion ||
+      updateDto.fkCategoriaId ||
+      updateDto.fkUnidadMedidaId ||
+      updateDto.vidaUtilPromedioPorUsos !== undefined;
+    const hasLoteUpdates =
+      updateDto.fkBodegaId ||
+      updateDto.stock ||
+      updateDto.fechaVencimiento !== undefined;
     const hasAnyUpdates = hasProductUpdates || hasLoteUpdates;
 
     // Handle product updates if provided
@@ -83,13 +97,19 @@ export class LotesInventarioService {
       const producto = await entity.producto;
       if (producto) {
         if (updateDto.nombre) producto.nombre = updateDto.nombre;
-        if (updateDto.descripcion !== undefined) producto.descripcion = updateDto.descripcion;
+        if (updateDto.descripcion !== undefined)
+          producto.descripcion = updateDto.descripcion;
         if (updateDto.sku !== undefined) producto.sku = updateDto.sku;
-        if (updateDto.precioCompra) producto.precioCompra = updateDto.precioCompra;
-        if (updateDto.capacidadPresentacion) producto.capacidadPresentacion = updateDto.capacidadPresentacion;
-        if (updateDto.fkCategoriaId) producto.fkCategoriaId = updateDto.fkCategoriaId;
-        if (updateDto.fkUnidadMedidaId) producto.fkUnidadMedidaId = updateDto.fkUnidadMedidaId;
-        if (updateDto.vidaUtilPromedioPorUsos !== undefined) producto.vidaUtilPromedioPorUsos = updateDto.vidaUtilPromedioPorUsos;
+        if (updateDto.precioCompra)
+          producto.precioCompra = updateDto.precioCompra;
+        if (updateDto.capacidadPresentacion)
+          producto.capacidadPresentacion = updateDto.capacidadPresentacion;
+        if (updateDto.fkCategoriaId)
+          producto.fkCategoriaId = updateDto.fkCategoriaId;
+        if (updateDto.fkUnidadMedidaId)
+          producto.fkUnidadMedidaId = updateDto.fkUnidadMedidaId;
+        if (updateDto.vidaUtilPromedioPorUsos !== undefined)
+          producto.vidaUtilPromedioPorUsos = updateDto.vidaUtilPromedioPorUsos;
 
         await this.lotesInventarioRepo.manager.save(producto);
         console.log('DEBUG: producto updated');
@@ -103,22 +123,39 @@ export class LotesInventarioService {
       // Recalculate cantidadDisponible
       const producto = await entity.producto;
       if (producto) {
-        entity.cantidadDisponible = updateDto.stock * (producto.capacidadPresentacion || 1);
+        entity.cantidadDisponible =
+          updateDto.stock * (producto.capacidadPresentacion || 1);
       }
     }
-    if (updateDto.fechaVencimiento !== undefined) entity.fechaVencimiento = updateDto.fechaVencimiento ? new Date(updateDto.fechaVencimiento) : undefined;
+    if (updateDto.fechaVencimiento !== undefined)
+      entity.fechaVencimiento = updateDto.fechaVencimiento
+        ? new Date(updateDto.fechaVencimiento)
+        : undefined;
 
     const savedEntity = await this.lotesInventarioRepo.save(entity);
     console.log('DEBUG: lote updated:', savedEntity);
 
     // Create movement record for AJUSTE if any data was modified
     if (hasAnyUpdates) {
-      const cantidadAjuste = savedEntity.cantidadDisponible - originalCantidadDisponible;
+      const cantidadAjuste =
+        savedEntity.cantidadDisponible - originalCantidadDisponible;
       if (cantidadAjuste !== 0) {
-        await this.createMovementRecord(savedEntity.id, 'Ajuste', Math.abs(cantidadAjuste), `Ajuste manual de inventario: ${cantidadAjuste > 0 ? 'incremento' : 'decremento'} de ${Math.abs(cantidadAjuste)} unidades`, userDni);
+        await this.createMovementRecord(
+          savedEntity.id,
+          'Ajuste',
+          Math.abs(cantidadAjuste),
+          `Ajuste manual de inventario: ${cantidadAjuste > 0 ? 'incremento' : 'decremento'} de ${Math.abs(cantidadAjuste)} unidades`,
+          userDni,
+        );
       } else {
         // If no quantity change but other fields were updated, still create AJUSTE movement
-        await this.createMovementRecord(savedEntity.id, 'Ajuste', 0, `Ajuste manual de inventario: modificación de datos del producto`, userDni);
+        await this.createMovementRecord(
+          savedEntity.id,
+          'Ajuste',
+          0,
+          `Ajuste manual de inventario: modificación de datos del producto`,
+          userDni,
+        );
       }
     }
 
@@ -144,7 +181,9 @@ export class LotesInventarioService {
       });
 
       if (!tipoMovimiento) {
-        console.warn(`Tipo de movimiento "${tipoMovimientoNombre}" no encontrado.`);
+        console.warn(
+          `Tipo de movimiento "${tipoMovimientoNombre}" no encontrado.`,
+        );
         return;
       }
 
@@ -152,9 +191,12 @@ export class LotesInventarioService {
       let responsable: string | undefined;
       if (userDni) {
         const { Usuario } = await import('../usuarios/entities/usuario.entity');
-        const usuario = await this.lotesInventarioRepo.manager.findOne(Usuario, {
-          where: { dni: userDni },
-        });
+        const usuario = await this.lotesInventarioRepo.manager.findOne(
+          Usuario,
+          {
+            where: { dni: userDni },
+          },
+        );
         if (usuario) {
           responsable = `${usuario.nombres} ${usuario.apellidos} - ${usuario.dni}`;
         }
@@ -170,7 +212,9 @@ export class LotesInventarioService {
       };
 
       await this.movimientosInventarioService.create(createDto);
-      console.log(`✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`);
+      console.log(
+        `✅ Movimiento de ${tipoMovimientoNombre} registrado para lote ${loteId}`,
+      );
     } catch (error) {
       console.error(`❌ Error creando movimiento: ${error.message}`);
     }
@@ -230,23 +274,37 @@ export class LotesInventarioService {
         productData.lotes.push(lote);
 
         // Calculate available quantity for this lote - handle null values and convert strings to numbers
-        const cantidadDisponible = (lote.cantidadDisponible !== null && lote.cantidadDisponible !== undefined) ? Number(lote.cantidadDisponible) : 0;
-        const cantidadParcial = (lote.cantidadParcial !== null && lote.cantidadParcial !== undefined) ? Number(lote.cantidadParcial) : 0;
+        const cantidadDisponible =
+          lote.cantidadDisponible !== null &&
+          lote.cantidadDisponible !== undefined
+            ? Number(lote.cantidadDisponible)
+            : 0;
+        const cantidadParcial =
+          lote.cantidadParcial !== null && lote.cantidadParcial !== undefined
+            ? Number(lote.cantidadParcial)
+            : 0;
 
         // Calculate active reserved quantity (only reservations that are not 'Confirmada')
         let cantidadReservadaActiva = 0;
         if (lote.reservas) {
           for (const reserva of lote.reservas) {
             if (reserva.estado && reserva.estado.nombre !== 'Confirmada') {
-              cantidadReservadaActiva += Number(reserva.cantidadReservada || 0) - Number(reserva.cantidadDevuelta || 0);
+              cantidadReservadaActiva +=
+                Number(reserva.cantidadReservada || 0) -
+                Number(reserva.cantidadDevuelta || 0);
             }
           }
         }
 
-        console.log(`🔍 DEBUG Lote ${lote.id}: raw_disponible=${lote.cantidadDisponible} (type: ${typeof lote.cantidadDisponible}), raw_parcial=${lote.cantidadParcial} (type: ${typeof lote.cantidadParcial}), cantidad_reservada_activa=${cantidadReservadaActiva}`);
-        console.log(`🔍 DEBUG Lote ${lote.id}: converted_disponible=${cantidadDisponible} (type: ${typeof cantidadDisponible}), converted_parcial=${cantidadParcial} (type: ${typeof cantidadParcial}), reservada_activa=${cantidadReservadaActiva}`);
+        console.log(
+          `🔍 DEBUG Lote ${lote.id}: raw_disponible=${lote.cantidadDisponible} (type: ${typeof lote.cantidadDisponible}), raw_parcial=${lote.cantidadParcial} (type: ${typeof lote.cantidadParcial}), cantidad_reservada_activa=${cantidadReservadaActiva}`,
+        );
+        console.log(
+          `🔍 DEBUG Lote ${lote.id}: converted_disponible=${cantidadDisponible} (type: ${typeof cantidadDisponible}), converted_parcial=${cantidadParcial} (type: ${typeof cantidadParcial}), reservada_activa=${cantidadReservadaActiva}`,
+        );
 
-        const availableInLote = cantidadDisponible + cantidadParcial - cantidadReservadaActiva;
+        const availableInLote =
+          cantidadDisponible + cantidadParcial - cantidadReservadaActiva;
         productData.totalAvailable += availableInLote;
         console.log(
           `🔍 Lote ${lote.id}: disponible=${cantidadDisponible}, parcial=${cantidadParcial}, reservada_activa=${cantidadReservadaActiva}, disponible_calculado=${availableInLote}, total_acumulado=${productData.totalAvailable}`,
@@ -276,7 +334,9 @@ export class LotesInventarioService {
       // Convert to array and sort: products with partial returns first, then by availability
       const products = Array.from(productMap.values())
         .filter((item) => {
-          console.log(`🔍 Filtrando producto ${item.product.nombre}: totalAvailable=${item.totalAvailable}, hasPartialReturns=${item.hasPartialReturns}`);
+          console.log(
+            `🔍 Filtrando producto ${item.product.nombre}: totalAvailable=${item.totalAvailable}, hasPartialReturns=${item.hasPartialReturns}`,
+          );
           return item.totalAvailable > 0; // Only show products with available quantity
         })
         .sort((a, b) => {
@@ -350,7 +410,7 @@ export class LotesInventarioService {
     });
 
     // Calculate real-time quantities for each item
-    const itemsWithCalculatedQuantities = items.map(item => {
+    const itemsWithCalculatedQuantities = items.map((item) => {
       // Calculate available quantity for reservation (cantidadDisponible + cantidadParcial - active reservations)
       const cantidadDisponible = Number(item.cantidadDisponible || 0);
       const cantidadParcial = Number(item.cantidadParcial || 0);
@@ -360,12 +420,15 @@ export class LotesInventarioService {
       if (item.reservas) {
         for (const reserva of item.reservas) {
           if (reserva.estado && reserva.estado.nombre !== 'Confirmada') {
-            cantidadReservadaActiva += Number(reserva.cantidadReservada || 0) - Number(reserva.cantidadDevuelta || 0);
+            cantidadReservadaActiva +=
+              Number(reserva.cantidadReservada || 0) -
+              Number(reserva.cantidadDevuelta || 0);
           }
         }
       }
 
-      const cantidadDisponibleParaReservar = cantidadDisponible + cantidadParcial - cantidadReservadaActiva;
+      const cantidadDisponibleParaReservar =
+        cantidadDisponible + cantidadParcial - cantidadReservadaActiva;
       const stockTotal = cantidadDisponible + cantidadParcial;
 
       // Get unit abbreviation from product
@@ -375,7 +438,10 @@ export class LotesInventarioService {
         ...item,
         stock: Number(item.stock || 0), // Original stock from lote
         stockTotal,
-        cantidadDisponibleParaReservar: Math.max(0, cantidadDisponibleParaReservar), // Ensure non-negative
+        cantidadDisponibleParaReservar: Math.max(
+          0,
+          cantidadDisponibleParaReservar,
+        ), // Ensure non-negative
         cantidadReservada: cantidadReservadaActiva,
         unidadAbreviatura,
       };
@@ -425,20 +491,30 @@ export class LotesInventarioService {
         const productData = productMap.get(productId);
 
         // Calculate available quantity for this lote - handle null values properly
-        const cantidadDisponible = (lote.cantidadDisponible !== null && lote.cantidadDisponible !== undefined) ? lote.cantidadDisponible : 0;
-        const cantidadParcial = (lote.cantidadParcial !== null && lote.cantidadParcial !== undefined) ? lote.cantidadParcial : 0;
+        const cantidadDisponible =
+          lote.cantidadDisponible !== null &&
+          lote.cantidadDisponible !== undefined
+            ? lote.cantidadDisponible
+            : 0;
+        const cantidadParcial =
+          lote.cantidadParcial !== null && lote.cantidadParcial !== undefined
+            ? lote.cantidadParcial
+            : 0;
 
         // Calculate active reserved quantity (only reservations that are not 'Confirmada')
         let cantidadReservadaActiva = 0;
         if (lote.reservas) {
           for (const reserva of lote.reservas) {
             if (reserva.estado && reserva.estado.nombre !== 'Confirmada') {
-              cantidadReservadaActiva += Number(reserva.cantidadReservada || 0) - Number(reserva.cantidadDevuelta || 0);
+              cantidadReservadaActiva +=
+                Number(reserva.cantidadReservada || 0) -
+                Number(reserva.cantidadDevuelta || 0);
             }
           }
         }
 
-        const availableInLote = cantidadDisponible + cantidadParcial - cantidadReservadaActiva;
+        const availableInLote =
+          cantidadDisponible + cantidadParcial - cantidadReservadaActiva;
         productData.totalAvailable += availableInLote;
         console.log(
           `🔍 Lote ${lote.id}: disponible=${cantidadDisponible}, parcial=${cantidadParcial}, reservada_activa=${cantidadReservadaActiva}, disponible_calculado=${availableInLote}, total_acumulado=${productData.totalAvailable}`,

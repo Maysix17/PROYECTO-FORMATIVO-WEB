@@ -413,6 +413,11 @@ interface SelectedSensorDetail {
   cultivoData?: any;
 }
 
+interface ThresholdData {
+  minimo: number;
+  maximo: number;
+}
+
 export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDetail[]): Promise<void> => {
   try {
     console.log('Selected details:', selectedDetails);
@@ -444,12 +449,70 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
       return sensorNames[sensorKey] || `Sensor de ${sensorKey}`;
     };
 
+    // Fetch thresholds for selected sensors
+    const fetchThresholds = async (selectedDetails: SelectedSensorDetail[]): Promise<Record<string, ThresholdData>> => {
+      const thresholds: Record<string, ThresholdData> = {};
+
+      try {
+        // Get unique zone IDs from selected details
+        const uniqueZoneIds = [...new Set(selectedDetails.map(d => d.zonaId))];
+        console.log('Unique zone IDs to fetch thresholds for:', uniqueZoneIds);
+
+        // Fetch thresholds for each zone
+        for (const zoneId of uniqueZoneIds) {
+          console.log(`Fetching thresholds for zone ${zoneId}`);
+          try {
+            const response = await apiClient.get(`/mqtt-config/zona/${zoneId}/umbrales`);
+            console.log(`Response for zone ${zoneId}:`, response);
+            const zoneThresholds = response.data;
+            console.log(`Zone thresholds data for ${zoneId}:`, zoneThresholds);
+    
+            if (zoneThresholds && zoneThresholds.umbrales) {
+              console.log(`Processing umbrales for zone ${zoneId}:`, zoneThresholds.umbrales);
+              // Map thresholds to sensor keys
+              Object.entries(zoneThresholds.umbrales).forEach(([sensorKey, threshold]: [string, any]) => {
+                console.log(`Processing sensor ${sensorKey} with threshold:`, threshold);
+                if (threshold && typeof threshold === 'object' && 'minimo' in threshold && 'maximo' in threshold) {
+                  thresholds[sensorKey] = {
+                    minimo: Number(threshold.minimo),
+                    maximo: Number(threshold.maximo)
+                  };
+                  console.log(`Added threshold for ${sensorKey}:`, thresholds[sensorKey]);
+                } else {
+                  console.warn(`Invalid threshold format for ${sensorKey}:`, threshold);
+                }
+              });
+            } else {
+              console.warn(`No umbrales found in response for zone ${zoneId}`);
+            }
+          } catch (zoneError) {
+            console.warn(`Could not fetch thresholds for zone ${zoneId}:`, zoneError);
+          }
+        }
+      } catch (error) {
+        console.warn('Error fetching thresholds:', error);
+      }
+
+      return thresholds;
+    };
+
     // Generate alerts based on sensor type and values
-    const generateSensorAlerts = (sensorKey: string, values: number[], _unidad: string): string[] => {
+    const generateSensorAlerts = (sensorKey: string, values: number[], _unidad: string, thresholds?: ThresholdData): string[] => {
       const alerts: string[] = [];
       const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
       const min = Math.min(...values);
       const max = Math.max(...values);
+
+      // Check against thresholds first if available
+      if (thresholds) {
+        if (avg < thresholds.minimo) {
+          alerts.push(`⚠️ Valor por debajo del umbral mínimo (${thresholds.minimo})`);
+        } else if (avg > thresholds.maximo) {
+          alerts.push(`⚠️ Valor por encima del umbral máximo (${thresholds.maximo})`);
+        } else {
+          alerts.push(`✅ Valor dentro del rango configurado [${thresholds.minimo} - ${thresholds.maximo}]`);
+        }
+      }
 
       // Temperature sensors
       if (sensorKey.toLowerCase().includes('temperatura')) {
@@ -459,12 +522,18 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
         else alerts.push('✅ Temperatura en rango óptimo');
       }
 
-      // Humidity sensors
+      // Humidity sensors - Add water pump message
       else if (sensorKey.toLowerCase().includes('humedad')) {
-        if (avg < 30) alerts.push('⚠️ Humedad muy baja - riesgo de deshidratación');
-        else if (avg > 90) alerts.push('⚠️ Humedad muy alta - riesgo de enfermedades fúngicas');
-        else if (avg < 40 || avg > 80) alerts.push('⚠️ Humedad fuera del rango óptimo');
-        else alerts.push('✅ Humedad en rango óptimo');
+        if (avg < 30) {
+          alerts.push('⚠️ Humedad muy baja - riesgo de deshidratación');
+          alerts.push('🚿 Recomendación: Activar bomba de agua para riego');
+        } else if (avg > 90) {
+          alerts.push('⚠️ Humedad muy alta - riesgo de enfermedades fúngicas');
+        } else if (avg < 40 || avg > 80) {
+          alerts.push('⚠️ Humedad fuera del rango óptimo');
+        } else {
+          alerts.push('✅ Humedad en rango óptimo');
+        }
       }
 
       // pH sensors
@@ -628,8 +697,17 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
               const value = item.valor || item.value;
               const numValue = parseFloat(value);
 
+              // Debug logging
+              console.log('Processing sensor data item:', {
+                item,
+                sensorKey,
+                value,
+                fechaMedicion: item.fechaMedicion || item.fecha_medicion,
+                timestamp: item.timestamp
+              });
+
               return {
-                timestamp: item.fecha_medicion || item.timestamp,
+                timestamp: item.fechaMedicion || item.fecha_medicion || item.timestamp,
                 sensorKey: sensorKey,
                 value: numValue,
                 unidad: item.unidad_medida || item.unidad || 'N/A',
@@ -694,6 +772,13 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
 
     console.log('Final sensor data:', allSensorData);
 
+    // Fetch thresholds for all sensors
+    console.log('Starting to fetch thresholds for selectedDetails:', selectedDetails);
+    console.log('Selected details count:', selectedDetails.length);
+    const thresholds = await fetchThresholds(selectedDetails);
+    console.log('Fetched thresholds result:', thresholds);
+    console.log('Thresholds keys:', Object.keys(thresholds));
+
     // Enhanced Period Information Section
     pdf.setFillColor(240, 248, 255); // Light blue background
     pdf.rect(15, yPosition - 5, 180, 25, 'F');
@@ -712,8 +797,10 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
       try {
         // Filter out invalid timestamps and sort
         const validData = allSensorData.filter(item => {
-          const date = new Date(item.timestamp);
-          return !isNaN(date.getTime()) && item.timestamp;
+          if (item.timestamp && !isNaN(new Date(item.timestamp).getTime())) {
+            return true;
+          }
+          return false;
         });
 
         if (validData.length > 0) {
@@ -760,11 +847,12 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
             pdf.text(`Período Analizado: Fechas inválidas`, 20, yPosition);
           }
         } else {
-          pdf.text(`Período Analizado: No hay datos con fechas válidas`, 20, yPosition);
+          // No valid timestamps, show data count instead
+          pdf.text(`Período Analizado: ${allSensorData.length} mediciones disponibles`, 20, yPosition);
         }
       } catch (dateError) {
         console.warn('Error calculating date range:', dateError);
-        pdf.text(`Período Analizado: Error en fechas`, 20, yPosition);
+        pdf.text(`Período Analizado: ${allSensorData.length} mediciones disponibles`, 20, yPosition);
       }
     } else {
       pdf.text(`Período Analizado: No disponible`, 20, yPosition);
@@ -805,19 +893,25 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
       pdf.text(`${detail.cultivoNombre || 'Cultivo N/A'} | ${detail.variedadNombre || 'Variedad N/A'} | ${detail.zonaNombre || 'Zona N/A'}`, 20, yPosition + 10);
       yPosition += 25;
 
-      // Clean Statistics Layout
+      // Clean Statistics Layout with Thresholds Side by Side
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
 
       const count = dataPoints.length;
       const unidad = detail.sensorData?.unidad || dataPoints[0]?.unidad || 'N/A';
       const values = dataPoints.map(d => d.value).filter(v => !isNaN(v) && isFinite(v));
+      const sensorThresholds = thresholds[detail.sensorKey];
 
       if (values.length === 0) {
-        // No valid values
+        // No valid values - show thresholds if available
         const statLabels = ['Mínimo:', 'Máximo:', 'Promedio:', 'Desv. Est.:', 'Conteo:'];
         const statValues = ['N/A', 'N/A', 'N/A', 'N/A', count.toString()];
+        const thresholdLabels = ['Umbral Mín:', 'Umbral Máx:'];
+        const thresholdValues = sensorThresholds ?
+          [`${sensorThresholds.minimo} ${unidad}`, `${sensorThresholds.maximo} ${unidad}`] :
+          ['N/A', 'N/A'];
 
+        // Left column - Statistics
         for (let i = 0; i < statLabels.length; i++) {
           pdf.setFont('helvetica', 'bold');
           pdf.text(statLabels[i], 25, yPosition);
@@ -825,6 +919,17 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
           pdf.text(statValues[i], 70, yPosition);
           yPosition += 8;
         }
+
+        // Right column - Thresholds
+        yPosition -= statLabels.length * 8; // Reset to same starting position
+        for (let i = 0; i < thresholdLabels.length; i++) {
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(thresholdLabels[i], 120, yPosition);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(thresholdValues[i], 165, yPosition);
+          yPosition += 8;
+        }
+
         yPosition += 10;
         return; // Skip rest of processing for this sensor
       }
@@ -834,7 +939,7 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
       const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
       const stdDev = values.length > 1 ? Math.sqrt(values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / values.length) : 0;
 
-      // Statistics in clean columns (removed count as requested)
+      // Statistics and Thresholds side by side
       const statLabels = ['Mínimo:', 'Máximo:', 'Promedio:', 'Desv. Est.:'];
       const statValues = [
         `${min.toFixed(2)} ${unidad}`,
@@ -842,17 +947,35 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
         `${avg.toFixed(2)} ${unidad}`,
         `${stdDev.toFixed(2)} ${unidad}`
       ];
+      const thresholdLabels = ['Umbral Mín:', 'Umbral Máx:'];
+      const thresholdValues = sensorThresholds ?
+        [`${sensorThresholds.minimo} ${unidad}`, `${sensorThresholds.maximo} ${unidad}`] :
+        ['No configurado', 'No configurado'];
 
+      // Left column - Statistics
+      let leftY = yPosition;
       for (let i = 0; i < statLabels.length; i++) {
         pdf.setFont('helvetica', 'bold');
-        pdf.text(statLabels[i], 25, yPosition);
+        pdf.text(statLabels[i], 25, leftY);
         pdf.setFont('helvetica', 'normal');
-        pdf.text(statValues[i], 70, yPosition);
-        yPosition += 8;
+        pdf.text(statValues[i], 70, leftY);
+        leftY += 8;
       }
 
-      // Add sensor alerts based on type and values
-      const alerts = generateSensorAlerts(detail.sensorKey, values, unidad);
+      // Right column - Thresholds
+      let rightY = yPosition;
+      for (let i = 0; i < thresholdLabels.length; i++) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(thresholdLabels[i], 120, rightY);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(thresholdValues[i], 165, rightY);
+        rightY += 8;
+      }
+
+      yPosition = Math.max(leftY, rightY);
+
+      // Add sensor alerts based on type and values with thresholds
+      const alerts = generateSensorAlerts(detail.sensorKey, values, unidad, sensorThresholds);
       if (alerts.length > 0) {
         yPosition += 5;
         pdf.setFontSize(9);
@@ -916,54 +1039,97 @@ export const generateSensorSearchPDF = async (selectedDetails: SelectedSensorDet
         pdf.text(`${detail.cultivoNombre || 'Cultivo N/A'} | ${detail.variedadNombre || 'Variedad N/A'} | ${detail.zonaNombre || 'Zona N/A'}`, 20, yPosition);
         yPosition += 15;
 
-        // Prepare clean chart data
-        const chartData = dataPoints
-          .filter((item: any) => {
-            const date = new Date(item.timestamp);
-            return !isNaN(date.getTime()) && item.timestamp;
-          })
-          .sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-          .map((item: any) => ({
-            time: item.timestamp,
-            value: Number(item.value),
+        // Prepare daily aggregated chart data (daily averages)
+        const dailyData: { [date: string]: number[] } = {};
+
+        // Find a reference date from the data
+        let referenceDate = new Date();
+        const validTimestamps = dataPoints
+          .filter((item: any) => item.timestamp && !isNaN(new Date(item.timestamp).getTime()))
+          .map((item: any) => new Date(item.timestamp));
+
+        if (validTimestamps.length > 0) {
+          // Use the most recent date as reference
+          referenceDate = new Date(Math.max(...validTimestamps.map(d => d.getTime())));
+          console.log('Using reference date from data:', referenceDate.toISOString());
+        } else {
+          console.log('No valid timestamps found, using current date as reference');
+        }
+
+        dataPoints
+          .filter((item: any) => !isNaN(item.value))
+          .forEach((item: any, index: number) => {
+            let dateKey: string;
+            if (item.timestamp && !isNaN(new Date(item.timestamp).getTime())) {
+              const date = new Date(item.timestamp);
+              dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+            } else {
+              // Create synthetic date based on index for grouping, using reference date
+              const syntheticDate = new Date(referenceDate);
+              syntheticDate.setHours(syntheticDate.getHours() - Math.floor(index / 5)); // Group every 5 points by hour
+              dateKey = syntheticDate.toISOString().split('T')[0];
+            }
+
+            if (!dailyData[dateKey]) {
+              dailyData[dateKey] = [];
+            }
+            dailyData[dateKey].push(Number(item.value));
+          });
+
+        console.log('Daily data groups created:', Object.keys(dailyData).length);
+        console.log('Date range:', Object.keys(dailyData).sort());
+
+        // Calculate daily averages
+        const chartData = Object.entries(dailyData)
+          .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+          .map(([date, values]) => ({
+            time: date,
+            value: values.reduce((sum, val) => sum + val, 0) / values.length,
           }));
+
+        console.log(`Chart data for ${detail.sensorKey}:`, chartData.slice(0, 5), '... (showing first 5)');
 
         try {
           const canvas = await renderLineChartToCanvas({
-            width: 400,
-            height: 180, // Slightly smaller for cleaner look
+            width: 500, // Standardized 500x300
+            height: 300,
             data: chartData,
             title: '', // No title in chart, we have it above
             subtitle: '',
             color: '#6b7280', // Soft gray
             type: 'line',
-            yAxisLabel: `Valor (${dataPoints[0]?.unidad || 'N/A'})`,
-            xAxisLabel: 'Tiempo',
+            yAxisLabel: `Valor Promedio Diario (${dataPoints[0]?.unidad || 'N/A'})`,
+            xAxisLabel: 'Fecha',
             sensorKey: displaySensorKey,
             unidad: dataPoints[0]?.unidad || ''
           });
 
           const imgData = canvas.toDataURL('image/png');
-          pdf.addImage(imgData, 'PNG', 20, yPosition, 170, 45); // Smaller chart
-          yPosition += 75; // Increased spacing between charts
+          pdf.addImage(imgData, 'PNG', 20, yPosition, 170, 102); // 500x300 scaled to fit PDF width
+          yPosition += 120; // Adjusted spacing for compact charts
 
-          // Clean period info below chart (removed data count as requested)
+          // Clean period info below chart
           pdf.setFontSize(9);
           pdf.setFont('helvetica', 'normal');
           try {
-            const startDate = chartData[0]?.time.split('T')[0];
-            const endDate = chartData[chartData.length - 1]?.time.split('T')[0];
-            if (startDate && endDate) {
-              pdf.text(`Período: ${formatDateRange(startDate, endDate)}`, 20, yPosition);
+            if (chartData.length > 0 && chartData[0]?.time && chartData[0].time.includes('T')) {
+              const startDate = chartData[0].time.split('T')[0];
+              const endDate = chartData[chartData.length - 1]?.time.split('T')[0];
+              if (startDate && endDate) {
+                pdf.text(`Período: ${formatDateRange(startDate, endDate)}`, 20, yPosition);
+              } else {
+                pdf.text(`Período: Datos agrupados disponibles`, 20, yPosition);
+              }
             } else {
-              pdf.text(`Período: Fechas no disponibles`, 20, yPosition);
+              pdf.text(`Período: ${chartData.length} puntos de datos agrupados`, 20, yPosition);
             }
           } catch (dateError) {
-            pdf.text(`Período: Error en formato`, 20, yPosition);
+            pdf.text(`Período: ${chartData.length} puntos de datos disponibles`, 20, yPosition);
           }
 
         } catch (error) {
           console.error(`Error generating chart for ${detail.sensorKey}:`, error);
+          console.error(`Chart data length: ${chartData.length}, first item:`, chartData[0]);
           pdf.setFontSize(10);
           pdf.setTextColor(255, 0, 0);
           pdf.text(`Error generando gráfico para sensor: ${detail.sensorKey}`, 20, yPosition);

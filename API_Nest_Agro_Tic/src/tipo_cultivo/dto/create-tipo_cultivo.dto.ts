@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, Length, IsBoolean, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  Length,
+  IsBoolean,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateTipoCultivoDto {
   @IsString()

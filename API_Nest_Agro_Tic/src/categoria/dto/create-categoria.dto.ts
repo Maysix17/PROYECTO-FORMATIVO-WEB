@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsString, Length, IsBoolean, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  Length,
+  IsBoolean,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateCategoriaDto {
   @IsString({ message: 'El nombre debe ser un texto.' })

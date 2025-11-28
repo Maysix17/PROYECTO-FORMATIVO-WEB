@@ -54,7 +54,10 @@ export class ReservasXActividadController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     console.log('🔍 CONTROLLER: Raw body received:', body);
-    console.log('🔍 CONTROLLER: Received file:', file ? { originalname: file.originalname, size: file.size } : 'No file');
+    console.log(
+      '🔍 CONTROLLER: Received file:',
+      file ? { originalname: file.originalname, size: file.size } : 'No file',
+    );
 
     // Parse JSON fields from FormData
     const finalizeActivityDto: FinalizeActivityDto = {
@@ -66,8 +69,14 @@ export class ReservasXActividadController {
       imgUrl: body.imgUrl,
     };
 
-    console.log('🔍 CONTROLLER: Parsed finalizeActivityDto:', finalizeActivityDto);
-    return this.reservasXActividadService.finalizeActivity(finalizeActivityDto, file);
+    console.log(
+      '🔍 CONTROLLER: Parsed finalizeActivityDto:',
+      finalizeActivityDto,
+    );
+    return this.reservasXActividadService.finalizeActivity(
+      finalizeActivityDto,
+      file,
+    );
   }
 
   @Delete(':id')

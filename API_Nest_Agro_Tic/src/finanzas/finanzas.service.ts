@@ -139,7 +139,9 @@ export class FinanzasService {
     return finanzasData;
   }
 
-  async calcularFinanzasCultivoDinamico(cultivoId: string): Promise<FinanzasDataDto> {
+  async calcularFinanzasCultivoDinamico(
+    cultivoId: string,
+  ): Promise<FinanzasDataDto> {
     // Obtener todas las cosechas del cultivo
     const cosechas = await this.cosechaRepo.find({
       where: { fkCultivosVariedadXZonaId: cultivoId },
@@ -147,7 +149,9 @@ export class FinanzasService {
     });
 
     if (cosechas.length === 0) {
-      throw new NotFoundException(`No se encontraron cosechas para el cultivo ${cultivoId}`);
+      throw new NotFoundException(
+        `No se encontraron cosechas para el cultivo ${cultivoId}`,
+      );
     }
 
     // Calcular totales acumulados
@@ -160,7 +164,9 @@ export class FinanzasService {
 
     for (const cosecha of cosechas) {
       // Costos de inventario por cosecha
-      const costoInventarioCosecha = await this.calcularCostoInventario(cosecha.id);
+      const costoInventarioCosecha = await this.calcularCostoInventario(
+        cosecha.id,
+      );
       totalCostoInventario += costoInventarioCosecha;
 
       // Costos de mano de obra por cosecha
@@ -173,8 +179,11 @@ export class FinanzasService {
 
       // Cantidades
       totalCosechado += parseFloat(cosecha.cantidad.toString());
-      totalVendido += cosecha.ventas?.reduce((total, venta) =>
-        total + parseFloat(venta.cantidad.toString()), 0) || 0;
+      totalVendido +=
+        cosecha.ventas?.reduce(
+          (total, venta) => total + parseFloat(venta.cantidad.toString()),
+          0,
+        ) || 0;
     }
 
     // Calcular precio promedio ponderado
@@ -184,7 +193,8 @@ export class FinanzasService {
 
     const costoTotalProduccion = totalCostoInventario + totalCostoManoObra;
     const ganancias = totalIngresos - costoTotalProduccion;
-    const margenGanancia = costoTotalProduccion > 0 ? (ganancias / totalIngresos) * 100 : 0;
+    const margenGanancia =
+      costoTotalProduccion > 0 ? (ganancias / totalIngresos) * 100 : 0;
 
     // Crear registro dinámico (no persistente, solo para visualización)
     const finanzas: FinanzasDataDto = {
@@ -207,11 +217,20 @@ export class FinanzasService {
   private async calcularCostoInventario(cosechaId: string): Promise<number> {
     // Obtener todas las actividades relacionadas con la cosecha
     const actividades = await this.actividadRepo.find({
-      where: { fkCultivoVariedadZonaId: (await this.cosechaRepo.findOne({
-        where: { id: cosechaId },
-        relations: ['cultivosVariedadXZona']
-      }))?.cultivosVariedadXZona?.id },
-      relations: ['reservas', 'reservas.lote', 'reservas.lote.producto', 'reservas.lote.producto.categoria'],
+      where: {
+        fkCultivoVariedadZonaId: (
+          await this.cosechaRepo.findOne({
+            where: { id: cosechaId },
+            relations: ['cultivosVariedadXZona'],
+          })
+        )?.cultivosVariedadXZona?.id,
+      },
+      relations: [
+        'reservas',
+        'reservas.lote',
+        'reservas.lote.producto',
+        'reservas.lote.producto.categoria',
+      ],
     });
 
     let costoTotal = 0;
@@ -220,28 +239,35 @@ export class FinanzasService {
       if (actividad.reservas) {
         for (const reserva of actividad.reservas) {
           // Verificar si el producto es divisible (consumible) o no divisible (herramienta)
-          const esDivisible = reserva.lote?.producto?.categoria?.esDivisible ?? true; // Default true para compatibilidad
+          const esDivisible =
+            reserva.lote?.producto?.categoria?.esDivisible ?? true; // Default true para compatibilidad
 
           if (esDivisible) {
             // Lógica actual para productos divisibles (consumibles)
-            const costoReserva = (reserva.cantidadUsada || 0) *
+            const costoReserva =
+              (reserva.cantidadUsada || 0) *
               (reserva.precioProducto / reserva.capacidadPresentacionProducto);
             costoTotal += costoReserva;
           } else {
             // Nueva lógica para productos no divisibles (herramientas) - consumo por uso
-            const vidaUtilPromedioPorUsos = reserva.lote?.producto?.vidaUtilPromedioPorUsos;
+            const vidaUtilPromedioPorUsos =
+              reserva.lote?.producto?.vidaUtilPromedioPorUsos;
 
             if (vidaUtilPromedioPorUsos && vidaUtilPromedioPorUsos > 0) {
               // Valor residual = 10% del precio del producto
               const valorResidual = reserva.precioProducto * 0.1;
-              const costoPorUso = (reserva.precioProducto - valorResidual) / vidaUtilPromedioPorUsos;
+              const costoPorUso =
+                (reserva.precioProducto - valorResidual) /
+                vidaUtilPromedioPorUsos;
 
               // Cada reserva cuenta como 1 uso
               costoTotal += costoPorUso;
             } else {
               // Fallback: si no hay vida útil definida, usar lógica normal
-              const costoReserva = (reserva.cantidadUsada || 0) *
-                (reserva.precioProducto / reserva.capacidadPresentacionProducto);
+              const costoReserva =
+                (reserva.cantidadUsada || 0) *
+                (reserva.precioProducto /
+                  reserva.capacidadPresentacionProducto);
               costoTotal += costoReserva;
             }
           }
@@ -255,17 +281,22 @@ export class FinanzasService {
   private async calcularCostoManoObra(cosechaId: string): Promise<number> {
     // Obtener todas las actividades relacionadas con la cosecha
     const actividades = await this.actividadRepo.find({
-      where: { fkCultivoVariedadZonaId: (await this.cosechaRepo.findOne({
-        where: { id: cosechaId },
-        relations: ['cultivosVariedadXZona']
-      }))?.cultivosVariedadXZona?.id },
+      where: {
+        fkCultivoVariedadZonaId: (
+          await this.cosechaRepo.findOne({
+            where: { id: cosechaId },
+            relations: ['cultivosVariedadXZona'],
+          })
+        )?.cultivosVariedadXZona?.id,
+      },
     });
 
     let costoTotal = 0;
 
     for (const actividad of actividades) {
       // Costo = horas dedicadas * precio por hora
-      const costoActividad = (actividad.horasDedicadas || 0) * (actividad.precioHora || 0);
+      const costoActividad =
+        (actividad.horasDedicadas || 0) * (actividad.precioHora || 0);
       costoTotal += costoActividad;
     }
 
@@ -282,7 +313,8 @@ export class FinanzasService {
 
     for (const venta of ventas) {
       // Ingresos = cantidad vendida * precio por kilo
-      const ingresosVenta = parseFloat(venta.cantidad.toString()) * venta.precioKilo;
+      const ingresosVenta =
+        parseFloat(venta.cantidad.toString()) * venta.precioKilo;
       ingresosTotales += ingresosVenta;
     }
 
@@ -296,11 +328,16 @@ export class FinanzasService {
 
     if (ventas.length === 0) return 0;
 
-    const precioTotal = ventas.reduce((total, venta) => total + venta.precioKilo, 0);
+    const precioTotal = ventas.reduce(
+      (total, venta) => total + venta.precioKilo,
+      0,
+    );
     return precioTotal / ventas.length;
   }
 
-  async obtenerFinanzasCosecha(cosechaId: string): Promise<FinanzasDataDto | null> {
+  async obtenerFinanzasCosecha(
+    cosechaId: string,
+  ): Promise<FinanzasDataDto | null> {
     // Since we removed persistence, this always returns null
     return null;
   }
@@ -310,8 +347,12 @@ export class FinanzasService {
     return [];
   }
 
-  async calcularFinanzasCultivoActividades(cultivoId: string): Promise<FinanzasDataDto> {
-    console.log(`[DEBUG] ================= INICIO CÁLCULO FINANZAS CULTIVO ACTIVIDADES ${cultivoId} =================`);
+  async calcularFinanzasCultivoActividades(
+    cultivoId: string,
+  ): Promise<FinanzasDataDto> {
+    console.log(
+      `[DEBUG] ================= INICIO CÁLCULO FINANZAS CULTIVO ACTIVIDADES ${cultivoId} =================`,
+    );
 
     // Buscar actividades del cultivo
     const actividades = await this.actividadRepo.find({
@@ -321,20 +362,28 @@ export class FinanzasService {
         'reservas.lote',
         'reservas.lote.producto',
         'reservas.lote.producto.categoria',
-        'reservas.estado'
+        'reservas.estado',
       ],
     });
 
     if (actividades.length === 0) {
-      console.error(`[ERROR] No se encontraron actividades para el cultivo ${cultivoId}.`);
-      throw new NotFoundException(`No se encontraron actividades para el cultivo ${cultivoId}`);
+      console.error(
+        `[ERROR] No se encontraron actividades para el cultivo ${cultivoId}.`,
+      );
+      throw new NotFoundException(
+        `No se encontraron actividades para el cultivo ${cultivoId}`,
+      );
     }
 
-    console.log(`[DEBUG] Encontradas ${actividades.length} actividades para el cultivo ${cultivoId}`);
+    console.log(
+      `[DEBUG] Encontradas ${actividades.length} actividades para el cultivo ${cultivoId}`,
+    );
 
     // Calcular costos basados en actividades
-    const costoInventario = await this.calcularCostoInventarioPorActividades(actividades);
-    const costoManoObra = await this.calcularCostoManoObraPorActividades(actividades);
+    const costoInventario =
+      await this.calcularCostoInventarioPorActividades(actividades);
+    const costoManoObra =
+      await this.calcularCostoManoObraPorActividades(actividades);
 
     const costoTotalProduccion = costoInventario + costoManoObra;
 
@@ -354,17 +403,21 @@ export class FinanzasService {
       costoManoObra,
       costoTotalProduccion,
       ingresosTotales: 0, // No hay ingresos aún
-      ganancias: -(costoTotalProduccion), // Pérdida estimada (solo costos)
+      ganancias: -costoTotalProduccion, // Pérdida estimada (solo costos)
       margenGanancia: 0, // No aplicable sin ingresos
       fechaCalculo: new Date(),
     };
 
-    console.log(`[DEBUG] ================= FIN CÁLCULO FINANZAS CULTIVO ACTIVIDADES ${cultivoId} =================`);
+    console.log(
+      `[DEBUG] ================= FIN CÁLCULO FINANZAS CULTIVO ACTIVIDADES ${cultivoId} =================`,
+    );
 
     return finanzas;
   }
 
-  private async calcularCostoInventarioPorActividades(actividades: any[]): Promise<number> {
+  private async calcularCostoInventarioPorActividades(
+    actividades: any[],
+  ): Promise<number> {
     let costoTotal = 0;
 
     for (const actividad of actividades) {
@@ -373,23 +426,33 @@ export class FinanzasService {
           // Considerar reservas que tengan cantidad usada (incluyendo confirmadas)
           const cantidadUsada = reserva.cantidadUsada || 0;
           if (cantidadUsada > 0) {
-            const esDivisible = reserva.lote?.producto?.categoria?.esDivisible ?? true;
+            const esDivisible =
+              reserva.lote?.producto?.categoria?.esDivisible ?? true;
 
             if (esDivisible) {
               // Lógica para productos divisibles (consumibles)
-              const costoReserva = cantidadUsada * (reserva.precioProducto / reserva.capacidadPresentacionProducto);
+              const costoReserva =
+                cantidadUsada *
+                (reserva.precioProducto /
+                  reserva.capacidadPresentacionProducto);
               costoTotal += costoReserva;
             } else {
               // Lógica para productos no divisibles (herramientas)
-              const vidaUtilPromedioPorUsos = reserva.lote?.producto?.vidaUtilPromedioPorUsos;
+              const vidaUtilPromedioPorUsos =
+                reserva.lote?.producto?.vidaUtilPromedioPorUsos;
 
               if (vidaUtilPromedioPorUsos && vidaUtilPromedioPorUsos > 0) {
                 const valorResidual = reserva.precioProducto * 0.1;
-                const costoPorUso = (reserva.precioProducto - valorResidual) / vidaUtilPromedioPorUsos;
+                const costoPorUso =
+                  (reserva.precioProducto - valorResidual) /
+                  vidaUtilPromedioPorUsos;
                 costoTotal += costoPorUso;
               } else {
                 // Fallback
-                const costoReserva = cantidadUsada * (reserva.precioProducto / reserva.capacidadPresentacionProducto);
+                const costoReserva =
+                  cantidadUsada *
+                  (reserva.precioProducto /
+                    reserva.capacidadPresentacionProducto);
                 costoTotal += costoReserva;
               }
             }
@@ -401,12 +464,15 @@ export class FinanzasService {
     return costoTotal;
   }
 
-  private async calcularCostoManoObraPorActividades(actividades: any[]): Promise<number> {
+  private async calcularCostoManoObraPorActividades(
+    actividades: any[],
+  ): Promise<number> {
     let costoTotal = 0;
 
     for (const actividad of actividades) {
       // Costo = horas dedicadas * precio por hora
-      const costoActividad = (actividad.horasDedicadas || 0) * (actividad.precioHora || 0);
+      const costoActividad =
+        (actividad.horasDedicadas || 0) * (actividad.precioHora || 0);
       costoTotal += costoActividad;
     }
 

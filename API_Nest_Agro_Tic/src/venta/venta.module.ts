@@ -9,7 +9,11 @@ import { Cultivo } from '../cultivos/entities/cultivo.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Venta, Cosecha, Cultivo]), CosechasVentasModule, NotificationsModule],
+  imports: [
+    TypeOrmModule.forFeature([Venta, Cosecha, Cultivo]),
+    CosechasVentasModule,
+    NotificationsModule,
+  ],
   controllers: [VentaController],
   providers: [VentaService],
   exports: [VentaService],

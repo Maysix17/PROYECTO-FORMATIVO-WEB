@@ -1,7 +1,7 @@
 // Utilidades para conversión de unidades en el sistema agropecuario
 export const CONVERSION_FACTORS = {
   LB_TO_KG: 0.453592, // 1 libra = 0.453592 kg
-  KG_TO_LB: 2.20462,  // 1 kg = 2.20462 lb
+  KG_TO_LB: 2.20462, // 1 kg = 2.20462 lb
 } as const;
 
 /**
@@ -34,7 +34,10 @@ export function convertirALibras(cantidad: number, unidad: string): number {
  * @param unidad Unidad del precio ('kg' | 'lb')
  * @returns Precio por kilo
  */
-export function convertirPrecioAKilo(precioUnitario: number, unidad: string): number {
+export function convertirPrecioAKilo(
+  precioUnitario: number,
+  unidad: string,
+): number {
   if (unidad === 'kg') return precioUnitario;
   if (unidad === 'lb') return precioUnitario / CONVERSION_FACTORS.LB_TO_KG;
   throw new Error(`Unidad no soportada: ${unidad}`);
@@ -50,7 +53,7 @@ export function convertirPrecioAKilo(precioUnitario: number, unidad: string): nu
 export function calcularIngresoTotal(
   cantidad: number,
   precioUnitario: number,
-  unidad: string
+  unidad: string,
 ): number {
   const cantidadEnKg = convertirAKilos(cantidad, unidad);
   const precioPorKg = convertirPrecioAKilo(precioUnitario, unidad);

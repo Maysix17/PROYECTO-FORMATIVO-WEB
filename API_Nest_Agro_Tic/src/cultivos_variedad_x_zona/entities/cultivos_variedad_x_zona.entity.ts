@@ -34,7 +34,11 @@ export class CultivosVariedadXZona {
   @Column({ name: 'fk_estado_fenologico', nullable: true })
   fkEstadoFenologicoId?: number;
 
-  @Column({ name: 'cvz_fecha_actualizacion', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'cvz_fecha_actualizacion',
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   fechaActualizacion?: Date;
 
   @ManyToOne(() => CultivosXVariedad, (cxv) => cxv.zonas)

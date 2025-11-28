@@ -29,12 +29,15 @@ export class ZonaMqttConfig {
   @Column({
     name: 'zmc_umbrales',
     type: 'jsonb',
-    default: {} as any
+    default: {} as any,
   })
-  umbrales: Record<string, {
-    minimo: number;
-    maximo: number;
-  }>;
+  umbrales: Record<
+    string,
+    {
+      minimo: number;
+      maximo: number;
+    }
+  >;
 
   @CreateDateColumn({ name: 'zmc_created_at' })
   createdAt: Date;

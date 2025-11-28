@@ -169,7 +169,9 @@ export class CultivosService {
         'tc.tpc_nombre as tipo_cultivo_nombre',
         'tc.tpc_es_perenne as tipo_cultivo_es_perenne',
       ])
-        .groupBy('cvz.id, c.id, z.nombre, c.siembra, c.estado, v.var_nombre, ef.nombre, ef.descripcion, tc.tpc_nombre, tc.tpc_es_perenne')
+        .groupBy(
+          'cvz.id, c.id, z.nombre, c.siembra, c.estado, v.var_nombre, ef.nombre, ef.descripcion, tc.tpc_nombre, tc.tpc_es_perenne',
+        )
         .orderBy('cvz.id');
 
       console.log('Generated Query:', qb.getQuery());

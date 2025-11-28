@@ -41,7 +41,8 @@ export class Producto {
     name: 'vida_util_promedio_por_usos',
     type: 'int',
     nullable: true,
-    comment: 'Vida útil promedio en usos para productos no divisibles (herramientas)'
+    comment:
+      'Vida útil promedio en usos para productos no divisibles (herramientas)',
   })
   vidaUtilPromedioPorUsos?: number;
 

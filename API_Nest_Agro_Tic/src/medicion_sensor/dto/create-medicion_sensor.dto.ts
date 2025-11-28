@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsNumber, IsDate, IsOptional, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsDate,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateMedicionSensorDto {

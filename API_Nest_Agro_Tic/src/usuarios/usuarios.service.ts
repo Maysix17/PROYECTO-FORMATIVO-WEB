@@ -206,14 +206,16 @@ export class UsuariosService {
       return []; // Return empty array when user not found
     }
 
-    return [{
-      numero_documento: user.dni,
-      nombres: user.nombres,
-      apellidos: user.apellidos,
-      correo_electronico: user.correo,
-      telefono: user.telefono,
-      id_ficha: user.ficha?.numero || 'No tiene ficha',
-      rol: user.rol?.nombre,
-    }];
+    return [
+      {
+        numero_documento: user.dni,
+        nombres: user.nombres,
+        apellidos: user.apellidos,
+        correo_electronico: user.correo,
+        telefono: user.telefono,
+        id_ficha: user.ficha?.numero || 'No tiene ficha',
+        rol: user.rol?.nombre,
+      },
+    ];
   }
 }
