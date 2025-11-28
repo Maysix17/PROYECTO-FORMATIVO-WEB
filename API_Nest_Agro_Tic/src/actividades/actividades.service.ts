@@ -475,7 +475,7 @@ export class ActividadesService {
     const enriched = actividades.map((actividad) => {
       if (actividad.dniResponsable && userMap.has(actividad.dniResponsable)) {
         const user = userMap.get(actividad.dniResponsable)!;
-        (actividad as any).responsableNombre =
+        (actividad as any).nombreResponsable =
           `${user.nombres} ${user.apellidos}`;
         (actividad as any).responsableDni = actividad.dniResponsable;
       }
