@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import apiClient from "../lib/axios/axios";
 import { renderLineChartToCanvas } from "./chartRenderer";
+import Swal from "sweetalert2";
 
 interface SelectedData {
   cultivos: string[];
@@ -589,10 +590,9 @@ export const generateSensorSearchPDF = async (
       }
     }
 
-    // Fallback: show alert if no filters
-    alert(
-      "No se aplicaron filtros de fecha/hora. Use los filtros en la modal de búsqueda para generar reportes con gráficas."
-    );
+    // Fallback: no filters applied, do nothing
+    console.log("No filters applied, skipping PDF generation");
+    return;
   } catch (error) {
     console.error(
       "❌ PDF GENERATOR: Error generating sensor search PDF:",

@@ -22,6 +22,7 @@ import { medicionSensorService } from '../../services/zonasService';
 import { generateSensorSearchPDF } from '../../utils/pdfGenerator';
 import apiClient from '../../lib/axios/axios';
 import DateRangeInput from '../atoms/DateRangeInput';
+import Swal from 'sweetalert2';
 
 interface SensorSearchModalProps {
   isOpen: boolean;
@@ -137,10 +138,23 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
     setExpandedCard(expandedCard === cardKey ? null : cardKey);
   };
 
+  const isExportEnabled = () => {
+    // Must have sensors selected
+    if (selectedSensors.size === 0) return false;
+
+    // Must have at least one card with end date configured
+    return Array.from(cardFilters.values()).some(filter => filter.endDate);
+  };
+
 
   const handleExportPDF = async () => {
     if (selectedSensors.size === 0) {
-      alert('Por favor selecciona al menos un sensor para exportar');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Selección requerida',
+        text: 'Por favor selecciona al menos un sensor para exportar',
+        confirmButtonColor: '#15A55A',
+      });
       return;
     }
 
@@ -202,7 +216,12 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
       await generateSensorSearchPDF(selectedDetails);
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      alert('Error al exportar PDF: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error en la exportación',
+        text: 'Error al exportar PDF: ' + (error instanceof Error ? error.message : 'Error desconocido'),
+        confirmButtonColor: '#15A55A',
+      });
     } finally {
       setIsExporting(false);
     }
@@ -370,6 +389,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
                                         }
                                         updateCardFilters(cardKey, { timeRanges: newTimeRanges });
                                       }}
+                                      className="w-full [&>span>svg]:text-black"
                                     >
                                       <div className="flex flex-col">
                                         <span className="text-xs font-medium">{range.label}</span>
@@ -443,7 +463,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
               onClick={handleExportPDF}
               isLoading={isExporting}
               startContent={!isExporting ? <DocumentArrowDownIcon className="w-4 h-4" /> : undefined}
-              isDisabled={selectedSensors.size === 0}
+              isDisabled={!isExportEnabled()}
             >
               {isExporting ? 'Exportando...' : 'Exportar PDF'}
             </Button>
