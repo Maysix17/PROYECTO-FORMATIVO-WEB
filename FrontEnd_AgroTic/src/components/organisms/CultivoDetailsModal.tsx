@@ -483,7 +483,7 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
           <h2 className="text-xl font-semibold">Detalles del Cultivo</h2>
         </ModalHeader>
 
-        <ModalBody className="space-y-4">
+        <ModalBody className="space-y-4 max-h-96 overflow-y-auto">
           {/* Información Básica */}
           <div className="grid grid-cols-2 gap-4">
             <div>
