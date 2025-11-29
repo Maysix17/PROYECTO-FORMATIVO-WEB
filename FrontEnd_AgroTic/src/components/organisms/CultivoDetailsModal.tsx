@@ -357,10 +357,10 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
         cosechasData.push([
           cosecha.id,
           cosecha.fecha ? new Date(cosecha.fecha + 'T12:00:00.000Z').toLocaleDateString('es-CO') : "N/A",
-          cosecha.cantidad || 0,
+          (Number(cosecha.cantidad) || 0).toString(),
           cosecha.unidadMedida || "N/A",
-          (cosecha as any).rendimiento_por_planta || 0,
-          (cosecha as any).cantidad_plantas_cosechadas || 0,
+          (Number((cosecha as any).rendimientoPorPlanta || (cosecha as any).cos_rendimiento_por_planta) || 0).toString(),
+          (Number((cosecha as any).cantidadPlantasCosechadas || (cosecha as any).cos_cantidad_plantas_cosechadas) || 0).toString(),
           cosecha.cerrado ? "Sí" : "No"
         ]);
       });
