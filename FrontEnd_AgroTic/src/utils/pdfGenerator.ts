@@ -2,6 +2,11 @@ import jsPDF from "jspdf";
 import apiClient from "../lib/axios/axios";
 import { renderLineChartToCanvas } from "./chartRenderer";
 import Swal from "sweetalert2";
+import { getActividadesByCultivoVariedadZonaId } from "../services/actividadesService";
+import { getCosechasByCultivo } from "../services/cosechasService";
+import { getVentas } from "../services/ventaService";
+import type { Actividad } from "../services/actividadesService";
+import { calcularEdadCultivo } from "../services/cultivosVariedadZonaService";
 
 interface SelectedData {
   cultivos: string[];
@@ -92,7 +97,7 @@ const formatGroupBy = (groupBy: string): string => {
 
 export const generatePDFReport = async (
   selectedData: SelectedData
-): Promise<void> => {
+): Promise<jsPDF> => {
   try {
     const pdf = new jsPDF();
     let yPosition = 20;
@@ -123,7 +128,7 @@ export const generatePDFReport = async (
     pdf.setTextColor(255, 255, 255); // White text
     pdf.setFontSize(24);
     pdf.setFont("helvetica", "bold");
-    pdf.text("AgroTIC - Reporte de Sensores", 20, 22);
+    pdf.text("AgroTIC - Reporte Completo de Cultivo", 20, 22);
 
     pdf.setFontSize(10);
     pdf.setFont("helvetica", "normal");
@@ -506,17 +511,435 @@ export const generatePDFReport = async (
       pdf.setTextColor(0, 0, 0);
     }
 
-    // Guardar PDF
-    const fileName = `reporte-sensores-agrotic-${
-      new Date().toISOString().split("T")[0]
-    }.pdf`;
-    pdf.save(fileName);
+    // Return PDF instance instead of saving
+    return pdf;
   } catch (error) {
     console.error("Error generando reporte PDF:", error);
     throw new Error(
       "Error al generar el reporte PDF. Verifique su conexión a internet y que los sensores seleccionados tengan datos disponibles."
     );
   }
+};
+
+// Función para generar la sección de trazabilidad completa del cultivo
+const generateCultivoTrazabilidad = async (
+  pdf: jsPDF,
+  cultivoData: SelectedSensorDetail,
+  yPosition: number
+): Promise<number> => {
+  try {
+    const {
+      cultivoId,
+      zonaId,
+      zonaNombre,
+      cultivoNombre,
+      variedadNombre,
+      tipoCultivoNombre,
+    } = cultivoData;
+
+    // Obtener datos del cultivo usando el cvzId (cultivoId en este contexto)
+    const cvzId = cultivoId;
+
+    // ===== SECCIÓN 2: TRAZABILIDAD COMPLETA DEL CULTIVO =====
+    pdf.addPage();
+    yPosition = 20;
+
+    // Header de la sección
+    pdf.setFillColor(34, 197, 94);
+    pdf.rect(0, 0, 210, 25, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(18);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("SECCIÓN 2: TRAZABILIDAD COMPLETA DEL CULTIVO", 20, 17);
+    pdf.setTextColor(0, 0, 0);
+    yPosition = 35;
+
+    // ===== 2.1 INFORMACIÓN GENERAL DEL CULTIVO =====
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.1 Información General del Cultivo", 20, yPosition);
+    yPosition += 10;
+
+    // Tabla de información básica
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(15, yPosition - 5, 180, 50, "F");
+    pdf.setDrawColor(226, 232, 240);
+    pdf.rect(15, yPosition - 5, 180, 50);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+
+    const infoData = [
+      ["Tipo de Cultivo", tipoCultivoNombre || "N/A"],
+      ["Variedad", variedadNombre || "N/A"],
+      ["Zona", zonaNombre || "N/A"],
+      ["ID del Cultivo", cvzId],
+      ["Fecha de Exportación", new Date().toLocaleDateString("es-CO")],
+    ];
+
+    infoData.forEach((row, index) => {
+      pdf.text(`${row[0]}:`, 25, yPosition + index * 8);
+      pdf.text(row[1], 80, yPosition + index * 8);
+    });
+
+    yPosition += 60;
+
+    // Fetch all related data
+    const [actividades, cosechas, ventas] = await Promise.all([
+      getActividadesByCultivoVariedadZonaId(cvzId),
+      getCosechasByCultivo(cvzId),
+      getVentas(),
+    ]);
+
+    // Filter ventas related to this cultivo's cosechas
+    const cultivoVentas = ventas.filter((venta) =>
+      cosechas.some((cosecha) => cosecha.id === venta.fkCosechaId)
+    );
+
+    // ===== 2.2 CRONOGRAMA DE ACTIVIDADES =====
+    if (actividades.length > 0) {
+      pdf.addPage();
+      yPosition = 20;
+
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("2.2 Cronograma de Actividades", 20, yPosition);
+      yPosition += 10;
+
+      // Filter finalized activities
+      const finalizedActivities = actividades.filter(
+        (act) => act.estado === false
+      );
+
+      if (finalizedActivities.length > 0) {
+        // Table headers
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "bold");
+        const headers = [
+          "Fecha",
+          "Categoría",
+          "Responsable",
+          "Estado",
+          "Costo Mano de Obra",
+          "Costo Total",
+        ];
+        const colWidths = [25, 35, 40, 20, 30, 30];
+        let xPos = 20;
+
+        headers.forEach((header, index) => {
+          pdf.text(header, xPos, yPosition);
+          xPos += colWidths[index];
+        });
+
+        yPosition += 5;
+        pdf.line(20, yPosition, 190, yPosition);
+        yPosition += 5;
+
+        // Table rows
+        pdf.setFont("helvetica", "normal");
+        finalizedActivities.forEach((activity: Actividad) => {
+          if (yPosition > 250) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+
+          xPos = 20;
+          const costoManoObra =
+            (activity.horasDedicadas || 0) *
+            ((activity as any).precioHora || 0);
+          const costoInventario = calculateCostoInventario(activity);
+          const costoTotal = costoManoObra + costoInventario;
+
+          const rowData = [
+            activity.fechaAsignacion
+              ? new Date(
+                  activity.fechaAsignacion + "T00:00:00"
+                ).toLocaleDateString("es-CO")
+              : "N/A",
+            (activity as any).categoriaActividad?.nombre || "Sin categoría",
+            (activity as any).responsableNombre || "Sin responsable",
+            "Finalizada",
+            `$${costoManoObra.toFixed(2)}`,
+            `$${costoTotal.toFixed(2)}`,
+          ];
+
+          rowData.forEach((data, index) => {
+            pdf.text(data, xPos, yPosition);
+            xPos += colWidths[index];
+          });
+
+          yPosition += 8;
+        });
+      }
+    }
+
+    // ===== 2.3 ANÁLISIS DE COSTOS =====
+    if (actividades.length > 0) {
+      pdf.addPage();
+      yPosition = 20;
+
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("2.3 Análisis de Costos", 20, yPosition);
+      yPosition += 10;
+
+      const finalizedActivities = actividades.filter(
+        (act) => act.estado === false
+      );
+      const costoTotalProduccion = finalizedActivities.reduce(
+        (sum, act) =>
+          sum + calculateCostoManoObra(act) + calculateCostoInventario(act),
+        0
+      );
+
+      // Summary table
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(15, yPosition - 5, 180, 30, "F");
+      pdf.setDrawColor(226, 232, 240);
+      pdf.rect(15, yPosition - 5, 180, 30);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      pdf.text(
+        `Total de Actividades Finalizadas: ${finalizedActivities.length}`,
+        25,
+        yPosition + 5
+      );
+      pdf.text(
+        `Costo Total de Producción: $${costoTotalProduccion.toFixed(2)}`,
+        25,
+        yPosition + 15
+      );
+      pdf.text(
+        `Costo Promedio por Actividad: $${(
+          costoTotalProduccion / finalizedActivities.length || 1
+        ).toFixed(2)}`,
+        25,
+        yPosition + 25
+      );
+
+      yPosition += 40;
+
+      // Detailed cost breakdown
+      if (finalizedActivities.length > 0 && yPosition < 200) {
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Desglose por Actividad:", 20, yPosition);
+        yPosition += 8;
+
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "bold");
+        const costHeaders = [
+          "Actividad",
+          "Fecha",
+          "Mano de Obra",
+          "Inventario",
+          "Total",
+        ];
+        const costColWidths = [40, 25, 25, 25, 25];
+        let xPos = 20;
+
+        costHeaders.forEach((header, index) => {
+          pdf.text(header, xPos, yPosition);
+          xPos += costColWidths[index];
+        });
+
+        yPosition += 5;
+        pdf.line(20, yPosition, 190, yPosition);
+        yPosition += 5;
+
+        pdf.setFont("helvetica", "normal");
+        finalizedActivities.slice(0, 8).forEach((activity: Actividad) => {
+          // Limit to 8 activities for space
+          xPos = 20;
+          const costoManoObra = calculateCostoManoObra(activity);
+          const costoInventario = calculateCostoInventario(activity);
+          const costoTotal = costoManoObra + costoInventario;
+
+          const activityName =
+            (activity as any).categoriaActividad?.nombre || "Actividad";
+          const shortName =
+            activityName.length > 15
+              ? activityName.substring(0, 15) + "..."
+              : activityName;
+
+          const rowData = [
+            shortName,
+            activity.fechaAsignacion
+              ? new Date(activity.fechaAsignacion + "T00:00:00")
+                  .toLocaleDateString("es-CO")
+                  .split("/")[0] +
+                "/" +
+                new Date(activity.fechaAsignacion + "T00:00:00")
+                  .toLocaleDateString("es-CO")
+                  .split("/")[1]
+              : "N/A",
+            `$${costoManoObra.toFixed(0)}`,
+            `$${costoInventario.toFixed(0)}`,
+            `$${costoTotal.toFixed(0)}`,
+          ];
+
+          rowData.forEach((data, index) => {
+            pdf.text(data, xPos, yPosition);
+            xPos += costColWidths[index];
+          });
+
+          yPosition += 6;
+        });
+      }
+    }
+
+    // ===== 2.4 ESTADO FINANCIERO =====
+    pdf.addPage();
+    yPosition = 20;
+
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.4 Estado Financiero", 20, yPosition);
+    yPosition += 10;
+
+    // Fetch financial data
+    let finanzas = null;
+    try {
+      const cosechasResponse = await apiClient.get(
+        `/cosechas/cultivo/${cvzId}`
+      );
+      const cosechasCultivo = cosechasResponse.data;
+      if (cosechasCultivo && cosechasCultivo.length > 0) {
+        const response = await apiClient.get(
+          `/finanzas/cultivo/${cvzId}/dinamico`
+        );
+        finanzas = response.data;
+      } else {
+        const response = await apiClient.get(
+          `/finanzas/cultivo/${cvzId}/actividades`
+        );
+        finanzas = response.data;
+      }
+    } catch (finanzasError) {
+      console.warn("Could not fetch financial data:", finanzasError);
+    }
+
+    if (finanzas) {
+      // Financial summary table
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(15, yPosition - 5, 180, 60, "F");
+      pdf.setDrawColor(226, 232, 240);
+      pdf.rect(15, yPosition - 5, 180, 60);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+
+      const financialData = [
+        ["Cantidad Cosechada", `${finanzas.cantidadCosechada.toFixed(2)} KG`],
+        ["Precio por Kilo", `$${finanzas.precioPorKilo.toFixed(2)}`],
+        ["Ingresos Totales", `$${finanzas.ingresosTotales.toFixed(2)}`],
+        [
+          "Costo Total de Producción",
+          `$${finanzas.costoTotalProduccion.toFixed(2)}`,
+        ],
+        ["Ganancias", `$${finanzas.ganancias.toFixed(2)}`],
+        [
+          "Margen de Ganancia",
+          `${(finanzas.margenGanancia * 100).toFixed(2)}%`,
+        ],
+      ];
+
+      financialData.forEach((row, index) => {
+        pdf.text(`${row[0]}:`, 25, yPosition + index * 8);
+        pdf.text(row[1], 120, yPosition + index * 8);
+      });
+
+      yPosition += 70;
+
+      // Additional financial metrics
+      if (yPosition < 200) {
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Métricas Adicionales:", 20, yPosition);
+        yPosition += 8;
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.text(
+          `• Eficiencia de Ventas: ${(
+            (finanzas.cantidadVendida / finanzas.cantidadCosechada) *
+            100
+          ).toFixed(2)}%`,
+          25,
+          yPosition
+        );
+        yPosition += 6;
+        pdf.text(
+          `• Cantidad Vendida: ${finanzas.cantidadVendida.toFixed(2)} KG`,
+          25,
+          yPosition
+        );
+        yPosition += 6;
+        pdf.text(
+          `• Fecha de Venta: ${
+            finanzas.fechaVenta
+              ? new Date(finanzas.fechaVenta).toLocaleDateString("es-CO")
+              : "N/A"
+          }`,
+          25,
+          yPosition
+        );
+      }
+    } else {
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      pdf.text(
+        "No hay datos financieros disponibles para este cultivo.",
+        20,
+        yPosition
+      );
+    }
+
+    return yPosition;
+  } catch (error) {
+    console.error("Error generating cultivo trazabilidad:", error);
+    throw error;
+  }
+};
+
+// Helper functions for cost calculations (copied from CultivoDetailsModal)
+const calculateCostoManoObra = (activity: Actividad) => {
+  return (activity.horasDedicadas || 0) * ((activity as any).precioHora || 0);
+};
+
+const calculateCostoInventario = (activity: Actividad) => {
+  if (!(activity as any).reservas || (activity as any).reservas.length === 0)
+    return 0;
+  let total = 0;
+  for (const reserva of (activity as any).reservas) {
+    const cantidadUsada = reserva.cantidadUsada || 0;
+    if (cantidadUsada > 0) {
+      const esDivisible =
+        reserva.lote?.producto?.categoria?.esDivisible ?? true;
+      if (esDivisible) {
+        const precioUnitario =
+          (reserva.precioProducto || 0) /
+          (reserva.capacidadPresentacionProducto || 1);
+        total += cantidadUsada * precioUnitario;
+      } else {
+        const vidaUtil =
+          reserva.lote?.producto?.categoria?.vidaUtilPromedioPorUsos;
+        if (vidaUtil && vidaUtil > 0) {
+          const valorResidual = (reserva.precioProducto || 0) * 0.1;
+          const costoPorUso =
+            ((reserva.precioProducto || 0) - valorResidual) / vidaUtil;
+          total += costoPorUso;
+        } else {
+          const precioUnitario =
+            (reserva.precioProducto || 0) /
+            (reserva.capacidadPresentacionProducto || 1);
+          total += cantidadUsada * precioUnitario;
+        }
+      }
+    }
+  }
+  return total;
 };
 
 export const generateSensorSearchPDF = async (
@@ -585,7 +1008,53 @@ export const generateSensorSearchPDF = async (
           timeRanges: timeRangesToSend,
         };
 
-        await generatePDFReport(selectedData);
+        const pdf = await generatePDFReport(selectedData);
+
+        // ===== INTEGRAR SECCIÓN DE TRAZABILIDAD =====
+        // Get the first cultivo data for trazabilidad
+        const cultivoData = selectedDetails[0];
+        console.log(
+          "🔗 INTEGRATING TRAZABILIDAD for cultivo:",
+          cultivoData.cultivoId
+        );
+
+        // Generate trazabilidad section
+        await generateCultivoTrazabilidad(pdf, cultivoData, 0);
+
+        // Update footer with new page count
+        const totalPages = pdf.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          pdf.setPage(i);
+
+          // Footer background
+          pdf.setFillColor(248, 250, 252);
+          pdf.rect(0, 280, 210, 17, "F");
+          pdf.setDrawColor(226, 232, 240);
+          pdf.line(0, 280, 210, 280);
+
+          pdf.setFontSize(8);
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(
+            `AgroTIC - Sistema de Monitoreo Agrícola | Generado: ${new Date().toLocaleDateString(
+              "es-ES"
+            )} ${new Date().toLocaleTimeString("es-ES", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}`,
+            20,
+            288
+          );
+          pdf.text(`Página ${i} de ${totalPages}`, 170, 288);
+          pdf.setTextColor(0, 0, 0);
+        }
+
+        // Save the complete PDF
+        const fileName = `reporte-completo-cultivo-agrotic-${
+          new Date().toISOString().split("T")[0]
+        }.pdf`;
+        pdf.save(fileName);
+
         return;
       }
     }
