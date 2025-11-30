@@ -743,13 +743,7 @@ const generateCultivoTrazabilidad = async (
         : "N/A",
       (act as any).categoriaActividad?.nombre || "Sin categoría",
       (act as any).nombreResponsable || "Sin responsable",
-      (act as any).reservas
-        ?.map(
-          (r: any) => `${r.lote?.producto?.nombre} (${r.cantidadUsada || 0})`
-        )
-        .join(", ") || "Sin inventario",
       zonaNombre || "Sin zona",
-      "Finalizada",
       act.observacion || "",
       (act.horasDedicadas || 0).toString(),
       `$${calculateCostoManoObra(act).toFixed(2)}`,
@@ -766,9 +760,7 @@ const generateCultivoTrazabilidad = async (
           "Fecha Finalización",
           "Categoría",
           "Responsable",
-          "Inventario",
           "Zona",
-          "Estado",
           "Observación",
           "Horas",
           "Costo Mano Obra",
@@ -801,9 +793,12 @@ const generateCultivoTrazabilidad = async (
           (act as any).categoriaActividad?.nombre || "Sin categoría",
           (act as any).nombreResponsable || "Sin responsable",
           reserva.lote?.producto?.nombre || "Producto desconocido",
-          reserva.cantidadReservada || 0,
-          reserva.cantidadUsada || 0,
-          reserva.lote?.producto?.unidadMedida?.abreviatura || "N/A",
+          `${reserva.cantidadReservada || 0} ${
+            reserva.lote?.producto?.unidadMedida?.abreviatura || "N/A"
+          }`,
+          `${reserva.cantidadUsada || 0} ${
+            reserva.lote?.producto?.unidadMedida?.abreviatura || "N/A"
+          }`,
           `$${(
             (reserva.precioProducto || 0) /
             (reserva.capacidadPresentacionProducto || 1)
@@ -814,7 +809,6 @@ const generateCultivoTrazabilidad = async (
               (reserva.capacidadPresentacionProducto || 1))
           ).toFixed(2)}`,
           zonaNombre || "Sin zona",
-          "Finalizada",
         ]) || []
     );
 
@@ -828,11 +822,9 @@ const generateCultivoTrazabilidad = async (
           "Producto",
           "Cantidad Reservada",
           "Cantidad Usada",
-          "Unidad de Medida",
           "Precio Unitario",
           "Subtotal",
           "Zona",
-          "Estado",
         ],
       ],
       body: inventarioData,
