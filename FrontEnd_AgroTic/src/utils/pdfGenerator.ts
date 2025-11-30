@@ -8,6 +8,8 @@ import { getCosechasByCultivo } from "../services/cosechasService";
 import { getVentas } from "../services/ventaService";
 import type { Actividad } from "../services/actividadesService";
 import { calcularEdadCultivo } from "../services/cultivosVariedadZonaService";
+import AgroTicNormal from "../assets/AgroTic_normal.png";
+import AgroTic from "../assets/AgroTic.png";
 
 interface SelectedData {
   cultivos: string[];
@@ -127,10 +129,18 @@ export const generatePDFReport = async (
     pdf.setFillColor(34, 197, 94); // Green background
     pdf.rect(0, 0, 210, 35, "F");
 
+    // Add logo
+    try {
+      // Left logo (rectangular, vertically centered)
+      pdf.addImage(AgroTicNormal, "PNG", 10, 10, 30, 15);
+    } catch (imageError) {
+      console.warn("Error adding logo to PDF:", imageError);
+    }
+
     pdf.setTextColor(255, 255, 255); // White text
     pdf.setFontSize(24);
     pdf.setFont("helvetica", "bold");
-    pdf.text("AgroTIC - Reporte Completo de Cultivo", 20, 22);
+    pdf.text("AgroTIC - Reporte Completo de Cultivo", 40, 22);
 
     pdf.setFontSize(10);
     pdf.setFont("helvetica", "normal");
@@ -496,6 +506,13 @@ export const generatePDFReport = async (
       pdf.setDrawColor(226, 232, 240);
       pdf.line(0, 280, 210, 280);
 
+      // Add small logo to footer
+      try {
+        pdf.addImage(AgroTic, "PNG", 10, 282, 10, 10);
+      } catch (imageError) {
+        console.warn("Error adding footer logo to PDF:", imageError);
+      }
+
       pdf.setFontSize(8);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(100, 116, 139);
@@ -506,7 +523,7 @@ export const generatePDFReport = async (
           hour: "2-digit",
           minute: "2-digit",
         })}`,
-        20,
+        25,
         288
       );
       pdf.text(`Página ${i} de ${totalPages}`, 170, 288);
@@ -1242,6 +1259,13 @@ export const generateSensorSearchPDF = async (
           pdf.setDrawColor(226, 232, 240);
           pdf.line(0, 280, 210, 280);
 
+          // Add small logo to footer
+          try {
+            pdf.addImage(AgroTic, "PNG", 10, 282, 10, 10);
+          } catch (imageError) {
+            console.warn("Error adding footer logo to PDF:", imageError);
+          }
+
           pdf.setFontSize(8);
           pdf.setFont("helvetica", "normal");
           pdf.setTextColor(100, 116, 139);
@@ -1252,7 +1276,7 @@ export const generateSensorSearchPDF = async (
               hour: "2-digit",
               minute: "2-digit",
             })}`,
-            20,
+            25,
             288
           );
           pdf.text(`Página ${i} de ${totalPages}`, 170, 288);
