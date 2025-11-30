@@ -42,18 +42,29 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
   const exportToExcel = async (fechaInicio?: string, fechaFin?: string, exportarTodo: boolean = false) => {
     if (!currentCultivo) return;
 
+    console.log('📊 EXCEL EXPORT: Starting export for cultivo:', currentCultivo);
+    console.log('📊 EXCEL EXPORT: Filters - fechaInicio:', fechaInicio, 'fechaFin:', fechaFin, 'exportarTodo:', exportarTodo);
+
     try {
       // Fetch all related data
+      console.log('📊 EXCEL EXPORT: Fetching data for cvzId:', currentCultivo.cvzid);
       const [actividades, cosechas, ventas] = await Promise.all([
         getActividadesByCultivoVariedadZonaId(currentCultivo.cvzid),
         getCosechasByCultivo(currentCultivo.cvzid),
         getVentas()
       ]);
 
+      console.log('📊 EXCEL EXPORT: Raw data fetched:');
+      console.log('  - Actividades:', actividades.length, 'items');
+      console.log('  - Cosechas:', cosechas.length, 'items');
+      console.log('  - Ventas totales:', ventas.length, 'items');
+
       // Filter ventas related to this cultivo's cosechas
       let cultivoVentas = ventas.filter(venta =>
         cosechas.some(cosecha => cosecha.id === venta.fkCosechaId)
       );
+
+      console.log('📊 EXCEL EXPORT: Ventas filtradas por cultivo:', cultivoVentas.length, 'items');
 
       // Aplicar filtros por fecha si no se exporta todo
       let filteredActividades = actividades;
@@ -64,6 +75,8 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
         // Crear fechas de comparación sin problemas de zona horaria
         const startDate = new Date(fechaInicio + 'T00:00:00.000Z'); // Inicio del día en UTC
         const endDate = new Date(fechaFin + 'T23:59:59.999Z'); // Fin del día en UTC
+
+        console.log('📊 EXCEL EXPORT: Applying date filters - startDate:', startDate, 'endDate:', endDate);
 
         // Filtrar actividades por fechaFinalizacion
         filteredActividades = actividades.filter(actividad => {
@@ -85,6 +98,13 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
           const ventaDate = new Date(venta.fecha + 'T12:00:00.000Z'); // Mediodía para evitar problemas de zona horaria
           return ventaDate >= startDate && ventaDate <= endDate;
         });
+
+        console.log('📊 EXCEL EXPORT: Data after filtering:');
+        console.log('  - Actividades filtradas:', filteredActividades.length, 'de', actividades.length);
+        console.log('  - Cosechas filtradas:', filteredCosechas.length, 'de', cosechas.length);
+        console.log('  - Ventas filtradas:', filteredVentas.length, 'de', cultivoVentas.length);
+      } else {
+        console.log('📊 EXCEL EXPORT: No date filters applied, using all data');
       }
 
       // Fetch financial data for the cultivo
@@ -152,6 +172,16 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
       const costoTotalProduccion = costoManoObra + costoInventario;
       const ganancias = ingresosTotales - costoTotalProduccion;
       const margenGanancia = costoTotalProduccion > 0 ? (ganancias / costoTotalProduccion) * 100 : 0;
+
+      console.log('📊 EXCEL EXPORT: Calculated totals:');
+      console.log('  - Finalized activities:', finalizedActivities.length);
+      console.log('  - Cantidad cosechada:', cantidadCosechada);
+      console.log('  - Cantidad vendida:', cantidadVendida);
+      console.log('  - Ingresos totales:', ingresosTotales);
+      console.log('  - Costo mano de obra:', costoManoObra);
+      console.log('  - Costo inventario:', costoInventario);
+      console.log('  - Costo total producción:', costoTotalProduccion);
+      console.log('  - Ganancias:', ganancias);
 
       // Determinar el rango de fechas del reporte
       let rangoFechasTexto = "Toda la trazabilidad";
@@ -469,6 +499,8 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
       // Generate and download file
       const fileName = `Informe_Completo_Cultivo_${currentCultivo.ficha}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, fileName);
+
+      console.log('✅ EXCEL EXPORT: Successfully generated Excel file:', fileName);
 
     } catch (error) {
       console.error('Error exporting to Excel:', error);

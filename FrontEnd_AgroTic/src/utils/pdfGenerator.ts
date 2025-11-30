@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import apiClient from "../lib/axios/axios";
 import { renderLineChartToCanvas } from "./chartRenderer";
 import Swal from "sweetalert2";
@@ -51,6 +52,7 @@ interface SelectedSensorDetail {
   tipoCultivoNombre?: string;
   sensorData?: any;
   cultivoData?: any;
+  cvzId?: string;
   timeRange?: "morning" | "afternoon" | "evening" | "night";
   timeRanges?: string[];
   startDate?: string;
@@ -525,380 +527,593 @@ export const generatePDFReport = async (
 const generateCultivoTrazabilidad = async (
   pdf: jsPDF,
   cultivoData: SelectedSensorDetail,
-  yPosition: number
+  yPosition: number,
+  fechaInicio?: string,
+  fechaFin?: string,
+  exportarTodo: boolean = false
 ): Promise<number> => {
   try {
+    console.log("🔍 PDF TRAZABILIDAD: Starting with cultivoData:", cultivoData);
+    console.log(
+      "🔍 PDF TRAZABILIDAD: Filters - fechaInicio:",
+      fechaInicio,
+      "fechaFin:",
+      fechaFin,
+      "exportarTodo:",
+      exportarTodo
+    );
+
     const {
       cultivoId,
-      zonaId,
       zonaNombre,
       cultivoNombre,
       variedadNombre,
       tipoCultivoNombre,
+      cvzId: providedCvzId,
     } = cultivoData;
 
-    // Obtener datos del cultivo usando el cvzId (cultivoId en este contexto)
-    const cvzId = cultivoId;
-
-    // ===== SECCIÓN 2: TRAZABILIDAD COMPLETA DEL CULTIVO =====
-    pdf.addPage();
-    yPosition = 20;
-
-    // Header de la sección
-    pdf.setFillColor(34, 197, 94);
-    pdf.rect(0, 0, 210, 25, "F");
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(18);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("SECCIÓN 2: TRAZABILIDAD COMPLETA DEL CULTIVO", 20, 17);
-    pdf.setTextColor(0, 0, 0);
-    yPosition = 35;
-
-    // ===== 2.1 INFORMACIÓN GENERAL DEL CULTIVO =====
-    pdf.setFontSize(16);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("2.1 Información General del Cultivo", 20, yPosition);
-    yPosition += 10;
-
-    // Tabla de información básica
-    pdf.setFillColor(248, 250, 252);
-    pdf.rect(15, yPosition - 5, 180, 50, "F");
-    pdf.setDrawColor(226, 232, 240);
-    pdf.rect(15, yPosition - 5, 180, 50);
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-
-    const infoData = [
-      ["Tipo de Cultivo", tipoCultivoNombre || "N/A"],
-      ["Variedad", variedadNombre || "N/A"],
-      ["Zona", zonaNombre || "N/A"],
-      ["ID del Cultivo", cvzId],
-      ["Fecha de Exportación", new Date().toLocaleDateString("es-CO")],
-    ];
-
-    infoData.forEach((row, index) => {
-      pdf.text(`${row[0]}:`, 25, yPosition + index * 8);
-      pdf.text(row[1], 80, yPosition + index * 8);
-    });
-
-    yPosition += 60;
+    // Use cvzId if provided, otherwise fall back to cultivoId (for backward compatibility)
+    const cvzId = providedCvzId || cultivoId;
+    console.log(
+      "🔍 PDF TRAZABILIDAD: Using cvzId:",
+      cvzId,
+      "(provided:",
+      !!providedCvzId,
+      "fallback:",
+      !providedCvzId && !!cultivoId + ")"
+    );
 
     // Fetch all related data
+    console.log("🔍 PDF TRAZABILIDAD: Fetching data for cvzId:", cvzId);
     const [actividades, cosechas, ventas] = await Promise.all([
       getActividadesByCultivoVariedadZonaId(cvzId),
       getCosechasByCultivo(cvzId),
       getVentas(),
     ]);
 
+    console.log("🔍 PDF TRAZABILIDAD: Raw data fetched:");
+    console.log("  - Actividades:", actividades.length, "items");
+    console.log("  - Cosechas:", cosechas.length, "items");
+    console.log("  - Ventas totales:", ventas.length, "items");
+
     // Filter ventas related to this cultivo's cosechas
-    const cultivoVentas = ventas.filter((venta) =>
+    let cultivoVentas = ventas.filter((venta) =>
       cosechas.some((cosecha) => cosecha.id === venta.fkCosechaId)
     );
 
-    // ===== 2.2 CRONOGRAMA DE ACTIVIDADES =====
-    if (actividades.length > 0) {
-      pdf.addPage();
-      yPosition = 20;
+    console.log(
+      "🔍 PDF TRAZABILIDAD: Ventas filtradas por cultivo:",
+      cultivoVentas.length,
+      "items"
+    );
 
-      pdf.setFontSize(16);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("2.2 Cronograma de Actividades", 20, yPosition);
-      yPosition += 10;
+    // Aplicar filtros por fecha si no se exporta todo
+    let filteredActividades = actividades;
+    let filteredCosechas = cosechas;
+    let filteredVentas = cultivoVentas;
 
-      // Filter finalized activities
-      const finalizedActivities = actividades.filter(
-        (act) => act.estado === false
+    if (!exportarTodo && fechaInicio && fechaFin) {
+      const startDate = new Date(fechaInicio + "T00:00:00.000Z");
+      const endDate = new Date(fechaFin + "T23:59:59.999Z");
+
+      console.log(
+        "🔍 PDF TRAZABILIDAD: Applying date filters - startDate:",
+        startDate,
+        "endDate:",
+        endDate
       );
 
-      if (finalizedActivities.length > 0) {
-        // Table headers
-        pdf.setFontSize(9);
-        pdf.setFont("helvetica", "bold");
-        const headers = [
-          "Fecha",
-          "Categoría",
-          "Responsable",
-          "Estado",
-          "Costo Mano de Obra",
-          "Costo Total",
-        ];
-        const colWidths = [25, 35, 40, 20, 30, 30];
-        let xPos = 20;
+      filteredActividades = actividades.filter((actividad) => {
+        if (!(actividad as any).fechaFinalizacion) return false;
+        const actividadDate = new Date((actividad as any).fechaFinalizacion);
+        return actividadDate >= startDate && actividadDate <= endDate;
+      });
 
-        headers.forEach((header, index) => {
-          pdf.text(header, xPos, yPosition);
-          xPos += colWidths[index];
-        });
+      filteredCosechas = cosechas.filter((cosecha) => {
+        if (!cosecha.fecha) return false;
+        const cosechaDate = new Date(cosecha.fecha + "T12:00:00.000Z");
+        return cosechaDate >= startDate && cosechaDate <= endDate;
+      });
 
-        yPosition += 5;
-        pdf.line(20, yPosition, 190, yPosition);
-        yPosition += 5;
+      filteredVentas = cultivoVentas.filter((venta) => {
+        if (!venta.fecha) return false;
+        const ventaDate = new Date(venta.fecha + "T12:00:00.000Z");
+        return ventaDate >= startDate && ventaDate <= endDate;
+      });
 
-        // Table rows
-        pdf.setFont("helvetica", "normal");
-        finalizedActivities.forEach((activity: Actividad) => {
-          if (yPosition > 250) {
-            pdf.addPage();
-            yPosition = 20;
-          }
-
-          xPos = 20;
-          const costoManoObra =
-            (activity.horasDedicadas || 0) *
-            ((activity as any).precioHora || 0);
-          const costoInventario = calculateCostoInventario(activity);
-          const costoTotal = costoManoObra + costoInventario;
-
-          const rowData = [
-            activity.fechaAsignacion
-              ? new Date(
-                  activity.fechaAsignacion + "T00:00:00"
-                ).toLocaleDateString("es-CO")
-              : "N/A",
-            (activity as any).categoriaActividad?.nombre || "Sin categoría",
-            (activity as any).nombreResponsable || "Sin responsable",
-            "Finalizada",
-            `$${costoManoObra.toFixed(2)}`,
-            `$${costoTotal.toFixed(2)}`,
-          ];
-
-          rowData.forEach((data, index) => {
-            pdf.text(data, xPos, yPosition);
-            xPos += colWidths[index];
-          });
-
-          yPosition += 8;
-        });
-      }
+      console.log("🔍 PDF TRAZABILIDAD: Data after filtering:");
+      console.log(
+        "  - Actividades filtradas:",
+        filteredActividades.length,
+        "de",
+        actividades.length
+      );
+      console.log(
+        "  - Cosechas filtradas:",
+        filteredCosechas.length,
+        "de",
+        cosechas.length
+      );
+      console.log(
+        "  - Ventas filtradas:",
+        filteredVentas.length,
+        "de",
+        cultivoVentas.length
+      );
+    } else {
+      console.log(
+        "🔍 PDF TRAZABILIDAD: No date filters applied, using all data"
+      );
     }
 
-    // ===== 2.3 ANÁLISIS DE COSTOS =====
-    if (actividades.length > 0) {
-      pdf.addPage();
-      yPosition = 20;
+    // Calcular totales
+    const finalizedActivities = filteredActividades.filter(
+      (act) => act.estado === false
+    );
+    const cantidadCosechada = filteredCosechas.reduce(
+      (sum, cos) => sum + (Number(cos.cantidad) || 0),
+      0
+    );
+    const cantidadVendida = filteredVentas.reduce(
+      (sum, ven) => sum + (Number(ven.cantidad) || 0),
+      0
+    );
+    const ingresosTotales = filteredVentas.reduce(
+      (sum, ven) =>
+        sum + (Number(ven.precioUnitario) || 0) * (Number(ven.cantidad) || 0),
+      0
+    );
+    const costoManoObra = finalizedActivities.reduce(
+      (sum, act) => sum + calculateCostoManoObra(act),
+      0
+    );
+    const costoInventario = finalizedActivities.reduce(
+      (sum, act) => sum + calculateCostoInventario(act),
+      0
+    );
+    const costoTotalProduccion = costoManoObra + costoInventario;
+    const ganancias = ingresosTotales - costoTotalProduccion;
 
-      pdf.setFontSize(16);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("2.3 Análisis de Costos", 20, yPosition);
-      yPosition += 10;
+    console.log("🔍 PDF TRAZABILIDAD: Calculated totals:");
+    console.log("  - Finalized activities:", finalizedActivities.length);
+    console.log("  - Cantidad cosechada:", cantidadCosechada);
+    console.log("  - Cantidad vendida:", cantidadVendida);
+    console.log("  - Ingresos totales:", ingresosTotales);
+    console.log("  - Costo mano de obra:", costoManoObra);
+    console.log("  - Costo inventario:", costoInventario);
+    console.log("  - Costo total producción:", costoTotalProduccion);
+    console.log("  - Ganancias:", ganancias);
 
-      const finalizedActivities = actividades.filter(
-        (act) => act.estado === false
-      );
-      const costoTotalProduccion = finalizedActivities.reduce(
-        (sum, act) =>
-          sum + calculateCostoManoObra(act) + calculateCostoInventario(act),
-        0
-      );
-
-      // Summary table
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(15, yPosition - 5, 180, 30, "F");
-      pdf.setDrawColor(226, 232, 240);
-      pdf.rect(15, yPosition - 5, 180, 30);
-
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(10);
-      pdf.text(
-        `Total de Actividades Finalizadas: ${finalizedActivities.length}`,
-        25,
-        yPosition + 5
-      );
-      pdf.text(
-        `Costo Total de Producción: $${costoTotalProduccion.toFixed(2)}`,
-        25,
-        yPosition + 15
-      );
-      pdf.text(
-        `Costo Promedio por Actividad: $${(
-          costoTotalProduccion / finalizedActivities.length || 1
-        ).toFixed(2)}`,
-        25,
-        yPosition + 25
-      );
-
-      yPosition += 40;
-
-      // Detailed cost breakdown
-      if (finalizedActivities.length > 0 && yPosition < 200) {
-        pdf.setFontSize(12);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("Desglose por Actividad:", 20, yPosition);
-        yPosition += 8;
-
-        pdf.setFontSize(9);
-        pdf.setFont("helvetica", "bold");
-        const costHeaders = [
-          "Actividad",
-          "Fecha",
-          "Mano de Obra",
-          "Inventario",
-          "Total",
-        ];
-        const costColWidths = [40, 25, 25, 25, 25];
-        let xPos = 20;
-
-        costHeaders.forEach((header, index) => {
-          pdf.text(header, xPos, yPosition);
-          xPos += costColWidths[index];
-        });
-
-        yPosition += 5;
-        pdf.line(20, yPosition, 190, yPosition);
-        yPosition += 5;
-
-        pdf.setFont("helvetica", "normal");
-        finalizedActivities.slice(0, 8).forEach((activity: Actividad) => {
-          // Limit to 8 activities for space
-          xPos = 20;
-          const costoManoObra = calculateCostoManoObra(activity);
-          const costoInventario = calculateCostoInventario(activity);
-          const costoTotal = costoManoObra + costoInventario;
-
-          const activityName =
-            (activity as any).categoriaActividad?.nombre || "Actividad";
-          const shortName =
-            activityName.length > 15
-              ? activityName.substring(0, 15) + "..."
-              : activityName;
-
-          const rowData = [
-            shortName,
-            activity.fechaAsignacion
-              ? new Date(activity.fechaAsignacion + "T00:00:00")
-                  .toLocaleDateString("es-CO")
-                  .split("/")[0] +
-                "/" +
-                new Date(activity.fechaAsignacion + "T00:00:00")
-                  .toLocaleDateString("es-CO")
-                  .split("/")[1]
-              : "N/A",
-            `$${costoManoObra.toFixed(0)}`,
-            `$${costoInventario.toFixed(0)}`,
-            `$${costoTotal.toFixed(0)}`,
-          ];
-
-          rowData.forEach((data, index) => {
-            pdf.text(data, xPos, yPosition);
-            xPos += costColWidths[index];
-          });
-
-          yPosition += 6;
-        });
-      }
-    }
-
-    // ===== 2.4 ESTADO FINANCIERO =====
+    // ===== PÁGINA 1: RESUMEN DEL CULTIVO =====
     pdf.addPage();
     yPosition = 20;
 
     pdf.setFontSize(16);
     pdf.setFont("helvetica", "bold");
-    pdf.text("2.4 Estado Financiero", 20, yPosition);
-    yPosition += 10;
+    pdf.text("2.1 Resumen del Cultivo", 20, yPosition);
+    yPosition += 15;
 
-    // Fetch financial data
-    let finanzas = null;
-    try {
-      const cosechasResponse = await apiClient.get(
-        `/cosechas/cultivo/${cvzId}`
-      );
-      const cosechasCultivo = cosechasResponse.data;
-      if (cosechasCultivo && cosechasCultivo.length > 0) {
-        const response = await apiClient.get(
-          `/finanzas/cultivo/${cvzId}/dinamico`
-        );
-        finanzas = response.data;
-      } else {
-        const response = await apiClient.get(
-          `/finanzas/cultivo/${cvzId}/actividades`
-        );
-        finanzas = response.data;
-      }
-    } catch (finanzasError) {
-      console.warn("Could not fetch financial data:", finanzasError);
-    }
+    const resumenData = [
+      ["Campo", "Valor"],
+      ["ID del Cultivo", cvzId],
+      ["Tipo de Cultivo", tipoCultivoNombre || "N/A"],
+      ["Variedad", variedadNombre || "N/A"],
+      ["Zona", zonaNombre || "N/A"],
+      ["Estado", "Activo"],
+      [
+        "Rango de Fechas del Reporte",
+        exportarTodo
+          ? "Toda la trazabilidad"
+          : `Del ${fechaInicio} al ${fechaFin}`,
+      ],
+      ["Total Actividades", filteredActividades.length.toString()],
+      ["Total Cosechas", filteredCosechas.length.toString()],
+      ["Total Ventas", filteredVentas.length.toString()],
+      ["Ingresos Totales", `$${ingresosTotales.toFixed(2)}`],
+      ["Costo Total de Producción", `$${costoTotalProduccion.toFixed(2)}`],
+      ["Ganancias", `$${ganancias.toFixed(2)}`],
+    ];
 
-    if (finanzas) {
-      // Financial summary table
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(15, yPosition - 5, 180, 60, "F");
-      pdf.setDrawColor(226, 232, 240);
-      pdf.rect(15, yPosition - 5, 180, 60);
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [resumenData[0]],
+      body: resumenData.slice(1),
+      theme: "grid",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
 
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(10);
+    // ===== PÁGINA 2: HISTORIAL DE ACTIVIDADES =====
+    pdf.addPage();
+    yPosition = 20;
 
-      const financialData = [
-        ["Cantidad Cosechada", `${finanzas.cantidadCosechada.toFixed(2)} KG`],
-        ["Precio por Kilo", `$${finanzas.precioPorKilo.toFixed(2)}`],
-        ["Ingresos Totales", `$${finanzas.ingresosTotales.toFixed(2)}`],
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.2 Historial de Actividades", 20, yPosition);
+    yPosition += 15;
+
+    const actividadesData = finalizedActivities.map((act) => [
+      act.fechaAsignacion
+        ? new Date(act.fechaAsignacion + "T00:00:00").toLocaleDateString(
+            "es-CO"
+          )
+        : "N/A",
+      (act as any).fechaFinalizacion
+        ? new Date((act as any).fechaFinalizacion).toLocaleDateString("es-CO")
+        : "N/A",
+      (act as any).categoriaActividad?.nombre || "Sin categoría",
+      (act as any).nombreResponsable || "Sin responsable",
+      (act as any).reservas
+        ?.map(
+          (r: any) => `${r.lote?.producto?.nombre} (${r.cantidadUsada || 0})`
+        )
+        .join(", ") || "Sin inventario",
+      zonaNombre || "Sin zona",
+      "Finalizada",
+      act.observacion || "",
+      (act.horasDedicadas || 0).toString(),
+      `$${calculateCostoManoObra(act).toFixed(2)}`,
+      `$${(calculateCostoManoObra(act) + calculateCostoInventario(act)).toFixed(
+        2
+      )}`,
+    ]);
+
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [
         [
-          "Costo Total de Producción",
-          `$${finanzas.costoTotalProduccion.toFixed(2)}`,
+          "Fecha Asignación",
+          "Fecha Finalización",
+          "Categoría",
+          "Responsable",
+          "Inventario",
+          "Zona",
+          "Estado",
+          "Observación",
+          "Horas",
+          "Costo Mano Obra",
+          "Costo Total",
         ],
-        ["Ganancias", `$${finanzas.ganancias.toFixed(2)}`],
+      ],
+      body: actividadesData,
+      theme: "grid",
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
+
+    // ===== PÁGINA 3: DETALLE DE INVENTARIO =====
+    pdf.addPage();
+    yPosition = 20;
+
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.3 Detalle de Inventario", 20, yPosition);
+    yPosition += 15;
+
+    const inventarioData = finalizedActivities.flatMap(
+      (act) =>
+        (act as any).reservas?.map((reserva: any) => [
+          act.fechaAsignacion
+            ? new Date(act.fechaAsignacion + "T00:00:00").toLocaleDateString(
+                "es-CO"
+              )
+            : "N/A",
+          (act as any).categoriaActividad?.nombre || "Sin categoría",
+          (act as any).nombreResponsable || "Sin responsable",
+          reserva.lote?.producto?.nombre || "Producto desconocido",
+          reserva.cantidadReservada || 0,
+          reserva.cantidadUsada || 0,
+          reserva.lote?.producto?.unidadMedida?.abreviatura || "N/A",
+          `$${(
+            (reserva.precioProducto || 0) /
+            (reserva.capacidadPresentacionProducto || 1)
+          ).toFixed(2)}`,
+          `$${(
+            (reserva.cantidadUsada || 0) *
+            ((reserva.precioProducto || 0) /
+              (reserva.capacidadPresentacionProducto || 1))
+          ).toFixed(2)}`,
+          zonaNombre || "Sin zona",
+          "Finalizada",
+        ]) || []
+    );
+
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [
         [
-          "Margen de Ganancia",
-          `${(finanzas.margenGanancia * 100).toFixed(2)}%`,
+          "Fecha Asignación",
+          "Categoría",
+          "Usuario Responsable",
+          "Producto",
+          "Cantidad Reservada",
+          "Cantidad Usada",
+          "Unidad de Medida",
+          "Precio Unitario",
+          "Subtotal",
+          "Zona",
+          "Estado",
         ],
-      ];
+      ],
+      body: inventarioData,
+      theme: "grid",
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
 
-      financialData.forEach((row, index) => {
-        pdf.text(`${row[0]}:`, 25, yPosition + index * 8);
-        pdf.text(row[1], 120, yPosition + index * 8);
-      });
+    // ===== PÁGINA 4: COSTOS PRODUCCIÓN =====
+    pdf.addPage();
+    yPosition = 20;
 
-      yPosition += 70;
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.4 Costos Producción", 20, yPosition);
+    yPosition += 15;
 
-      // Additional financial metrics
-      if (yPosition < 200) {
-        pdf.setFontSize(12);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("Métricas Adicionales:", 20, yPosition);
-        yPosition += 8;
+    const costosData = finalizedActivities.map((act) => [
+      act.id,
+      act.fechaAsignacion
+        ? new Date(act.fechaAsignacion + "T00:00:00").toLocaleDateString(
+            "es-CO"
+          )
+        : "N/A",
+      (act as any).categoriaActividad?.nombre || "Sin categoría",
+      (act as any).nombreResponsable || "Sin responsable",
+      `$${calculateCostoManoObra(act).toFixed(2)}`,
+      `$${calculateCostoInventario(act).toFixed(2)}`,
+      `$${(calculateCostoManoObra(act) + calculateCostoInventario(act)).toFixed(
+        2
+      )}`,
+      zonaNombre || "Sin zona",
+      "Finalizada",
+    ]);
 
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(9);
-        pdf.text(
-          `• Eficiencia de Ventas: ${(
-            (finanzas.cantidadVendida / finanzas.cantidadCosechada) *
-            100
-          ).toFixed(2)}%`,
-          25,
-          yPosition
-        );
-        yPosition += 6;
-        pdf.text(
-          `• Cantidad Vendida: ${finanzas.cantidadVendida.toFixed(2)} KG`,
-          25,
-          yPosition
-        );
-        yPosition += 6;
-        pdf.text(
-          `• Fecha de Venta: ${
-            finanzas.fechaVenta
-              ? new Date(finanzas.fechaVenta).toLocaleDateString("es-CO")
-              : "N/A"
-          }`,
-          25,
-          yPosition
-        );
-      }
-    } else {
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(10);
-      pdf.text(
-        "No hay datos financieros disponibles para este cultivo.",
-        20,
-        yPosition
-      );
-    }
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [
+        [
+          "ID Actividad",
+          "Fecha Asignación",
+          "Categoría",
+          "Usuario Responsable",
+          "Costo de Mano de Obra",
+          "Costo Total Insumos",
+          "Costo Total Actividad",
+          "Zona",
+          "Estado",
+        ],
+      ],
+      body: costosData,
+      theme: "grid",
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
 
-    return yPosition;
+    // ===== PÁGINA 5: COSECHAS =====
+    pdf.addPage();
+    yPosition = 20;
+
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.5 Cosechas", 20, yPosition);
+    yPosition += 15;
+
+    const cosechasData = filteredCosechas.map((cos) => [
+      cos.fecha
+        ? new Date(cos.fecha + "T12:00:00.000Z").toLocaleDateString("es-CO")
+        : "N/A",
+      (Number(cos.cantidad) || 0).toString(),
+      cos.unidadMedida || "N/A",
+      (
+        Number(
+          (cos as any).rendimientoPorPlanta ||
+            (cos as any).cos_rendimiento_por_planta
+        ) || 0
+      ).toString(),
+      (
+        Number(
+          (cos as any).cantidadPlantasCosechadas ||
+            (cos as any).cos_cantidad_plantas_cosechadas
+        ) || 0
+      ).toString(),
+      cos.cerrado ? "Sí" : "No",
+    ]);
+
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [
+        [
+          "Fecha",
+          "Cantidad (KG)",
+          "Unidad de Medida",
+          "Rendimiento por Planta",
+          "Plantas Cosechadas",
+          "Cerrada",
+        ],
+      ],
+      body: cosechasData,
+      theme: "grid",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
+
+    // ===== PÁGINA 6: VENTAS =====
+    pdf.addPage();
+    yPosition = 20;
+
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.6 Ventas", 20, yPosition);
+    yPosition += 15;
+
+    const ventasData = filteredVentas.map((ven) => [
+      ven.id,
+      ven.fecha
+        ? new Date(ven.fecha + "T12:00:00.000Z").toLocaleDateString("es-CO")
+        : "N/A",
+      (Number(ven.cantidad) || 0).toString(),
+      ven.unidadMedida || "N/A",
+      `$${(Number(ven.precioUnitario) || 0).toFixed(2)}`,
+      `$${(Number(ven.precioKilo) || 0).toFixed(2)}`,
+      `$${(
+        (Number(ven.precioUnitario) || 0) * (Number(ven.cantidad) || 0)
+      ).toFixed(2)}`,
+    ]);
+
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [
+        [
+          "ID",
+          "Fecha",
+          "Cantidad",
+          "Unidad de Medida",
+          "Precio Unitario",
+          "Precio por Kilo",
+          "Total",
+        ],
+      ],
+      body: ventasData,
+      theme: "grid",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
+
+    // ===== PÁGINA 7: RESUMEN FINANCIERO =====
+    pdf.addPage();
+    yPosition = 20;
+
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.7 Resumen Financiero", 20, yPosition);
+    yPosition += 15;
+
+    const resumenFinancieroData = [
+      ["Concepto", "Valor"],
+      ["Cantidad Cosechada", `${cantidadCosechada.toFixed(2)} KG`],
+      [
+        "Precio por Kilo (Promedio)",
+        `$${(cantidadVendida > 0
+          ? ingresosTotales / cantidadVendida
+          : 0
+        ).toFixed(2)}`,
+      ],
+      ["Cantidad Vendida", `${cantidadVendida.toFixed(2)} KG`],
+      ["Costo Inventario", `$${costoInventario.toFixed(2)}`],
+      ["Costo Mano de Obra", `$${costoManoObra.toFixed(2)}`],
+      ["Costo Total de Producción", `$${costoTotalProduccion.toFixed(2)}`],
+      ["Ingresos Totales", `$${ingresosTotales.toFixed(2)}`],
+      ["Ganancias", `$${ganancias.toFixed(2)}`],
+      [
+        "Margen de Ganancia",
+        `${
+          costoTotalProduccion > 0
+            ? ((ganancias / costoTotalProduccion) * 100).toFixed(2)
+            : 0
+        }%`,
+      ],
+      ["Fecha de Exportación", new Date().toLocaleDateString("es-CO")],
+    ];
+
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [resumenFinancieroData[0]],
+      body: resumenFinancieroData.slice(1),
+      theme: "grid",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
+
+    // ===== PÁGINA 8: DETALLE DE COSTOS =====
+    pdf.addPage();
+    yPosition = 20;
+
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.8 Detalle de Costos", 20, yPosition);
+    yPosition += 15;
+
+    const detalleCostosData = [
+      ["Categoría", "Descripción", "Monto"],
+      [
+        "Producción",
+        "Costo total de producción",
+        costoTotalProduccion.toFixed(2),
+      ],
+      [
+        "Inventario",
+        "Costo de insumos y materiales",
+        costoInventario.toFixed(2),
+      ],
+      ["Mano de Obra", "Costo de mano de obra", costoManoObra.toFixed(2)],
+      [
+        "Total Costos",
+        "Suma de todos los costos",
+        costoTotalProduccion.toFixed(2),
+      ],
+    ];
+
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [detalleCostosData[0]],
+      body: detalleCostosData.slice(1),
+      theme: "grid",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
+
+    // ===== PÁGINA 9: INGRESOS Y RENTABILIDAD =====
+    pdf.addPage();
+    yPosition = 20;
+
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("2.9 Ingresos y Rentabilidad", 20, yPosition);
+    yPosition += 15;
+
+    const eficienciaVentas =
+      cantidadCosechada > 0 ? (cantidadVendida / cantidadCosechada) * 100 : 0;
+    const precioPromedio =
+      cantidadVendida > 0 ? ingresosTotales / cantidadVendida : 0;
+
+    const ingresosRentabilidadData = [
+      ["Concepto", "Cantidad", "Precio Unitario", "Total"],
+      [
+        "Producción Total",
+        `${cantidadCosechada.toFixed(2)} KG`,
+        `$${precioPromedio.toFixed(2)}`,
+        `$${(cantidadCosechada * precioPromedio).toFixed(2)}`,
+      ],
+      [
+        "Ventas Realizadas",
+        `${cantidadVendida.toFixed(2)} KG`,
+        `$${precioPromedio.toFixed(2)}`,
+        `$${ingresosTotales.toFixed(2)}`,
+      ],
+      ["Eficiencia de Ventas", `${eficienciaVentas.toFixed(2)}%`, "", ""],
+      ["Resultado Final", "", "", `$${ganancias.toFixed(2)}`],
+    ];
+
+    autoTable(pdf, {
+      startY: yPosition,
+      head: [ingresosRentabilidadData[0]],
+      body: ingresosRentabilidadData.slice(1),
+      theme: "grid",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [34, 197, 94] },
+    });
+
+    console.log(
+      "✅ PDF TRAZABILIDAD: Successfully generated",
+      pdf.getNumberOfPages(),
+      "pages"
+    );
+    return pdf.getNumberOfPages() * 297; // Approximate
   } catch (error) {
-    console.error("Error generating cultivo trazabilidad:", error);
+    console.error(
+      "❌ PDF TRAZABILIDAD: Error generating cultivo trazabilidad:",
+      error
+    );
     throw error;
   }
 };
@@ -1019,7 +1234,14 @@ export const generateSensorSearchPDF = async (
         );
 
         // Generate trazabilidad section
-        await generateCultivoTrazabilidad(pdf, cultivoData, 0);
+        await generateCultivoTrazabilidad(
+          pdf,
+          cultivoData,
+          0,
+          firstDetail.startDate,
+          firstDetail.endDate,
+          false
+        );
 
         // Update footer with new page count
         const totalPages = pdf.getNumberOfPages();

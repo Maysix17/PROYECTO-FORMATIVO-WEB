@@ -205,6 +205,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
           tipoCultivoNombre: cultivoInfo.tipoCultivoNombre,
           sensorData: sensorInfo,
           cultivoData: cultivoInfo,
+          cvzId: cultivoInfo.cvzId,  // ← AGREGADO: ID correcto para trazabilidad
           timeRanges: filters?.timeRanges && filters.timeRanges.size > 0 ? Array.from(filters.timeRanges) : undefined,
           startDate: filters?.startDate || undefined,
           endDate: filters?.endDate || undefined
