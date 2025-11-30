@@ -22,6 +22,7 @@ import { MagnifyingGlassIcon, XMarkIcon, DocumentArrowDownIcon, ChevronDownIcon,
 import { medicionSensorService } from '../../services/zonasService';
 import { generateSensorSearchPDF } from '../../utils/pdfGenerator';
 import apiClient from '../../lib/axios/axios';
+import { DocumentTextIcon } from '@heroicons/react/24/outline';
 import DateRangeInput from '../atoms/DateRangeInput';
 import Swal from 'sweetalert2';
 
@@ -70,7 +71,8 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
   const [filteredData, setFilteredData] = useState<CultivoZonaSensor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSensors, setSelectedSensors] = useState<Set<string>>(new Set());
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [cardFilters, setCardFilters] = useState<Map<string, CardFilters>>(new Map());
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
@@ -169,7 +171,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
       return;
     }
 
-    setIsExporting(true);
+    setIsExportingPDF(true);
     progressRef.current = 0;
     setExportProgress(0);
     try {
@@ -237,7 +239,154 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
         confirmButtonColor: '#15A55A',
       });
     } finally {
-      setIsExporting(false);
+      setIsExportingPDF(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    if (selectedSensors.size === 0) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Selección requerida',
+        text: 'Por favor selecciona al menos un sensor para exportar',
+        confirmButtonColor: '#15A55A',
+      });
+      return;
+    }
+
+    setIsExportingCSV(true);
+    progressRef.current = 0;
+    setExportProgress(0);
+    try {
+      updateProgress(10);
+
+      const selectedDetails = Array.from(selectedSensors).map(uniqueKey => {
+        // Find the complete sensor data from the original data structure
+        let sensorInfo: any = null;
+        let cultivoInfo: any = null;
+
+        // Parse the uniqueKey to find the matching data
+        for (const item of sensorData) {
+          for (const sensor of item.uniqueSensorData) {
+            const currentUniqueKey = `${item.cultivoId}-${item.zonaId}-${sensor.key}`;
+            if (currentUniqueKey === uniqueKey) {
+              sensorInfo = sensor;
+              cultivoInfo = item;
+              break;
+            }
+          }
+          if (sensorInfo) break;
+        }
+
+        if (!sensorInfo || !cultivoInfo) {
+          console.warn(`Could not find complete data for sensor key: ${uniqueKey}`);
+          // Fallback parsing
+          const parts = uniqueKey.split('-');
+          return {
+            cultivoId: parts[0],
+            zonaId: parts[1],
+            sensorKey: parts[parts.length - 1],
+            zonaNombre: 'Zona no encontrada',
+            cultivoNombre: 'Cultivo no encontrado',
+            variedadNombre: 'Variedad no encontrada',
+            sensorData: null
+          };
+        }
+
+        const cardKey = `${cultivoInfo.cultivoId}-${cultivoInfo.zonaId}`;
+        const filters = cardFilters.get(cardKey);
+        return {
+          cultivoId: cultivoInfo.cultivoId,
+          zonaId: cultivoInfo.zonaId,
+          sensorKey: sensorInfo.key,
+          zonaNombre: cultivoInfo.zonaNombre,
+          cultivoNombre: cultivoInfo.cultivoNombre,
+          variedadNombre: cultivoInfo.variedadNombre,
+          tipoCultivoNombre: cultivoInfo.tipoCultivoNombre,
+          sensorData: sensorInfo,
+          cultivoData: cultivoInfo,
+          cvzId: cultivoInfo.cvzId,
+          timeRanges: filters?.timeRanges && filters.timeRanges.size > 0 ? Array.from(filters.timeRanges) : undefined,
+          startDate: filters?.startDate || undefined,
+          endDate: filters?.endDate || undefined
+        };
+      });
+
+      updateProgress(20);
+
+      // Prepare request for CSV export
+      const csvRequest = {
+        med_keys: selectedDetails.map(d => d.sensorKey),
+        cultivo_ids: selectedDetails.map(d => d.cultivoId),
+        zona_ids: selectedDetails.map(d => d.zonaId),
+        start_date: selectedDetails.find(d => d.startDate)?.startDate,
+        end_date: selectedDetails.find(d => d.endDate)?.endDate,
+        time_ranges: selectedDetails.find(d => d.timeRanges)?.timeRanges,
+      };
+
+      updateProgress(40);
+
+      console.log('🎯 FRONTEND: CSV export request:', csvRequest);
+
+      // Call CSV export endpoint
+      const response = await apiClient.post('/medicion-sensor/csv-export', csvRequest);
+
+      updateProgress(70);
+
+      const csvData = response.data.data;
+
+      if (!csvData || csvData.length === 0) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Sin datos',
+          text: 'No se encontraron datos para los filtros seleccionados',
+          confirmButtonColor: '#15A55A',
+        });
+        return;
+      }
+
+      // Convert to CSV
+      const headers = ['timestamp', 'sensor_id', 'value', 'unit', 'crop_name', 'zone_name', 'variety_name', 'crop_type_name'];
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map((row: any) =>
+          headers.map(header => {
+            const value = row[header];
+            // Escape commas and quotes in CSV
+            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+          }).join(',')
+        )
+      ].join('\n');
+
+      updateProgress(90);
+
+      // Create and download CSV file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `reporte-sensores-agrotic-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      updateProgress(100);
+
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error en la exportación',
+        text: 'Error al exportar CSV: ' + (error instanceof Error ? error.message : 'Error desconocido'),
+        confirmButtonColor: '#15A55A',
+      });
+    } finally {
+      setIsExportingCSV(false);
     }
   };
 
@@ -469,7 +618,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
             )}
           </div>
           <div className="flex gap-2 items-center">
-            {isExporting && (
+            {(isExportingPDF || isExportingCSV) && (
               <div className="flex items-center gap-2 mr-4">
                 <Progress
                   size="sm"
@@ -485,13 +634,22 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
               </div>
             )}
             <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleExportCSV}
+              isLoading={isExportingCSV}
+              startContent={!isExportingCSV ? <DocumentTextIcon className="w-4 h-4" /> : undefined}
+              isDisabled={!isExportEnabled() || isExportingPDF}
+            >
+              {isExportingCSV ? 'Exportando...' : 'Exportar CSV'}
+            </Button>
+            <Button
               className="bg-[#15A55A] hover:bg-[#15A55A]/80 text-white"
               onClick={handleExportPDF}
-              isLoading={isExporting}
-              startContent={!isExporting ? <DocumentArrowDownIcon className="w-4 h-4" /> : undefined}
-              isDisabled={!isExportEnabled()}
+              isLoading={isExportingPDF}
+              startContent={!isExportingPDF ? <DocumentArrowDownIcon className="w-4 h-4" /> : undefined}
+              isDisabled={!isExportEnabled() || isExportingCSV}
             >
-              {isExporting ? 'Exportando...' : 'Exportar PDF'}
+              {isExportingPDF ? 'Exportando...' : 'Exportar PDF'}
             </Button>
           </div>
         </ModalFooter>
