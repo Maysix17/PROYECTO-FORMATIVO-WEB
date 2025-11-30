@@ -251,7 +251,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
           <MagnifyingGlassIcon className="w-6 h-6" />
-          Reportes de Sensores 
+          Reporte de Trazabilidad 
         </ModalHeader>
         <ModalBody>
           {/* Search Input */}

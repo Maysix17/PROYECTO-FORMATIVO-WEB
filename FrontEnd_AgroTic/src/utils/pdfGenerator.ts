@@ -346,41 +346,11 @@ export const generatePDFReport = async (
     pdf.text(`Períodos reportados: ${reportData.length}`, 25, yPosition);
     yPosition += 15;
 
-    // ===== RESUMEN ESTADÍSTICO =====
-    pdf.addPage();
-    yPosition = 20;
-
-    if (reportData.length > 0) {
-      pdf.setFontSize(16);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("Resumen Estadístico", 20, yPosition);
-      yPosition += 10;
-
-      const totalDataPoints = reportData.reduce(
-        (sum, item) =>
-          sum +
-          item.statistics.reduce((statSum, stat) => statSum + stat.count, 0),
-        0
-      );
-
-      const uniqueSensors = new Set(
-        reportData.flatMap((item) =>
-          item.statistics.map((stat) => stat.med_key)
-        )
-      ).size;
-
-      pdf.setFontSize(10);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(`Total de puntos de datos: ${totalDataPoints}`, 20, yPosition);
-      yPosition += 6;
-      pdf.text(`Sensores únicos: ${uniqueSensors}`, 20, yPosition);
-      yPosition += 6;
-      pdf.text(`Períodos reportados: ${reportData.length}`, 20, yPosition);
-      yPosition += 15;
-    }
-
     // ===== TABLAS POR FRANJA HORARIA =====
     if (selectedData.groupBy === "time_slot" && reportData.length > 0) {
+      pdf.addPage();
+      yPosition = 20;
+
       pdf.setFontSize(16);
       pdf.setFont("helvetica", "bold");
       pdf.text("Estadísticas por Franja Horaria", 20, yPosition);
