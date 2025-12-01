@@ -815,11 +815,11 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
 
 
       {showCultivoSelection && (
-        <Modal isOpen={showCultivoSelection} onOpenChange={setShowCultivoSelection} size="lg">
+        <Modal isOpen={showCultivoSelection} onOpenChange={setShowCultivoSelection} size="lg" scrollBehavior="inside">
           <ModalContent>
             <ModalHeader>
               <h2 className="text-lg font-semibold">
-                Configuraciones MQTT
+                Configuraciones de Broker
               </h2>
             </ModalHeader>
             <ModalBody className="p-6">

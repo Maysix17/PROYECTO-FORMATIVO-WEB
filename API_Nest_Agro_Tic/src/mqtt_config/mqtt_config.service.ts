@@ -327,9 +327,9 @@ export class MqttConfigService {
    * Validar si un valor excede los umbrales establecidos
    */
   async getSensorsForMqttConfig(mqttConfigId: string): Promise<string[]> {
-    // Find all zonaMqttConfigs for this mqttConfig
+    // Find only ACTIVE zonaMqttConfigs for this mqttConfig
     const zonaMqttConfigs = await this.zonaMqttConfigRepository.find({
-      where: { fkMqttConfigId: mqttConfigId },
+      where: { fkMqttConfigId: mqttConfigId, estado: true },
       relations: ['mediciones'],
     });
 
