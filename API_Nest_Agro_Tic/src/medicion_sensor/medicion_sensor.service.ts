@@ -810,51 +810,91 @@ export class MedicionSensorService {
       time_ranges,
     });
 
-    // Build the query with joins
-    let query = this.medicionSensorRepository
-      .createQueryBuilder('ms')
-      .innerJoin('ms.zonaMqttConfig', 'zmc')
-      .innerJoin('zmc.zona', 'z')
-      .leftJoin('z.cultivosVariedad', 'cvz')
-      .leftJoin('cvz.cultivoXVariedad', 'cxv')
-      .leftJoin('cxv.variedad', 'v')
-      .leftJoin('v.tipoCultivo', 'tc');
+    try {
+      // Build the query with joins - only get alert-type measurements
+      let query = this.medicionSensorRepository
+        .createQueryBuilder('ms')
+        .innerJoin('ms.zonaMqttConfig', 'zmc')
+        .innerJoin('zmc.mqttConfig', 'mc')
+        .innerJoin('zmc.zona', 'z')
+        .leftJoin('z.cultivosVariedad', 'cvz')
+        .leftJoin('cvz.cultivoXVariedad', 'cxv')
+        .leftJoin('cxv.variedad', 'v')
+        .leftJoin('v.tipoCultivo', 'tc')
+        .where('ms.tipo = :tipo', { tipo: 'alerta' }); // Only alert measurements
 
-    // Only filter by med_keys if provided and not empty
-    if (med_keys && med_keys.length > 0) {
-      query = query.andWhere('ms.key IN (:...med_keys)', { med_keys });
-    }
+      console.log('Query builder created successfully');
 
-    // Add optional filters
-    if (cultivo_ids && cultivo_ids.length > 0) {
-      query = query.andWhere('cxv.id IN (:...cultivo_ids)', { cultivo_ids });
-    }
+      // Only filter by med_keys if provided and not empty
+      if (med_keys && med_keys.length > 0) {
+        query = query.andWhere('ms.key IN (:...med_keys)', { med_keys });
+      }
 
-    if (zona_ids && zona_ids.length > 0) {
-      query = query.andWhere('z.id IN (:...zona_ids)', { zona_ids });
-    }
+      // Add optional filters
+      if (cultivo_ids && cultivo_ids.length > 0) {
+        query = query.andWhere('cxv.id IN (:...cultivo_ids)', { cultivo_ids });
+      }
 
-    // Add date filters
-    if (start_date) {
-      query = query.andWhere('ms.fechaMedicion >= :start_date', {
-        start_date: new Date(start_date),
-      });
-    }
+      if (zona_ids && zona_ids.length > 0) {
+        query = query.andWhere('z.id IN (:...zona_ids)', { zona_ids });
+      }
 
-    if (end_date) {
-      query = query.andWhere('ms.fechaMedicion <= :end_date', {
-        end_date: new Date(end_date),
-      });
-    }
+      // Add date filters
+      if (start_date) {
+        query = query.andWhere('ms.fechaMedicion >= :start_date', {
+          start_date: new Date(start_date),
+        });
+      }
 
-    // Add time range filter
-    if (time_ranges && time_ranges.length > 0) {
-      const hourConditions: string[] = [];
-      const hourParams: any = {};
+      if (end_date) {
+        query = query.andWhere('ms.fechaMedicion <= :end_date', {
+          end_date: new Date(end_date),
+        });
+      }
 
-      time_ranges.forEach((range, index) => {
+      // Add time range filter
+      if (time_ranges && time_ranges.length > 0) {
+        const hourConditions: string[] = [];
+        const hourParams: any = {};
+
+        time_ranges.forEach((range, index) => {
+          let hourStart: number, hourEnd: number;
+          switch (range) {
+            case 'morning':
+              hourStart = 6;
+              hourEnd = 12;
+              break;
+            case 'afternoon':
+              hourStart = 12;
+              hourEnd = 18;
+              break;
+            case 'evening':
+              hourStart = 18;
+              hourEnd = 24;
+              break;
+            case 'night':
+              hourStart = 0;
+              hourEnd = 6;
+              break;
+            default:
+              hourStart = 0;
+              hourEnd = 24;
+          }
+          hourConditions.push(
+            `(EXTRACT(hour from ms.fechaMedicion) >= :hourStart${index} AND EXTRACT(hour from ms.fechaMedicion) < :hourEnd${index})`,
+          );
+          hourParams[`hourStart${index}`] = hourStart;
+          hourParams[`hourEnd${index}`] = hourEnd;
+        });
+
+        query = query.andWhere(`(${hourConditions.join(' OR ')})`, hourParams);
+        console.log(
+          `Filtro de rangos horarios aplicado: ${time_ranges.join(', ')}`,
+        );
+      } else if (time_range) {
+        // Backward compatibility
         let hourStart: number, hourEnd: number;
-        switch (range) {
+        switch (time_range) {
           case 'morning':
             hourStart = 6;
             hourEnd = 12;
@@ -875,143 +915,91 @@ export class MedicionSensorService {
             hourStart = 0;
             hourEnd = 24;
         }
-        hourConditions.push(
-          `(EXTRACT(hour from ms.fechaMedicion) >= :hourStart${index} AND EXTRACT(hour from ms.fechaMedicion) < :hourEnd${index})`,
+        query = query.andWhere(
+          'EXTRACT(hour from ms.fechaMedicion) >= :hourStart AND EXTRACT(hour from ms.fechaMedicion) < :hourEnd',
+          {
+            hourStart,
+            hourEnd,
+          },
         );
-        hourParams[`hourStart${index}`] = hourStart;
-        hourParams[`hourEnd${index}`] = hourEnd;
-      });
-
-      query = query.andWhere(`(${hourConditions.join(' OR ')})`, hourParams);
-      console.log(
-        `Filtro de rangos horarios aplicado: ${time_ranges.join(', ')}`,
-      );
-    } else if (time_range) {
-      // Backward compatibility
-      let hourStart: number, hourEnd: number;
-      switch (time_range) {
-        case 'morning':
-          hourStart = 6;
-          hourEnd = 12;
-          break;
-        case 'afternoon':
-          hourStart = 12;
-          hourEnd = 18;
-          break;
-        case 'evening':
-          hourStart = 18;
-          hourEnd = 24;
-          break;
-        case 'night':
-          hourStart = 0;
-          hourEnd = 6;
-          break;
-        default:
-          hourStart = 0;
-          hourEnd = 24;
-      }
-      query = query.andWhere(
-        'EXTRACT(hour from ms.fechaMedicion) >= :hourStart AND EXTRACT(hour from ms.fechaMedicion) < :hourEnd',
-        {
-          hourStart,
-          hourEnd,
-        },
-      );
-      console.log(
-        `Filtro de rango horario aplicado (legacy): ${hourStart}:00 - ${hourEnd}:00`,
-      );
-    }
-
-    // Get measurements with threshold data
-    const measurements = await query
-      .select([
-        'ms.fechaMedicion as fechaMedicion',
-        'ms.key as sensorKey',
-        'ms.valor as value',
-        'zmc.umbrales as thresholds',
-        'tc.nombre as cropTypeName',
-        'v.nombre as varietyName',
-        'z.nombre as zoneName',
-      ])
-      .orderBy('ms.fechaMedicion', 'ASC')
-      .getRawMany();
-
-    // Process alerts
-    const alerts: SensorAlertDto[] = [];
-
-    for (const measurement of measurements) {
-      const sensorKey = measurement.sensorkey;
-      const value = parseFloat(measurement.value);
-      const thresholds = measurement.thresholds as Record<
-        string,
-        { minimo: number; maximo: number }
-      >;
-
-      if (!thresholds || !thresholds[sensorKey]) continue;
-
-      const { minimo, maximo } = thresholds[sensorKey];
-      let umbralSobrepasado: 'máximo' | 'mínimo' | null = null;
-      let descripcion = '';
-
-      // Check if value exceeds thresholds
-      if (value > maximo) {
-        umbralSobrepasado = 'máximo';
-      } else if (value < minimo) {
-        umbralSobrepasado = 'mínimo';
+        console.log(
+          `Filtro de rango horario aplicado (legacy): ${hourStart}:00 - ${hourEnd}:00`,
+        );
       }
 
-      if (umbralSobrepasado) {
-        // Generate custom description based on sensor
+      // Get all alert measurements (simplified approach - all tipo='alerta' are alerts)
+      console.log('Executing query for alert measurements...');
+      const measurements = await query
+        .select([
+          'ms.fechaMedicion as fechaMedicion',
+          'ms.key as sensorKey',
+          'ms.valor as value',
+          'ms.unidad as unit',
+          'tc.nombre as cropTypeName',
+          'v.nombre as varietyName',
+          'z.nombre as zoneName',
+        ])
+        .orderBy('ms.fechaMedicion', 'ASC')
+        .getRawMany();
+
+      console.log(
+        `Query executed successfully. Found ${measurements.length} alert measurements`,
+      );
+
+      // Process alerts - simplified: all measurements with tipo='alerta' are alerts
+      const alerts: SensorAlertDto[] = [];
+      console.log('Processing measurements for alerts...');
+
+      for (const measurement of measurements) {
+        const sensorKey = measurement.sensorkey;
+        const value = parseFloat(measurement.value);
+        const unit = measurement.unit || '';
+
+        // Generate description based on sensor type
+        let descripcion = '';
         switch (sensorKey) {
           case 'Gas':
-            descripcion =
-              'Alerta: Nivel de gas fuera del rango óptimo (máximo: 50, mínimo: 10).';
+            descripcion = `Alerta: Nivel de gas anormal detectado (${value} ${unit})`;
             break;
           case 'Luz':
-            descripcion =
-              'Alerta: Intensidad de luz fuera del rango óptimo (máximo: 1000, mínimo: 20).';
+            descripcion = `Alerta: Intensidad de luz fuera de rango (${value} ${unit})`;
             break;
           case 'Humedad':
-            descripcion =
-              'Alerta: Nivel de humedad fuera del rango óptimo (máximo: 5, mínimo: 1).';
+            descripcion = `Alerta: Nivel de humedad anormal (${value} ${unit})`;
             break;
           case 'Temperatura':
-            descripcion =
-              'Alerta: Temperatura fuera del rango óptimo (máximo: 15, mínimo: 5).';
+            descripcion = `Alerta: Temperatura fuera de rango óptimo (${value} ${unit})`;
             break;
           case 'HumedadSuelo':
-            if (umbralSobrepasado === 'máximo') {
-              descripcion =
-                'Alerta: Humedad del suelo alta, bomba de agua desactivada.';
-            } else {
-              descripcion =
-                'Alerta: Humedad del suelo baja, bomba de agua activada.';
-            }
+            descripcion = `Alerta: Humedad del suelo requiere atención (${value} ${unit})`;
             break;
           default:
-            descripcion = `Alerta: Valor ${sensorKey} fuera del rango óptimo.`;
+            descripcion = `Alerta: Sensor ${sensorKey} reportó valor crítico (${value} ${unit})`;
         }
 
         alerts.push({
           fechaMedicion: measurement.fechamedicion.toISOString(),
           sensor: sensorKey,
           valorMedido: value,
-          umbralSobrepasado,
+          umbralSobrepasado: 'máximo', // Default to maximo for display purposes
           descripcion,
           zonaNombre: measurement.zonename || 'Sin zona',
           cultivoNombre: measurement.croptypename || 'Sin cultivo',
           variedadNombre: measurement.varietyname || 'Sin variedad',
         });
       }
+
+      console.log(`Total de alertas encontradas: ${alerts.length}`);
+      console.log('Primeras 3 alertas:', alerts.slice(0, 3));
+      console.log('=== FIN SENSOR ALERTS REQUEST ===\n');
+
+      return {
+        alerts,
+        totalAlerts: alerts.length,
+      };
+    } catch (error) {
+      console.error('Error in getSensorAlerts:', error);
+      throw error;
     }
-
-    console.log(`Total de alertas encontradas: ${alerts.length}`);
-    console.log('Primeras 3 alertas:', alerts.slice(0, 3));
-    console.log('=== FIN SENSOR ALERTS REQUEST ===\n');
-
-    return {
-      alerts,
-      totalAlerts: alerts.length,
-    };
   }
 }

@@ -28,6 +28,7 @@ export class MqttService implements OnModuleInit {
   private logger = new Logger(MqttService.name);
   private readingBuffers = new Map<string, BufferedReading[]>(); // zonaMqttConfigId -> readings
   private lastSaveTimes = new Map<string, Date>(); // zonaMqttConfigId -> last save time
+  private firstReadingSaved = new Set<string>(); // zonaMqttConfigId -> has first reading been saved
   private readonly SAVE_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
 
   constructor(
@@ -210,6 +211,8 @@ export class MqttService implements OnModuleInit {
       if (connection.zonaMqttConfigId === zonaMqttConfigId) {
         connection.client.end();
         this.connections.delete(configId);
+        // Reset first reading flag when connection is removed
+        this.firstReadingSaved.delete(zonaMqttConfigId);
         this.logger.log(
           `Conexión removida para zonaMqttConfig ${zonaMqttConfigId}`,
         );
@@ -230,6 +233,8 @@ export class MqttService implements OnModuleInit {
       connection.client.end();
     }
     this.connections.clear();
+    // Reset first reading flags when refreshing connections
+    this.firstReadingSaved.clear();
 
     // Recrear conexiones con configs activas
     await this.initializeConnections();
@@ -447,27 +452,36 @@ export class MqttService implements OnModuleInit {
   }
 
   private async checkAndSaveBufferedReadings(zonaMqttConfigId: string) {
+    const buffer = this.readingBuffers.get(zonaMqttConfigId);
+    if (!buffer || buffer.length === 0) return;
+
     const lastSave = this.lastSaveTimes.get(zonaMqttConfigId);
     const now = new Date();
+    const isFirstReading = !this.firstReadingSaved.has(zonaMqttConfigId);
+    const shouldSaveHourly =
+      !lastSave || now.getTime() - lastSave.getTime() >= this.SAVE_INTERVAL;
 
-    if (!lastSave || now.getTime() - lastSave.getTime() >= this.SAVE_INTERVAL) {
-      const buffer = this.readingBuffers.get(zonaMqttConfigId);
-      if (buffer && buffer.length > 0) {
-        try {
-          const saved = await this.medicionSensorService.saveBatch(buffer);
-          this.logger.log(
-            `Guardadas ${saved.length} mediciones periódicas en BD para zonaMqttConfig ${zonaMqttConfigId}`,
-          );
+    // Save immediately if it's the first reading OR if an hour has passed
+    if (isFirstReading || shouldSaveHourly) {
+      try {
+        const saved = await this.medicionSensorService.saveBatch(buffer);
+        this.logger.log(
+          `Guardadas ${saved.length} mediciones ${isFirstReading ? 'iniciales' : 'periódicas'} en BD para zonaMqttConfig ${zonaMqttConfigId}`,
+        );
 
-          // Limpiar buffer y actualizar tiempo de último guardado
-          this.readingBuffers.set(zonaMqttConfigId, []);
-          this.lastSaveTimes.set(zonaMqttConfigId, now);
-        } catch (error) {
-          this.logger.error(
-            'Error guardando mediciones periódicas en BD:',
-            error,
-          );
+        // Mark first reading as saved and update last save time
+        if (isFirstReading) {
+          this.firstReadingSaved.add(zonaMqttConfigId);
         }
+        this.lastSaveTimes.set(zonaMqttConfigId, now);
+
+        // Limpiar buffer
+        this.readingBuffers.set(zonaMqttConfigId, []);
+      } catch (error) {
+        this.logger.error(
+          `Error guardando mediciones ${isFirstReading ? 'iniciales' : 'periódicas'} en BD:`,
+          error,
+        );
       }
     }
   }
