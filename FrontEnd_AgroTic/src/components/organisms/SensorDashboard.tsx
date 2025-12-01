@@ -97,10 +97,10 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
             const newValue = Number(medicion.valor);
 
             if (selectedSensors.length === 0 || selectedSensors.includes(sensorKey)) {
-              // Find active zona-mqtt-config for this zone
-              const activeZonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.estado === true);
-              const zonaMqttConfigId = activeZonaMqttConfig?.id;
-              const mqttConfigId = activeZonaMqttConfig?.mqttConfig?.id;
+              // Find the zona-mqtt-config that this measurement belongs to
+              const zonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.id === medicion.fkZonaMqttConfigId);
+              const zonaMqttConfigId = zonaMqttConfig?.id;
+              const mqttConfigId = zonaMqttConfig?.mqttConfig?.id;
 
               // Validate threshold if available
               let thresholdStatus: 'normal' | 'bajo' | 'alto' = 'normal';
@@ -195,26 +195,34 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
     try {
       const umbralesMap: Record<string, UmbralesConfig> = {};
 
-      // Get all unique zona-mqtt-config IDs from zonas
-      const zonaMqttConfigPromises = zonasData.map(async (zona) => {
+      // Collect all unique MQTT config IDs from active zona-mqtt-configs
+      const mqttConfigIds = new Set<string>();
+
+      zonasData.forEach(zona => {
         if (zona.zonaMqttConfigs && zona.zonaMqttConfigs.length > 0) {
-          for (const zonaMqttConfig of zona.zonaMqttConfigs) {
-            if (zonaMqttConfig.estado && zonaMqttConfig.mqttConfig) { // Only active configs with mqtt config
-              try {
-                const umbrales = await umbralesService.getUmbrales(zonaMqttConfig.mqttConfig.id);
-                // Store thresholds under mqttConfigId for consistent lookup
-                umbralesMap[zonaMqttConfig.mqttConfig.id] = umbrales;
-              } catch (error) {
-                console.warn(`Error loading umbrales for config ${zonaMqttConfig.id}:`, error);
-                // Continue with other configs even if one fails
-              }
+          zona.zonaMqttConfigs.forEach((zonaMqttConfig: any) => {
+            if (zonaMqttConfig.estado && zonaMqttConfig.mqttConfig) {
+              mqttConfigIds.add(zonaMqttConfig.mqttConfig.id);
             }
-          }
+          });
         }
       });
 
-      await Promise.all(zonaMqttConfigPromises);
+      // Load thresholds for all unique MQTT configs
+      const thresholdPromises = Array.from(mqttConfigIds).map(async (mqttConfigId) => {
+        try {
+          const umbrales = await umbralesService.getUmbrales(mqttConfigId);
+          umbralesMap[mqttConfigId] = umbrales;
+          console.log(`✅ Umbrales cargados para MQTT config ${mqttConfigId}:`, umbrales);
+        } catch (error) {
+          console.warn(`Error loading umbrales for MQTT config ${mqttConfigId}:`, error);
+          // Continue with other configs even if one fails
+        }
+      });
 
+      await Promise.all(thresholdPromises);
+
+      console.log('📊 Mapa completo de umbrales cargados:', umbralesMap);
       setUmbrales(umbralesMap);
 
     } catch (error) {
@@ -234,10 +242,10 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
 
       const cultivoNombres = zona.cultivosVariedad?.map((cv: any) => cv.cultivoXVariedad?.variedad?.tipoCultivo?.nombre).filter(Boolean) as string[];
       
-      // Find active zona-mqtt-config for this zone
-      const activeZonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.estado === true);
-      const zonaMqttConfigId = activeZonaMqttConfig?.id;
-      const mqttConfigId = activeZonaMqttConfig?.mqttConfig?.id;
+      // Find the zona-mqtt-config that this measurement belongs to
+      const zonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.id === medicion.fkZonaMqttConfigId);
+      const zonaMqttConfigId = zonaMqttConfig?.id;
+      const mqttConfigId = zonaMqttConfig?.mqttConfig?.id;
 
       // Validate threshold if available
       let thresholdStatus: 'normal' | 'bajo' | 'alto' = 'normal';

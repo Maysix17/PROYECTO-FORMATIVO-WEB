@@ -44,6 +44,7 @@ export interface MedicionSensor {
   fechaMedicion: string;
   fkMqttConfigId: string;
   fkZonaId: string;
+  fkZonaMqttConfigId?: string;
 }
 
 export interface EstadoMqtt {

@@ -308,11 +308,7 @@ export const generatePDFReport = async (
       yPosition += 5;
     }
 
-    pdf.text(
-      `Sensores: ${selectedData.sensores.length} | Zonas: ${selectedData.zonas.length} | Cultivos: ${selectedData.cultivos.length}`,
-      25,
-      yPosition
-    );
+    pdf.text(`Sensores: ${selectedData.sensores.length}`, 25, yPosition);
     yPosition += 10;
 
     // ===== SECCIÓN: MÉTRICAS RESUMEN =====
