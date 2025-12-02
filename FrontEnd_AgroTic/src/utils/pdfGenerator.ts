@@ -431,12 +431,18 @@ export const generatePDFReport = async (
             stat.avg === 999 ||
             stat.avg === -999 ||
             isNaN(stat.avg) ||
+            stat.avg === null ||
+            stat.avg === undefined ||
             stat.min === 999 ||
             stat.min === -999 ||
             isNaN(stat.min) ||
+            stat.min === null ||
+            stat.min === undefined ||
             stat.max === 999 ||
             stat.max === -999 ||
-            isNaN(stat.max)
+            isNaN(stat.max) ||
+            stat.max === null ||
+            stat.max === undefined
           ) {
             return;
           }
