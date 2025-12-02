@@ -641,6 +641,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
                 onValueChange={setShowRawData}
                 size="sm"
                 color="primary"
+                className="[&>span>svg]:text-black"
               >
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-blue-800">📊 Mostrar datos crudos individuales</span>
