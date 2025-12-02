@@ -978,7 +978,29 @@ export class MedicionSensorService {
         const unit = measurement.unit || '';
 
         let descripcion = '';
-        const umbralSobrepasado: 'máximo' | 'mínimo' = 'máximo';
+        let umbralSobrepasado: 'máximo' | 'mínimo' = 'máximo';
+
+        // Parse thresholds and determine which threshold was breached
+        try {
+          const thresholds = measurement.thresholds || {};
+          const sensorThresholds = thresholds[sensorKey];
+
+          if (sensorThresholds && typeof sensorThresholds === 'object') {
+            const { minimo, maximo } = sensorThresholds;
+            if (value > maximo) {
+              umbralSobrepasado = 'máximo';
+            } else if (value < minimo) {
+              umbralSobrepasado = 'mínimo';
+            }
+            // If value is between min and max, default to 'máximo' (shouldn't happen for alerts)
+          }
+        } catch (error) {
+          console.warn(
+            `Error parsing thresholds for sensor ${sensorKey}:`,
+            error,
+          );
+          // Keep default 'máximo'
+        }
 
         // Special logic for HumedadSuelo sensor
         if (sensorKey === 'HumedadSuelo') {
