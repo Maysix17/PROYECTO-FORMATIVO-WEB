@@ -76,6 +76,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
   const [exportProgress, setExportProgress] = useState(0);
   const [cardFilters, setCardFilters] = useState<Map<string, CardFilters>>(new Map());
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [showRawData, setShowRawData] = useState(false);
 
   // Progress manager to ensure progress only increases
   const progressRef = useRef(0);
@@ -229,7 +230,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
 
       console.log('🎯 FRONTEND: Selected details for PDF:', selectedDetails);
       console.log('🎯 FRONTEND: About to call generateSensorSearchPDF with individual filters applied');
-      await generateSensorSearchPDF(selectedDetails, updateProgress);
+      await generateSensorSearchPDF(selectedDetails, showRawData, updateProgress);
     } catch (error) {
       console.error('Error exporting PDF:', error);
       await Swal.fire({
@@ -416,7 +417,7 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
           <MagnifyingGlassIcon className="w-6 h-6" />
-          Reporte de Trazabilidad 
+          Reporte de Trazabilidad
         </ModalHeader>
         <ModalBody>
           {/* Search Input */}
@@ -628,10 +629,25 @@ const SensorSearchModal: React.FC<SensorSearchModalProps> = ({ isOpen, onClose }
           )}
         </ModalBody>
         <ModalFooter className="flex justify-between">
-          <div className="text-sm text-gray-600">
-            {selectedSensors.size > 0 && (
-              <span>{selectedSensors.size} sensor(es) seleccionado(s)</span>
-            )}
+          <div className="flex flex-col gap-2">
+            <div className="text-sm text-gray-600">
+              {selectedSensors.size > 0 && (
+                <span>{selectedSensors.size} sensor(es) seleccionado(s)</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+              <Checkbox
+                isSelected={showRawData}
+                onValueChange={setShowRawData}
+                size="sm"
+                color="primary"
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-blue-800">📊 Mostrar datos crudos individuales</span>
+                  <span className="text-xs text-blue-600">Cada punto representa una medición real del sensor</span>
+                </div>
+              </Checkbox>
+            </div>
           </div>
           <div className="flex gap-2 items-center">
             {(isExportingPDF || isExportingCSV) && (

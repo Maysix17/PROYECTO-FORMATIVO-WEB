@@ -18,6 +18,7 @@ interface SelectedData {
   endDate: string;
   groupBy: "hourly" | "daily" | "weekly" | "time_slot";
   timeRanges?: string[];
+  showRawData?: boolean; // Nueva opción para mostrar datos crudos
 }
 
 interface ReportDataResponse {
@@ -311,6 +312,71 @@ export const generatePDFReport = async (
     pdf.text(`Sensores: ${selectedData.sensores.length}`, 25, yPosition);
     yPosition += 10;
 
+    // ===== SECCIÓN: TIPO DE VISUALIZACIÓN =====
+    pdf.setFillColor(240, 253, 244); // Light green background
+    pdf.rect(20, yPosition - 2, 165, 35, "F");
+    pdf.setDrawColor(34, 197, 94);
+    pdf.roundedRect(20, yPosition - 2, 165, 35, 2, 2);
+
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(34, 197, 94);
+    pdf.text("Tipo de Visualización", 25, yPosition + 6);
+    yPosition += 12;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.setTextColor(0, 0, 0);
+
+    if (selectedData.showRawData) {
+      pdf.setTextColor(34, 197, 94); // Green for raw data
+      pdf.text("📊 VISUALIZACIÓN: Datos Crudos Individuales", 25, yPosition);
+      yPosition += 5;
+      pdf.setFontSize(8);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(
+        "• Cada punto en las gráficas representa una medición real del sensor",
+        25,
+        yPosition
+      );
+      yPosition += 4;
+      pdf.text(
+        "• Permite ver la variabilidad exacta y detectar anomalías individuales",
+        25,
+        yPosition
+      );
+      yPosition += 4;
+      pdf.text(
+        "• Ideal para análisis detallado de comportamiento del sensor",
+        25,
+        yPosition
+      );
+    } else {
+      pdf.setTextColor(59, 130, 246); // Blue for aggregated data
+      pdf.text("📈 VISUALIZACIÓN: Promedios Agregados", 25, yPosition);
+      yPosition += 5;
+      pdf.setFontSize(8);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(
+        "• Los valores se agrupan y promedian por períodos de tiempo",
+        25,
+        yPosition
+      );
+      yPosition += 4;
+      pdf.text(
+        "• Reduce el ruido visual y facilita ver tendencias generales",
+        25,
+        yPosition
+      );
+      yPosition += 4;
+      pdf.text(
+        "• Optimizado para análisis de patrones a largo plazo",
+        25,
+        yPosition
+      );
+    }
+    yPosition += 8;
+
     // ===== SECCIÓN: MÉTRICAS RESUMEN =====
     pdf.setFillColor(241, 245, 249);
     pdf.rect(20, yPosition - 2, 165, 35, "F");
@@ -450,14 +516,74 @@ export const generatePDFReport = async (
       pdf.text("Análisis de Tendencias por Sensor", 20, yPosition);
       yPosition += 10;
 
-      if (selectedData.groupBy === "time_slot") {
-        // Gráficas multi-línea para franjas horarias
-        for (const sensorKey of selectedData.sensores) {
-          const sensorReportData = reportData.filter((item) =>
-            item.statistics.some((stat) => stat.med_key === sensorKey)
-          );
+      // Agregar información sobre el tipo de datos mostrados
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(
+        selectedData.showRawData
+          ? "Mostrando datos crudos individuales (cada punto representa una medición real)"
+          : "Mostrando promedios agregados por período de tiempo",
+        20,
+        yPosition
+      );
+      yPosition += 10;
+      pdf.setTextColor(0, 0, 0);
 
-          if (sensorReportData.length === 0) continue;
+      // Determinar si usar datos crudos o agregados
+      if (selectedData.showRawData) {
+        // ===== GRÁFICAS CON DATOS CRUDOS =====
+        onProgress?.(65);
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
+
+        // Obtener datos crudos del nuevo endpoint
+        const rawDataRequest = {
+          med_keys: selectedData.sensores,
+          cultivo_ids:
+            selectedData.cultivos.length > 0
+              ? selectedData.cultivos
+              : undefined,
+          zona_ids:
+            selectedData.zonas.length > 0 ? selectedData.zonas : undefined,
+          start_date: selectedData.startDate,
+          end_date: selectedData.endDate,
+          time_ranges: selectedData.timeRanges,
+        };
+
+        const rawDataResponse = await apiClient.post(
+          "/medicion-sensor/raw-chart-data",
+          rawDataRequest
+        );
+        const rawData = rawDataResponse.data.dataPoints || [];
+
+        onProgress?.(70);
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
+
+        // Procesar datos crudos por sensor
+        const sensorRawData: {
+          [sensorKey: string]: Array<{
+            timestamp: string;
+            value: number;
+            unidad: string;
+          }>;
+        } = {};
+
+        rawData.forEach((point: any) => {
+          if (!sensorRawData[point.sensorKey]) {
+            sensorRawData[point.sensorKey] = [];
+          }
+          sensorRawData[point.sensorKey].push({
+            timestamp: point.timestamp,
+            value: point.value,
+            unidad: point.unidad,
+          });
+        });
+
+        // Generar gráficas para cada sensor con datos crudos
+        for (const sensorKey of Object.keys(sensorRawData)) {
+          const sensorData = sensorRawData[sensorKey];
+
+          if (sensorData.length === 0) continue;
 
           // Nueva página si es necesario
           if (yPosition > 100) {
@@ -468,140 +594,84 @@ export const generatePDFReport = async (
           // Header del sensor
           pdf.setFontSize(14);
           pdf.setFont("helvetica", "bold");
-          pdf.text(`Sensor: ${sensorKey}`, 20, yPosition);
+          pdf.text(`Sensor: ${sensorKey} (Datos Crudos)`, 20, yPosition);
           yPosition += 8;
 
-          // Procesar datos para gráfica
-          const dateSlotData: { [date: string]: { [slot: number]: number } } =
-            {};
+          // Limitar puntos para rendimiento (máximo 1000 puntos por gráfica)
+          const maxPoints = 1000;
+          const displayData =
+            sensorData.length > maxPoints
+              ? sensorData
+                  .sort(
+                    (a, b) =>
+                      new Date(a.timestamp).getTime() -
+                      new Date(b.timestamp).getTime()
+                  )
+                  .filter(
+                    (_, index) =>
+                      index % Math.ceil(sensorData.length / maxPoints) === 0
+                  )
+              : sensorData.sort(
+                  (a, b) =>
+                    new Date(a.timestamp).getTime() -
+                    new Date(b.timestamp).getTime()
+                );
 
-          sensorReportData.forEach((item) => {
-            const date = item.period.split("-").slice(0, 3).join("-");
-            const slot = item.timeSlot || 0;
-            const stat = item.statistics.find((s) => s.med_key === sensorKey);
-            if (
-              stat &&
-              stat.avg !== 999 &&
-              stat.avg !== -999 &&
-              !isNaN(stat.avg)
-            ) {
-              if (!dateSlotData[date]) {
-                dateSlotData[date] = {};
-              }
-              dateSlotData[date][slot] = stat.avg;
-            }
-          });
+          // Preparar datos para gráfica
+          const chartData = displayData.map((point, index) => ({
+            time: new Date(point.timestamp).getTime(),
+            value: point.value,
+            index: index,
+          }));
 
-          // Log del rango de fechas procesado para las gráficas
-          const dates = Object.keys(dateSlotData).sort();
-          if (dates.length > 0) {
-            console.log(
-              `📊 PDF GRÁFICAS: Rango de fechas para sensor ${sensorKey}: ${
-                dates[0]
-              } a ${dates[dates.length - 1]}`
-            );
-            console.log(`📊 PDF GRÁFICAS: Fechas procesadas:`, dates);
-            console.log(
-              `📊 PDF GRÁFICAS: Datos por slot para ${sensorKey}:`,
-              dateSlotData
-            );
-          } else {
-            console.log(
-              `📊 PDF GRÁFICAS: No hay datos para sensor ${sensorKey}`
-            );
-          }
+          const unidad = displayData[0]?.unidad || "";
+          const subtitle = `Total de puntos: ${sensorData.length} | Mostrando: ${displayData.length}`;
 
-          onProgress?.(65);
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
-
-          // Preparar datos para gráfica (interpretar fechas como Bogotá time)
-          const chartData = Object.entries(dateSlotData)
-            .sort(([a], [b]) => {
-              // Interpret dates as Bogotá time for correct sorting
-              const dateA = new Date(
-                a.split("-").slice(0, 3).join("-") + "T12:00:00-05:00"
-              );
-              const dateB = new Date(
-                b.split("-").slice(0, 3).join("-") + "T12:00:00-05:00"
-              );
-              return dateA.getTime() - dateB.getTime();
-            })
-            .map(([date, slots]) => ({
-              time: new Date(date + "T12:00:00-05:00").getTime(), // Convert to timestamp for proper X-axis
-              date: date, // Keep original date for reference
-              "6am-12pm": slots[0] || null,
-              "12pm-6pm": slots[1] || null,
-              "6pm-12am": slots[2] || null,
-              "12am-6am": slots[3] || null,
-            }));
-
-          // Obtener información del sensor
-          const firstItem = sensorReportData[0];
-          const unidad =
-            firstItem.statistics.find((s) => s.med_key === sensorKey)?.unidad ||
-            "";
-          const subtitle = `${firstItem.zonaNombre} | ${firstItem.cultivoNombre}`;
-
-          onProgress?.(70);
+          onProgress?.(75);
           await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
 
           try {
-            // Generar gráfica multi-línea
+            // Generar gráfica de línea con puntos individuales
             const canvas = await renderLineChartToCanvas({
               width: 500,
               height: 400,
               data: chartData,
-              title: `Tendencias por Franja Horaria`,
+              title: `Datos Crudos del Sensor`,
               subtitle: subtitle,
               color: "#2563eb",
               type: "line",
-              multiLine: true,
-              yAxisLabel: `Valor Promedio (${unidad})`,
-              xAxisLabel: "Fecha",
+              multiLine: false,
+              yAxisLabel: `Valor (${unidad})`,
+              xAxisLabel: "Fecha y Hora",
               sensorKey: sensorKey,
               unidad: unidad,
             });
 
-            onProgress?.(75);
+            onProgress?.(80);
             await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
 
             const imgData = canvas.toDataURL("image/png");
             pdf.addImage(imgData, "PNG", 20, yPosition, 170, 114); // 500x400 escalado
             yPosition += 130;
 
-            onProgress?.(79);
-            await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
-
-            // Leyenda de colores
+            // Información adicional sobre datos crudos
             pdf.setFontSize(8);
-            pdf.setFont("helvetica", "bold");
-            pdf.text("Leyenda:", 20, yPosition);
-            yPosition += 6;
-
             pdf.setFont("helvetica", "normal");
-            const legendItems = [
-              { color: "#8884d8", label: "6am-12pm" },
-              { color: "#82ca9d", label: "12pm-6pm" },
-              { color: "#ffc658", label: "6pm-12am" },
-              { color: "#ff7300", label: "12am-6am" },
-            ];
-
-            legendItems.forEach((item, index) => {
-              const x = 20 + (index % 2) * 80;
-              const y = yPosition + Math.floor(index / 2) * 6;
-
-              // Dibujar rectángulo de color
-              pdf.setFillColor(item.color);
-              pdf.rect(x, y - 3, 6, 4, "F");
-
-              // Texto
-              pdf.text(item.label, x + 8, y);
-            });
-
-            yPosition += 15;
+            pdf.setTextColor(100, 116, 139);
+            pdf.text(
+              `Cada punto representa una medición individual del sensor. ${
+                sensorData.length > maxPoints
+                  ? `Se muestran ${displayData.length} puntos de ${sensorData.length} totales.`
+                  : ""
+              }`,
+              20,
+              yPosition
+            );
+            yPosition += 10;
+            pdf.setTextColor(0, 0, 0);
           } catch (chartError) {
             console.error(
-              `Error generando gráfica para ${sensorKey}:`,
+              `Error generando gráfica cruda para ${sensorKey}:`,
               chartError
             );
             pdf.setFontSize(10);
@@ -613,6 +683,174 @@ export const generatePDFReport = async (
             );
             pdf.setTextColor(0, 0, 0);
             yPosition += 15;
+          }
+        }
+      } else {
+        // ===== GRÁFICAS CON DATOS AGREGADOS (código original) =====
+        if (selectedData.groupBy === "time_slot") {
+          // Gráficas multi-línea para franjas horarias
+          for (const sensorKey of selectedData.sensores) {
+            const sensorReportData = reportData.filter((item) =>
+              item.statistics.some((stat) => stat.med_key === sensorKey)
+            );
+
+            if (sensorReportData.length === 0) continue;
+
+            // Nueva página si es necesario
+            if (yPosition > 100) {
+              pdf.addPage();
+              yPosition = 20;
+            }
+
+            // Header del sensor
+            pdf.setFontSize(14);
+            pdf.setFont("helvetica", "bold");
+            pdf.text(`Sensor: ${sensorKey}`, 20, yPosition);
+            yPosition += 8;
+
+            // Procesar datos para gráfica
+            const dateSlotData: { [date: string]: { [slot: number]: number } } =
+              {};
+
+            sensorReportData.forEach((item) => {
+              const date = item.period.split("-").slice(0, 3).join("-");
+              const slot = item.timeSlot || 0;
+              const stat = item.statistics.find((s) => s.med_key === sensorKey);
+              if (
+                stat &&
+                stat.avg !== 999 &&
+                stat.avg !== -999 &&
+                !isNaN(stat.avg)
+              ) {
+                if (!dateSlotData[date]) {
+                  dateSlotData[date] = {};
+                }
+                dateSlotData[date][slot] = stat.avg;
+              }
+            });
+
+            // Log del rango de fechas procesado para las gráficas
+            const dates = Object.keys(dateSlotData).sort();
+            if (dates.length > 0) {
+              console.log(
+                `📊 PDF GRÁFICAS: Rango de fechas para sensor ${sensorKey}: ${
+                  dates[0]
+                } a ${dates[dates.length - 1]}`
+              );
+              console.log(`📊 PDF GRÁFICAS: Fechas procesadas:`, dates);
+              console.log(
+                `📊 PDF GRÁFICAS: Datos por slot para ${sensorKey}:`,
+                dateSlotData
+              );
+            } else {
+              console.log(
+                `📊 PDF GRÁFICAS: No hay datos para sensor ${sensorKey}`
+              );
+            }
+
+            onProgress?.(65);
+            await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
+
+            // Preparar datos para gráfica (interpretar fechas como Bogotá time)
+            const chartData = Object.entries(dateSlotData)
+              .sort(([a], [b]) => {
+                // Interpret dates as Bogotá time for correct sorting
+                const dateA = new Date(
+                  a.split("-").slice(0, 3).join("-") + "T12:00:00-05:00"
+                );
+                const dateB = new Date(
+                  b.split("-").slice(0, 3).join("-") + "T12:00:00-05:00"
+                );
+                return dateA.getTime() - dateB.getTime();
+              })
+              .map(([date, slots]) => ({
+                time: new Date(date + "T12:00:00-05:00").getTime(), // Convert to timestamp for proper X-axis
+                date: date, // Keep original date for reference
+                "6am-12pm": slots[0] || null,
+                "12pm-6pm": slots[1] || null,
+                "6pm-12am": slots[2] || null,
+                "12am-6am": slots[3] || null,
+              }));
+
+            // Obtener información del sensor
+            const firstItem = sensorReportData[0];
+            const unidad =
+              firstItem.statistics.find((s) => s.med_key === sensorKey)
+                ?.unidad || "";
+            const subtitle = `${firstItem.zonaNombre} | ${firstItem.cultivoNombre}`;
+
+            onProgress?.(70);
+            await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
+
+            try {
+              // Generar gráfica multi-línea
+              const canvas = await renderLineChartToCanvas({
+                width: 500,
+                height: 400,
+                data: chartData,
+                title: `Tendencias por Franja Horaria`,
+                subtitle: subtitle,
+                color: "#2563eb",
+                type: "line",
+                multiLine: true,
+                yAxisLabel: `Valor Promedio (${unidad})`,
+                xAxisLabel: "Fecha",
+                sensorKey: sensorKey,
+                unidad: unidad,
+              });
+
+              onProgress?.(75);
+              await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
+
+              const imgData = canvas.toDataURL("image/png");
+              pdf.addImage(imgData, "PNG", 20, yPosition, 170, 114); // 500x400 escalado
+              yPosition += 130;
+
+              onProgress?.(79);
+              await new Promise((resolve) => setTimeout(resolve, 100)); // Allow UI update
+
+              // Leyenda de colores
+              pdf.setFontSize(8);
+              pdf.setFont("helvetica", "bold");
+              pdf.text("Leyenda:", 20, yPosition);
+              yPosition += 6;
+
+              pdf.setFont("helvetica", "normal");
+              const legendItems = [
+                { color: "#8884d8", label: "6am-12pm" },
+                { color: "#82ca9d", label: "12pm-6pm" },
+                { color: "#ffc658", label: "6pm-12am" },
+                { color: "#ff7300", label: "12am-6am" },
+              ];
+
+              legendItems.forEach((item, index) => {
+                const x = 20 + (index % 2) * 80;
+                const y = yPosition + Math.floor(index / 2) * 6;
+
+                // Dibujar rectángulo de color
+                pdf.setFillColor(item.color);
+                pdf.rect(x, y - 3, 6, 4, "F");
+
+                // Texto
+                pdf.text(item.label, x + 8, y);
+              });
+
+              yPosition += 15;
+            } catch (chartError) {
+              console.error(
+                `Error generando gráfica para ${sensorKey}:`,
+                chartError
+              );
+              pdf.setFontSize(10);
+              pdf.setTextColor(255, 0, 0);
+              pdf.text(
+                `Error generando gráfica para sensor: ${sensorKey}`,
+                20,
+                yPosition
+              );
+              pdf.setTextColor(0, 0, 0);
+              yPosition += 15;
+            }
           }
         }
       }
@@ -1431,6 +1669,7 @@ const calculateCostoInventario = (activity: Actividad) => {
 
 export const generateSensorSearchPDF = async (
   selectedDetails: SelectedSensorDetail[],
+  showRawData: boolean = false,
   onProgress?: (progress: number) => void
 ): Promise<void> => {
   try {
@@ -1497,6 +1736,7 @@ export const generateSensorSearchPDF = async (
           endDate: firstDetail.endDate!,
           groupBy: "time_slot" as const,
           timeRanges: timeRangesToSend,
+          showRawData: showRawData,
         };
 
         onProgress?.(2);

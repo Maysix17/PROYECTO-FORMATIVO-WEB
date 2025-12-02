@@ -30,6 +30,10 @@ import {
   SensorAlertsResponseDto,
   SensorAlertDto,
 } from './dto/sensor-alerts-response.dto';
+import {
+  RawChartDataResponseDto,
+  RawSensorDataPointDto,
+} from './dto/raw-chart-data-response.dto';
 
 @Injectable()
 export class MedicionSensorService {
@@ -1031,5 +1035,204 @@ export class MedicionSensorService {
       console.error('Error in getSensorAlerts:', error);
       throw error;
     }
+  }
+
+  async getRawChartData(
+    request: ReportDataRequestDto,
+  ): Promise<RawChartDataResponseDto> {
+    const {
+      med_keys,
+      cultivo_ids,
+      zona_ids,
+      start_date,
+      end_date,
+      time_ranges,
+      time_range,
+    } = request;
+
+    console.log('=== RAW CHART DATA REQUEST ===');
+    console.log('Fecha y hora actual:', new Date().toISOString());
+    console.log('Parámetros recibidos:', {
+      med_keys,
+      cultivo_ids,
+      zona_ids,
+      start_date,
+      end_date,
+      time_ranges,
+      time_range,
+    });
+
+    // Build the query with joins (similar to getReportData but without aggregation)
+    let query = this.medicionSensorRepository
+      .createQueryBuilder('ms')
+      .innerJoin('ms.zonaMqttConfig', 'zmc')
+      .innerJoin('zmc.zona', 'z')
+      .leftJoin('z.cultivosVariedad', 'cvz')
+      .leftJoin('cvz.cultivoXVariedad', 'cxv')
+      .leftJoin('cxv.variedad', 'v')
+      .leftJoin('v.tipoCultivo', 'tc');
+
+    // Only filter by med_keys if provided and not empty
+    if (med_keys && med_keys.length > 0) {
+      query = query.andWhere('ms.key IN (:...med_keys)', { med_keys });
+    }
+
+    // Add optional filters
+    if (cultivo_ids && cultivo_ids.length > 0) {
+      query = query.andWhere('cxv.id IN (:...cultivo_ids)', { cultivo_ids });
+    }
+
+    if (zona_ids && zona_ids.length > 0) {
+      query = query.andWhere('z.id IN (:...zona_ids)', { zona_ids });
+    }
+
+    // Add date filters (adjusted to Bogotá timezone)
+    if (start_date) {
+      query = query.andWhere('ms.fechaMedicion >= :start_date', {
+        start_date: this.adjustToBogotaTime(start_date, false),
+      });
+    }
+
+    if (end_date) {
+      query = query.andWhere('ms.fechaMedicion <= :end_date', {
+        end_date: this.adjustToBogotaTime(end_date, true),
+      });
+    }
+
+    // Add time range filter (adjusted to Bogotá timezone)
+    if (time_ranges && time_ranges.length > 0) {
+      const hourConditions: string[] = [];
+      const hourParams: any = {};
+
+      time_ranges.forEach((range, index) => {
+        let hourStart: number, hourEnd: number;
+        switch (range) {
+          case 'morning':
+            hourStart = 6;
+            hourEnd = 12;
+            break;
+          case 'afternoon':
+            hourStart = 12;
+            hourEnd = 18;
+            break;
+          case 'evening':
+            hourStart = 18;
+            hourEnd = 24;
+            break;
+          case 'night':
+            hourStart = 0;
+            hourEnd = 6;
+            break;
+          default:
+            hourStart = 0;
+            hourEnd = 24;
+        }
+        hourConditions.push(
+          `((EXTRACT(hour from ms.fechaMedicion) - 5 + 24) % 24 >= :hourStart${index} AND (EXTRACT(hour from ms.fechaMedicion) - 5 + 24) % 24 < :hourEnd${index})`,
+        );
+        hourParams[`hourStart${index}`] = hourStart;
+        hourParams[`hourEnd${index}`] = hourEnd;
+      });
+
+      query = query.andWhere(`(${hourConditions.join(' OR ')})`, hourParams);
+      console.log(
+        `Filtro de rangos horarios aplicado (Bogotá time): ${time_ranges.join(', ')}`,
+      );
+    } else if (time_range) {
+      // Backward compatibility
+      let hourStart: number, hourEnd: number;
+      switch (time_range) {
+        case 'morning':
+          hourStart = 6;
+          hourEnd = 12;
+          break;
+        case 'afternoon':
+          hourStart = 12;
+          hourEnd = 18;
+          break;
+        case 'evening':
+          hourStart = 18;
+          hourEnd = 24;
+          break;
+        case 'night':
+          hourStart = 0;
+          hourEnd = 6;
+          break;
+        default:
+          hourStart = 0;
+          hourEnd = 24;
+      }
+      query = query.andWhere(
+        '(EXTRACT(hour from ms.fechaMedicion) - 5 + 24) % 24 >= :hourStart AND (EXTRACT(hour from ms.fechaMedicion) - 5 + 24) % 24 < :hourEnd',
+        {
+          hourStart,
+          hourEnd,
+        },
+      );
+      console.log(
+        `Filtro de rango horario aplicado (legacy, Bogotá time): ${hourStart}:00 - ${hourEnd}:00`,
+      );
+    }
+
+    // Execute the query to get raw measurements
+    const measurements = await query
+      .select([
+        'ms.fechaMedicion as fechaMedicion',
+        'ms.key as sensorKey',
+        'ms.valor as value',
+        'ms.unidad as unit',
+        'tc.nombre as cropTypeName',
+        'v.nombre as varietyName',
+        'z.nombre as zoneName',
+        'cxv.id as cultivoId',
+      ])
+      .orderBy('ms.fechaMedicion', 'ASC')
+      .getRawMany();
+
+    // Convert timestamps to Bogotá timezone and format data
+    const dataPoints: RawSensorDataPointDto[] = measurements.map(
+      (measurement) => {
+        // Convert UTC timestamp to Bogotá time (UTC-5)
+        const utcDate = new Date(measurement.fechamedicion);
+        const bogotaDate = new Date(utcDate.getTime() - 5 * 60 * 60 * 1000); // Subtract 5 hours
+
+        return {
+          timestamp: bogotaDate.toISOString(),
+          sensorKey: measurement.sensorkey,
+          value: parseFloat(measurement.value),
+          unidad: measurement.unit || '',
+          zonaNombre: measurement.zonename || 'Sin zona',
+          cultivoNombre: measurement.croptypename || 'Sin cultivo',
+          variedadNombre: measurement.varietyname || 'Sin variedad',
+        };
+      },
+    );
+
+    // Get date range
+    const timestamps = dataPoints.map((p) => new Date(p.timestamp));
+    const start =
+      timestamps.length > 0
+        ? new Date(
+            Math.min(...timestamps.map((t) => t.getTime())),
+          ).toISOString()
+        : '';
+    const end =
+      timestamps.length > 0
+        ? new Date(
+            Math.max(...timestamps.map((t) => t.getTime())),
+          ).toISOString()
+        : '';
+
+    console.log(
+      `Total de puntos de datos crudos procesados: ${measurements.length}`,
+    );
+    console.log('Primeros 3 puntos:', dataPoints.slice(0, 3));
+    console.log('=== FIN RAW CHART DATA REQUEST ===\n');
+
+    return {
+      dataPoints,
+      totalPoints: dataPoints.length,
+      dateRange: { start, end },
+    };
   }
 }

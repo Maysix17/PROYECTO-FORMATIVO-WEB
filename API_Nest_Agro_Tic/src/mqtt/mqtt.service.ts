@@ -252,11 +252,24 @@ export class MqttService implements OnModuleInit {
         payload,
       );
 
+      // Ensure zonaMqttConfig has relations loaded
+      const zonaMqttConfigWithRelations =
+        await this.mqttConfigService.getZonaMqttConfigWithRelations(
+          zonaMqttConfig.id,
+        );
+
+      if (!zonaMqttConfigWithRelations) {
+        this.logger.error(
+          `No se encontró configuración MQTT para ID ${zonaMqttConfig.id}`,
+        );
+        return;
+      }
+
       await this.processSensorData(
-        zonaMqttConfig.id,
-        zonaMqttConfig.zona.id,
+        zonaMqttConfigWithRelations.id,
+        zonaMqttConfigWithRelations.zona?.id || zonaMqttConfig.zona.id,
         payload,
-        zonaMqttConfig,
+        zonaMqttConfigWithRelations,
       );
     } catch (error) {
       this.logger.error('Error procesando mensaje MQTT:', error);
@@ -311,12 +324,25 @@ export class MqttService implements OnModuleInit {
           this.addToBuffer(zonaMqttConfigId, medicion);
 
           // Verificar si el valor excede los umbrales
-          if (this.checkThresholdBreach(key, parsed.n, zonaMqttConfig)) {
+          const isAlert = this.checkThresholdBreach(
+            key,
+            parsed.n,
+            zonaMqttConfig,
+          );
+          this.logger.debug(
+            `🔍 Resultado checkThresholdBreach para ${key}: ${isAlert}`,
+          );
+
+          if (isAlert) {
             this.logger.warn(
               `🚨 ALERTA: Umbral excedido para sensor ${key} en zona ${zonaId}: valor ${parsed.n}`,
             );
             // Agregar a mediciones de alerta para guardado inmediato
             alertMediciones.push({
+              ...medicion,
+              tipo: 'alerta',
+            });
+            this.logger.debug(`📝 Agregada medición de alerta para ${key}:`, {
               ...medicion,
               tipo: 'alerta',
             });
@@ -490,16 +516,34 @@ export class MqttService implements OnModuleInit {
     zonaMqttConfigId: string,
     alertMediciones: BufferedReading[],
   ) {
+    this.logger.log(
+      `💾 Intentando guardar ${alertMediciones.length} mediciones de alerta para zonaMqttConfig ${zonaMqttConfigId}`,
+    );
+
     if (alertMediciones.length > 0) {
       try {
+        this.logger.debug('Alert mediciones a guardar:', alertMediciones);
         const saved =
           await this.medicionSensorService.saveBatch(alertMediciones);
         this.logger.log(
-          `Guardadas ${saved.length} mediciones de alerta en BD para zonaMqttConfig ${zonaMqttConfigId}`,
+          `✅ Guardadas ${saved.length} mediciones de alerta en BD para zonaMqttConfig ${zonaMqttConfigId}`,
         );
       } catch (error) {
-        this.logger.error('Error guardando mediciones de alerta en BD:', error);
+        this.logger.error(
+          '❌ Error guardando mediciones de alerta en BD:',
+          error,
+        );
+        // Log more details about the error
+        if (error instanceof Error) {
+          this.logger.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+          });
+        }
       }
+    } else {
+      this.logger.warn('⚠️ No hay mediciones de alerta para guardar');
     }
   }
 }

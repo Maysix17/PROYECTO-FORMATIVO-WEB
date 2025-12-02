@@ -384,4 +384,11 @@ export class MqttConfigService {
       message,
     };
   }
+
+  async getZonaMqttConfigWithRelations(zonaMqttConfigId: string) {
+    return await this.zonaMqttConfigRepository.findOne({
+      where: { id: zonaMqttConfigId },
+      relations: ['mqttConfig', 'zona'],
+    });
+  }
 }
