@@ -387,6 +387,9 @@ export class MqttService implements OnModuleInit {
 
   private parseValueWithUnit(raw: string) {
     const s = String(raw).trim();
+    if (s.includes('N/A')) {
+      return { n: -999, unit: 'N/A' };
+    }
     const m = s.match(/^(-?\d+(?:\.\d+)?)(?:\s*)(.*)$/);
     if (m) {
       return { n: parseFloat(m[1]), unit: (m[2] || '').trim() };
@@ -434,6 +437,9 @@ export class MqttService implements OnModuleInit {
     zonaMqttConfig: any,
   ): boolean {
     try {
+      // Skip threshold check for N/A values
+      if (value === -999) return false;
+
       this.logger.debug(
         `🔍 Verificando umbral para sensor ${sensorKey}, valor: ${value}`,
       );

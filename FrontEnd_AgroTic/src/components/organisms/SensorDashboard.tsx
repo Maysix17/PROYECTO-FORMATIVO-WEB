@@ -593,7 +593,8 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
           <div className="space-y-3">
             <div className={`text-center rounded-lg p-3 border ${styles.cardBg} ${styles.borderColor}`}>
               <div className={`text-3xl font-bold mb-1 ${styles.valueColor}`}>
-                {Number(data.lastValue).toFixed(2)} <span className={`text-lg ${styles.unitColor}`}>{data.unit}</span>
+                {data.lastValue === -999 ? 'N/A' : Number(data.lastValue).toFixed(2)}
+                {data.lastValue !== -999 && <span className={`text-lg ${styles.unitColor}`}>{data.unit}</span>}
               </div>
               <div className="text-xs text-gray-600 font-medium">
                 Última actualización: {new Date(data.lastUpdate).toLocaleString()}
