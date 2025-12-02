@@ -482,7 +482,7 @@ export const generatePDFReport = async (
         yPosition += 15;
 
         // Preparar datos para la tabla
-        const slotNames = ["6am-12pm", "12pm-6pm", "6pm-12am", "12am-6am"];
+        const slotNames = ["12am-6am", "6am-12pm", "12pm-6pm", "6pm-12am"];
         const tableData = [["Franja Horaria", "Mínimo", "Máximo", "Promedio"]];
 
         [0, 1, 2, 3].forEach((slot) => {
@@ -773,10 +773,10 @@ export const generatePDFReport = async (
               .map(([date, slots]) => ({
                 time: new Date(date + "T12:00:00-05:00").getTime(), // Convert to timestamp for proper X-axis
                 date: date, // Keep original date for reference
-                "6am-12pm": slots[0] || null,
-                "12pm-6pm": slots[1] || null,
-                "6pm-12am": slots[2] || null,
-                "12am-6am": slots[3] || null,
+                "12am-6am": slots[0] || null,
+                "6am-12pm": slots[1] || null,
+                "12pm-6pm": slots[2] || null,
+                "6pm-12am": slots[3] || null,
               }));
 
             // Obtener información del sensor
@@ -824,10 +824,10 @@ export const generatePDFReport = async (
 
               pdf.setFont("helvetica", "normal");
               const legendItems = [
+                { color: "#ff7300", label: "12am-6am" },
                 { color: "#8884d8", label: "6am-12pm" },
                 { color: "#82ca9d", label: "12pm-6pm" },
                 { color: "#ffc658", label: "6pm-12am" },
-                { color: "#ff7300", label: "12am-6am" },
               ];
 
               legendItems.forEach((item, index) => {

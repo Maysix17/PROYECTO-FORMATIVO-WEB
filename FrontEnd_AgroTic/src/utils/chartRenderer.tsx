@@ -25,10 +25,10 @@ export interface ChartConfig {
 
 // Color palette for time slots - vibrant and distinct colors
 const timeSlotColors = [
+  '#ff7300', // Orange - 12am-6am
   '#8884d8', // Purple - 6am-12pm
   '#82ca9d', // Green - 12pm-6pm
   '#ffc658', // Yellow - 6pm-12am
-  '#ff7300', // Orange - 12am-6am
 ];
 
 // Soft color palette for clean, professional charts
@@ -163,10 +163,10 @@ export const renderLineChartToCanvas = async (config: ChartConfig): Promise<HTML
   const getLineColor = (key: string, index: number) => {
     if (multiLine) {
       // Use time slot colors for specific keys
-      if (key === '6am-12pm') return timeSlotColors[0];
-      if (key === '12pm-6pm') return timeSlotColors[1];
-      if (key === '6pm-12am') return timeSlotColors[2];
-      if (key === '12am-6am') return timeSlotColors[3];
+      if (key === '12am-6am') return timeSlotColors[0];
+      if (key === '6am-12pm') return timeSlotColors[1];
+      if (key === '12pm-6pm') return timeSlotColors[2];
+      if (key === '6pm-12am') return timeSlotColors[3];
     }
     return colorPalette[index % colorPalette.length];
   };
