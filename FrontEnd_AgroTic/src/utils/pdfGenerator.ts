@@ -224,9 +224,9 @@ export const generatePDFReport = async (
 
     // ===== SECCIÓN: ALCANCE DEL ANÁLISIS =====
     pdf.setFillColor(241, 245, 249);
-    pdf.rect(20, yPosition - 2, 165, 45, "F");
+    pdf.rect(20, yPosition - 2, 165, 55, "F");
     pdf.setDrawColor(176, 190, 197);
-    pdf.roundedRect(20, yPosition - 2, 165, 45, 2, 2);
+    pdf.roundedRect(20, yPosition - 2, 165, 55, 2, 2);
 
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "bold");
@@ -268,7 +268,13 @@ export const generatePDFReport = async (
       25,
       yPosition
     );
-    yPosition += 15;
+    yPosition += 5;
+    pdf.text(
+      `Alertas de Sensores: Incluye alertas si se detectan valores fuera de rango`,
+      25,
+      yPosition
+    );
+    yPosition += 10;
 
     // ===== SECCIÓN: ELEMENTOS ANALIZADOS =====
     pdf.setFillColor(241, 245, 249);
@@ -313,14 +319,13 @@ export const generatePDFReport = async (
     yPosition += 10;
 
     // ===== SECCIÓN: TIPO DE VISUALIZACIÓN =====
-    pdf.setFillColor(240, 253, 244); // Light green background
+    pdf.setFillColor(241, 245, 249);
     pdf.rect(20, yPosition - 2, 165, 35, "F");
-    pdf.setDrawColor(34, 197, 94);
+    pdf.setDrawColor(176, 190, 197);
     pdf.roundedRect(20, yPosition - 2, 165, 35, 2, 2);
 
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(34, 197, 94);
     pdf.text("Tipo de Visualización", 25, yPosition + 6);
     yPosition += 12;
 
@@ -329,11 +334,9 @@ export const generatePDFReport = async (
     pdf.setTextColor(0, 0, 0);
 
     if (selectedData.showRawData) {
-      pdf.setTextColor(34, 197, 94); // Green for raw data
-      pdf.text("📊 VISUALIZACIÓN: Datos Crudos Individuales", 25, yPosition);
+      pdf.text("VISUALIZACIÓN: Datos Crudos Individuales", 25, yPosition);
       yPosition += 5;
       pdf.setFontSize(8);
-      pdf.setTextColor(0, 0, 0);
       pdf.text(
         "• Cada punto en las gráficas representa una medición real del sensor",
         25,
@@ -352,11 +355,9 @@ export const generatePDFReport = async (
         yPosition
       );
     } else {
-      pdf.setTextColor(59, 130, 246); // Blue for aggregated data
-      pdf.text("📈 VISUALIZACIÓN: Promedios Agregados", 25, yPosition);
+      pdf.text("VISUALIZACIÓN: Promedios Agregados", 25, yPosition);
       yPosition += 5;
       pdf.setFontSize(8);
-      pdf.setTextColor(0, 0, 0);
       pdf.text(
         "• Los valores se agrupan y promedian por períodos de tiempo",
         25,
