@@ -90,8 +90,6 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
           const zona = zonas.find(z => z.id === lectura.zonaId);
           if (!zona) return;
 
-          const cultivoNombres = zona.cultivosVariedad?.map((cv: any) => cv.cultivoXVariedad?.variedad?.tipoCultivo?.nombre).filter(Boolean) as string[];
-
           lectura.mediciones.forEach(medicion => {
             const sensorKey = medicion.key;
             const newValue = Number(medicion.valor);
@@ -99,6 +97,12 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
             if (selectedSensors.length === 0 || selectedSensors.includes(sensorKey)) {
               // Find the zona-mqtt-config that this measurement belongs to
               const zonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.id === medicion.fkZonaMqttConfigId);
+
+              // Skip if zonaMqttConfig is not active
+              if (!zonaMqttConfig || !zonaMqttConfig.estado) return;
+
+              const cultivoNombres = zona.cultivosVariedad?.map((cv: any) => cv.cultivoXVariedad?.variedad?.tipoCultivo?.nombre).filter(Boolean) as string[];
+
               const zonaMqttConfigId = zonaMqttConfig?.id;
               const mqttConfigId = zonaMqttConfig?.mqttConfig?.id;
 
@@ -240,10 +244,14 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
       const zona = zonasData.find(z => z.id === medicion.fkZonaId);
       if (!zona) return;
 
-      const cultivoNombres = zona.cultivosVariedad?.map((cv: any) => cv.cultivoXVariedad?.variedad?.tipoCultivo?.nombre).filter(Boolean) as string[];
-      
       // Find the zona-mqtt-config that this measurement belongs to
       const zonaMqttConfig = zona.zonaMqttConfigs?.find((zm: any) => zm.id === medicion.fkZonaMqttConfigId);
+
+      // Skip if zonaMqttConfig is not active
+      if (!zonaMqttConfig || !zonaMqttConfig.estado) return;
+
+      const cultivoNombres = zona.cultivosVariedad?.map((cv: any) => cv.cultivoXVariedad?.variedad?.tipoCultivo?.nombre).filter(Boolean) as string[];
+
       const zonaMqttConfigId = zonaMqttConfig?.id;
       const mqttConfigId = zonaMqttConfig?.mqttConfig?.id;
 
