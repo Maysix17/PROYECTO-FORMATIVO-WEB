@@ -6,14 +6,16 @@ import SensorReadingsModal from '../components/molecules/SensorReadingsModal';
 import ZonaModal from '../components/organisms/ZonaModal';
 import MqttManagementModal from '../components/molecules/MqttManagementModal';
 import GenericFiltersPanel from '../components/organisms/GenericFiltersPanel';
+import { usePermission } from '../contexts/PermissionContext';
 
 const GestionZonasPage: React.FC = () => {
-   const [zonas, setZonas] = useState<Zona[]>([]);
-   const [filteredZonas, setFilteredZonas] = useState<Zona[]>([]);
-   const [selectedZona, setSelectedZona] = useState<Zona | null>(null);
-   const [filters, setFilters] = useState<Record<string, any>>({});
-   const [isLoading, setIsLoading] = useState(true);
-   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+    const { hasPermission } = usePermission();
+    const [zonas, setZonas] = useState<Zona[]>([]);
+    const [filteredZonas, setFilteredZonas] = useState<Zona[]>([]);
+    const [selectedZona, setSelectedZona] = useState<Zona | null>(null);
+    const [filters, setFilters] = useState<Record<string, any>>({});
+    const [isLoading, setIsLoading] = useState(true);
+    const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   // MQTT related state
   const [showMqttSelectionModal, setShowMqttSelectionModal] = useState(false);
@@ -140,7 +142,7 @@ const GestionZonasPage: React.FC = () => {
           onClear={handleClear}
           loading={isLoading}
           mainFilters={mainFilters}
-          onCreate={handleCreateZona}
+          onCreate={hasPermission('zonas', 'zonas', 'crear') ? handleCreateZona : undefined}
           onManageMqtt={() => setShowMqttManagementModal(true)}
         />
 
@@ -271,18 +273,20 @@ const GestionZonasPage: React.FC = () => {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
                               </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditZona(zona);
-                                }}
-                                className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
-                                title="Editar zona"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
+                              {hasPermission('zonas', 'zonas', 'actualizar') && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditZona(zona);
+                                  }}
+                                  className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded"
+                                  title="Editar zona"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
