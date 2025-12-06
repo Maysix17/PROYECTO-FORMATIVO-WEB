@@ -55,7 +55,10 @@ const PERMISOS_BASE = [
   // Módulo de zonas
   { moduloNombre: 'zonas', recurso: 'acceso_zonas', acciones: ACCION_VER },
   { moduloNombre: 'zonas', recurso: 'zonas', acciones: ACCIONES_CRUD },
-  { moduloNombre: 'zonas', recurso: 'mqtt_config', acciones: ACCIONES_CRUD },
+
+  // Módulo de IoT
+  { moduloNombre: 'IoT', recurso: 'acceso_iot', acciones: ACCION_VER },
+  { moduloNombre: 'IoT', recurso: 'iot', acciones: ACCIONES_CRUD },
 
   // Módulo de Cultivos
   {
@@ -414,10 +417,15 @@ export class SeederService {
 
       // Asignar permisos específicos al INSTRUCTOR
       const allPermisos = await this.permisoRepository.find({
-        relations: ['recurso'],
+        relations: ['recurso', 'recurso.modulo'],
       });
       const permisoCrearUsuarios = allPermisos.find(
         (p) => p.accion === 'crear' && p.recurso.nombre === 'usuarios',
+      );
+
+      // Asignar permisos de IoT al INSTRUCTOR
+      const permisosIoT = allPermisos.filter(
+        (p) => p.recurso.modulo?.nombre === 'IoT',
       );
 
       if (rolInstructor && permisoCrearUsuarios) {
@@ -440,6 +448,22 @@ export class SeederService {
               'Seeder',
             );
           }
+  
+          // Asignar permisos de IoT al INSTRUCTOR
+          for (const permisoIoT of permisosIoT) {
+            const tienePermisoIoT = rolInstructorConPermisos.permisos.some(
+              (p) => p.id === permisoIoT.id,
+            );
+            if (!tienePermisoIoT) {
+              rolInstructorConPermisos.permisos.push(permisoIoT);
+            }
+          }
+          await this.rolRepository.save(rolInstructorConPermisos);
+          this.logger.log(
+            `Permisos de IoT asignados a INSTRUCTOR.`,
+            'Seeder',
+          );
+  
           rolInstructor = rolInstructorConPermisos; // Reasignamos para el resto de la función
         }
       }
@@ -448,7 +472,7 @@ export class SeederService {
       const permisosAcceso = allPermisos.filter(
         (p) =>
           p.accion === 'ver' &&
-          ['acceso_inicio', 'acceso_zonas', 'acceso_cultivos', 'acceso_actividades'].includes(
+          ['acceso_inicio', 'acceso_zonas', 'acceso_cultivos', 'acceso_actividades', 'acceso_iot'].includes(
             p.recurso.nombre,
           ),
       );

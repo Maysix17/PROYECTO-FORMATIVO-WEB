@@ -3,6 +3,7 @@ import { Card, CardBody, CardHeader, Spinner, Badge, Button, Modal, ModalContent
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { medicionSensorService, zonasService, umbralesService, type UmbralesConfig } from '../../services/zonasService';
 import { useMqttSocket } from '../../hooks/useMqttSocket';
+import { usePermission } from '../../contexts/PermissionContext';
 import CustomButton from '../atoms/Boton';
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import MqttManagementModal from '../molecules/MqttManagementModal';
@@ -52,6 +53,9 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
 
   // Use MQTT socket hook for real-time updates
   const { lecturas, isConnected } = useMqttSocket();
+
+  // Use permission hook
+  const { hasPermission } = usePermission();
 
   const toggleSensor = (key: string) => {
     setSelectedSensors(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
@@ -720,38 +724,46 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
 
             {/* Toolbar compacto */}
             <div className="flex items-center gap-3">
-              <CustomButton
-                color="primary"
-                variant="solid"
-                onClick={() => setShowSensorSearchModal(true)}
-                label="Exportar Datos"
-                icon={<MagnifyingGlassIcon className="w-4 h-4" />}
-                className="rounded-lg px-3 py-1 h-8"
-              />
+              {hasPermission('IoT', 'iot', 'leer') && (
+                <CustomButton
+                  color="primary"
+                  variant="solid"
+                  onClick={() => setShowSensorSearchModal(true)}
+                  label="Exportar Datos"
+                  icon={<MagnifyingGlassIcon className="w-4 h-4" />}
+                  className="rounded-lg px-3 py-1 h-8"
+                />
+              )}
 
-              <CustomButton
-                variant="light"
-                size="sm"
-                label="Configurar Umbrales"
-                onClick={handleThresholdConfigClick}
-                className="rounded-lg px-3 py-1 h-8 text-orange-600 border-orange-200 hover:bg-orange-50"
-              />
+              {hasPermission('IoT', 'iot', 'crear') && (
+                <CustomButton
+                  variant="light"
+                  size="sm"
+                  label="Configurar Umbrales"
+                  onClick={handleThresholdConfigClick}
+                  className="rounded-lg px-3 py-1 h-8 text-orange-600 border-orange-200 hover:bg-orange-50"
+                />
+              )}
 
-              <CustomButton
-                variant="light"
-                size="sm"
-                label="Gestionar Broker"
-                onClick={() => setShowMqttManagementModal(true)}
-                className="rounded-lg px-3 py-1 h-8 text-gray-600"
-              />
+              {hasPermission('IoT', 'iot', 'crear') && (
+                <CustomButton
+                  variant="light"
+                  size="sm"
+                  label="Gestionar Broker"
+                  onClick={() => setShowMqttManagementModal(true)}
+                  className="rounded-lg px-3 py-1 h-8 text-gray-600"
+                />
+              )}
 
-              <CustomButton
-                variant="light"
-                size="sm"
-                label="Configurar Zonas"
-                onClick={() => setShowZoneSelectionModal(true)}
-                className="rounded-lg px-3 py-1 h-8 text-gray-600"
-              />
+              {hasPermission('IoT', 'iot', 'crear') && (
+                <CustomButton
+                  variant="light"
+                  size="sm"
+                  label="Configurar Zonas"
+                  onClick={() => setShowZoneSelectionModal(true)}
+                  className="rounded-lg px-3 py-1 h-8 text-gray-600"
+                />
+              )}
             </div>
           </div>
         </div>

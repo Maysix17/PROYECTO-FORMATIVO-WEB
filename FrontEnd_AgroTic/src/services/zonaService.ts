@@ -28,7 +28,7 @@ export const zonaService = {
     areaMetrosCuadrados?: number;
     fkMapaId?: string;
   }) {
-    const response = await apiClient.put(`/zonas/${id}`, zonaData);
+    const response = await apiClient.patch(`/zonas/${id}`, zonaData);
     return response.data;
   },
 };

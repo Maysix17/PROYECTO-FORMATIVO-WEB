@@ -95,10 +95,30 @@ const Menu: React.FC = () => {
   };
 
   const filteredModules = mainModules.filter(
-    (module) =>
-      permissions.some(
+    (module) => {
+      // Special handling for zones - check for acceso_zonas permission
+      if (module.nombre === "zonas") {
+        return permissions.some(
+          (perm) => perm.modulo === "zonas" && perm.recurso === "acceso_zonas" && perm.accion === "ver"
+        );
+      }
+      // Special handling for IoT - check for acceso_iot permission
+      if (module.nombre === "IOT") {
+        return permissions.some(
+          (perm) => perm.modulo === "IoT" && perm.recurso === "acceso_iot" && perm.accion === "ver"
+        );
+      }
+      // Special handling for Actividades - check for acceso_actividades permission
+      if (module.nombre === "Actividades") {
+        return permissions.some(
+          (perm) => perm.modulo === "Actividades" && perm.recurso === "acceso_actividades" && perm.accion === "ver"
+        );
+      }
+      // For other modules, check for general ver permission
+      return permissions.some(
         (perm) => perm.modulo === module.nombre && perm.accion === "ver"
-      ) || module.nombre === "Usuarios" || module.nombre === "Actividades" || module.nombre === "IOT" || module.nombre === "zonas"
+      ) || module.nombre === "Usuarios";
+    }
   );
 
   const priorityOrder = ["Inicio", "zonas", "IOT", "Cultivos", "Actividades", "Inventario", "Usuarios"];
