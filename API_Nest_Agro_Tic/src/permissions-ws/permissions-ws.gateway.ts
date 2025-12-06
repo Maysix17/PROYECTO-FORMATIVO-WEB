@@ -82,6 +82,13 @@ export class PermissionsWsGateway
     this.logger.log(
       `Permission change event received: ${JSON.stringify(payload)}`,
     );
+
+    // Check if WebSocket server is available (might not be during seeder execution)
+    if (!this.server) {
+      this.logger.warn('WebSocket server not available, skipping permission change emission');
+      return;
+    }
+
     // Get all cached permissions for real-time sync
     const allPermissions = await this.permisosService.getCachedPermissions();
     this.logger.log(
