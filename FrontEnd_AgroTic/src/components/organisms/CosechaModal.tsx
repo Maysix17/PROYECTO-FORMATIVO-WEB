@@ -16,10 +16,19 @@ interface CosechaModalProps {
 }
 
 const CosechaModal: React.FC<CosechaModalProps> = ({ isOpen, onClose, cvzId, onSuccess, cultivo }) => {
+  // Función para obtener la fecha local en formato YYYY-MM-DD
+  const getLocalDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [formData, setFormData] = useState<CreateCosechaDto>({
     unidadMedida: 'kg',
     cantidad: 0,
-    fecha: '',
+    fecha: getLocalDateString(), // Fecha automática del día actual en zona local
     fkCultivosVariedadXZonaId: cvzId,
     cantidad_plantas_cosechadas: undefined,
   });
@@ -28,7 +37,11 @@ const CosechaModal: React.FC<CosechaModalProps> = ({ isOpen, onClose, cvzId, onS
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(prev => ({ ...prev, fkCultivosVariedadXZonaId: cvzId }));
+      setFormData(prev => ({
+        ...prev,
+        fkCultivosVariedadXZonaId: cvzId,
+        fecha: getLocalDateString() // Asegurar fecha actual al abrir
+      }));
     }
   }, [isOpen, cvzId]);
 
@@ -36,8 +49,14 @@ const CosechaModal: React.FC<CosechaModalProps> = ({ isOpen, onClose, cvzId, onS
     e.preventDefault();
     if (!formData.fkCultivosVariedadXZonaId) return;
 
-    // Calcular rendimiento por planta si se proporciona cantidad de plantas cosechadas
-    const dataToSend = { ...formData };
+    // Asegurar que la fecha se envíe como fecha local correcta
+    const fechaLocal = new Date(formData.fecha + 'T12:00:00'); // Mediodía local para evitar problemas de zona horaria
+    const fechaISO = fechaLocal.toISOString();
+
+    const dataToSend = {
+      ...formData,
+      fecha: fechaISO // Enviar como ISO string con zona horaria
+    };
     if (formData.cantidad_plantas_cosechadas && formData.cantidad_plantas_cosechadas > 0) {
       dataToSend.rendimiento_por_planta = formData.cantidad / formData.cantidad_plantas_cosechadas;
     }

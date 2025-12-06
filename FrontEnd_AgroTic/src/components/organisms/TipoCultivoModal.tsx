@@ -10,6 +10,7 @@ import Table from '../atoms/Table';
 import CustomButton from '../atoms/Boton';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { usePermission } from '../../contexts/PermissionContext';
+import Swal from 'sweetalert2';
 
 interface TipoCultivoModalProps {
   isOpen: boolean;
@@ -43,14 +44,17 @@ const TipoCultivoModal: React.FC<TipoCultivoModalProps> = ({ isOpen, onClose }) 
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('¿Seguro que deseas eliminar este tipo de cultivo?')) {
-      try {
-        await deleteTipoCultivo(id);
-        fetchCultivos();
-        setMessage('Eliminado con éxito');
-      } catch (err) {
-        setMessage('Error al eliminar');
-      }
+    try {
+      await deleteTipoCultivo(id);
+      fetchCultivos();
+    } catch (err) {
+      await Swal.fire({
+        title: 'Error',
+        text: 'Error al eliminar el tipo de cultivo.',
+        icon: 'error',
+        timer: 3000,
+        showConfirmButton: false
+      });
     }
   };
 

@@ -4,6 +4,7 @@ import CustomButton from '../atoms/Boton';
 import type { Cultivo } from '../../types/cultivos.types';
 import { getCosechasByCultivo } from '../../services/cosechasService';
 import { usePermission } from '../../contexts/PermissionContext';
+import Swal from 'sweetalert2';
 
 interface HarvestSellModalProps {
   isOpen: boolean;
@@ -170,15 +171,32 @@ const HarvestSellModal: React.FC<HarvestSellModalProps> = ({
             {!isFinalizado && onCloseHarvest && hasCosechasAbiertas && (
               <CustomButton
                 label="🔒 Cerrar Venta de Cosecha Actual"
-                onClick={() => {
+                onClick={async () => {
                   if (!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar')) {
                     const confirmMessage = isPerenne
                       ? '¿Estás seguro de cerrar la venta de cosecha actual?\n\nEsto deshabilitará las ventas de todas las cosechas actuales hasta que registres una nueva cosecha.'
                       : '¿Estás seguro de cerrar la venta de cosecha actual?\n\nEsto finalizará el cultivo transitorio y deshabilitará futuras ventas.';
-                    const confirmClose = window.confirm(confirmMessage);
-                    if (confirmClose) {
+                    const result = await Swal.fire({
+                      title: '¿Estás seguro?',
+                      text: confirmMessage,
+                      icon: 'warning',
+                      showCancelButton: true,
+                      confirmButtonColor: '#d33',
+                      cancelButtonColor: '#3085d6',
+                      confirmButtonText: 'Sí, cerrar',
+                      cancelButtonText: 'Cancelar'
+                    });
+
+                    if (result.isConfirmed) {
                       onCloseHarvest();
                       onClose();
+                      await Swal.fire({
+                        title: 'Cerrado',
+                        text: 'La venta de cosecha ha sido cerrada exitosamente.',
+                        icon: 'success',
+                        timer: 5000,
+                        showConfirmButton: false
+                      });
                     }
                   }
                 }}
@@ -202,14 +220,29 @@ const HarvestSellModal: React.FC<HarvestSellModalProps> = ({
             {isPerenne && !isFinalizado && (
               <CustomButton
                 label="🏁 Finalizar Cultivo"
-                onClick={() => {
+                onClick={async () => {
                   if (!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar')) {
-                    const confirmFinalize = window.confirm(
-                      '¿Estás seguro de finalizar este cultivo?\n\nEsta acción marcará el cultivo como finalizado y no se podrán registrar más actividades ni cosechas.'
-                    );
-                    if (confirmFinalize) {
+                    const result = await Swal.fire({
+                      title: '¿Estás seguro?',
+                      text: '¿Estás seguro de finalizar este cultivo?\n\nEsta acción marcará el cultivo como finalizado y no se podrán registrar más actividades ni cosechas.',
+                      icon: 'warning',
+                      showCancelButton: true,
+                      confirmButtonColor: '#d33',
+                      cancelButtonColor: '#3085d6',
+                      confirmButtonText: 'Sí, finalizar',
+                      cancelButtonText: 'Cancelar'
+                    });
+
+                    if (result.isConfirmed) {
                       onFinalize();
                       onClose();
+                      await Swal.fire({
+                        title: 'Finalizado',
+                        text: 'El cultivo ha sido finalizado exitosamente.',
+                        icon: 'success',
+                        timer: 5000,
+                        showConfirmButton: false
+                      });
                     }
                   }
                 }}

@@ -10,6 +10,7 @@ import Table from '../atoms/Table';
 import CustomButton from '../atoms/Boton';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { usePermission } from '../../contexts/PermissionContext';
+import Swal from 'sweetalert2';
 
 interface CategoriaActividadModalProps {
   isOpen: boolean;
@@ -43,14 +44,17 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('¿Seguro que deseas eliminar esta categoría de actividad?')) {
-      try {
-        await deleteCategoriaActividad(id);
-        fetchCategorias();
-        setMessage('Eliminado con éxito');
-      } catch (err) {
-        setMessage('Error al eliminar');
-      }
+    try {
+      await deleteCategoriaActividad(id);
+      fetchCategorias();
+    } catch (err) {
+      await Swal.fire({
+        title: 'Error',
+        text: 'Error al eliminar la categoría de actividad.',
+        icon: 'error',
+        timer: 3000,
+        showConfirmButton: false
+      });
     }
   };
 

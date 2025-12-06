@@ -9,6 +9,7 @@ import {
   deleteVariedad,
 } from "../services/variedad";
 import { getTipoCultivos } from "../services/tipoCultivo";
+import Swal from 'sweetalert2';
 
 const VariedadPage = () => {
   const [variedadData, setVariedadData] = useState<VariedadData>({
@@ -72,9 +73,37 @@ const VariedadPage = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("¿Seguro que deseas eliminar esta variedad?")) {
-      await deleteVariedad(id);
-      fetchVariedades();
+    const result = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: '¿Seguro que deseas eliminar esta variedad?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await deleteVariedad(id);
+        fetchVariedades();
+        await Swal.fire({
+          title: 'Eliminado',
+          text: 'Variedad eliminada exitosamente.',
+          icon: 'success',
+          timer: 5000,
+          showConfirmButton: false
+        });
+      } catch (error: any) {
+        await Swal.fire({
+          title: 'Error',
+          text: error.message || 'Error al eliminar la variedad.',
+          icon: 'error',
+          timer: 5000,
+          showConfirmButton: false
+        });
+      }
     }
   };
 

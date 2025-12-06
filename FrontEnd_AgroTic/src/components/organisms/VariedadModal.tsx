@@ -10,6 +10,7 @@ import Table from '../atoms/Table';
 import CustomButton from '../atoms/Boton';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { usePermission } from '../../contexts/PermissionContext';
+import Swal from 'sweetalert2';
 
 interface VariedadModalProps {
   isOpen: boolean;
@@ -42,14 +43,18 @@ const VariedadModal: React.FC<VariedadModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('¿Seguro que deseas eliminar esta variedad?')) {
-      try {
-        await deleteVariedad(id);
-        fetchVariedades();
-        setMessage('Eliminado con éxito');
-      } catch (err) {
-        setMessage('Error al eliminar');
-      }
+    try {
+      await deleteVariedad(id);
+      await fetchVariedades();
+      // Eliminación exitosa, modal permanece abierto
+    } catch (err) {
+      await Swal.fire({
+        title: 'Error',
+        text: 'No se pudo eliminar la variedad.',
+        icon: 'error',
+        timer: 3000,
+        showConfirmButton: false
+      });
     }
   };
 

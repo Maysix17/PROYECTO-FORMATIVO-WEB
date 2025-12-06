@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, Button } from '@heroui/react';
 import { getReservationsByActivity, confirmUsage } from '../../services/actividadesService';
+import Swal from 'sweetalert2';
 
 interface Reservation {
   id: string;
@@ -196,9 +197,27 @@ const ActivityManagementDetailModal: React.FC<ActivityManagementDetailModalProps
                 <Button
                   color="danger"
                   variant="light"
-                  onClick={() => {
-                    if (window.confirm('¿Estás seguro de que deseas eliminar esta actividad?')) {
+                  onClick={async () => {
+                    const result = await Swal.fire({
+                      title: '¿Estás seguro?',
+                      text: '¿Estás seguro de que deseas eliminar esta actividad?',
+                      icon: 'warning',
+                      showCancelButton: true,
+                      confirmButtonColor: '#d33',
+                      cancelButtonColor: '#3085d6',
+                      confirmButtonText: 'Sí, eliminar',
+                      cancelButtonText: 'Cancelar'
+                    });
+
+                    if (result.isConfirmed) {
                       onDelete(activity.id);
+                      await Swal.fire({
+                        title: 'Eliminado',
+                        text: 'Actividad eliminada exitosamente.',
+                        icon: 'success',
+                        timer: 5000,
+                        showConfirmButton: false
+                      });
                     }
                   }}
                 >

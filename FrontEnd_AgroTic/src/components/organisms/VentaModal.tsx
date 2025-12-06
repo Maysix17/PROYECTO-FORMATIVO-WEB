@@ -18,9 +18,18 @@ interface VentaModalProps {
 }
 
 const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuccess }) => {
+    // Función para obtener la fecha local en formato YYYY-MM-DD
+    const getLocalDateString = () => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+  
     const [formData, setFormData] = useState<CreateVentaDto>({
       cantidad: 0,
-      fecha: new Date().toISOString().split('T')[0], // Fecha automática del día actual
+      fecha: getLocalDateString(), // Fecha automática del día actual en zona local
       fkCosechaId: '', // This needs to be set properly
       unidadMedida: 'kg',
       precioUnitario: 0,
@@ -113,9 +122,13 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
       return;
     }
 
+    // Asegurar que la fecha se envíe como fecha local correcta
+    const fechaLocal = new Date(fechaValue + 'T12:00:00'); // Mediodía local para evitar problemas de zona horaria
+    const fechaISO = fechaLocal.toISOString();
+
     let ventaData: any = {
       ...formData,
-      fecha: fechaValue,
+      fecha: fechaISO, // Enviar como ISO string con zona horaria
       multipleHarvests: selectedHarvests,
       fkCosechaId: selectedHarvests[0].id, // Reference harvest
     };
@@ -164,6 +177,18 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
   const handlePrintReceipt = () => {
     const printWindow = window.open('', '_blank');
     if (printWindow && saleData) {
+      const today = new Date();
+      const fechaRecibo = today.toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const horaRecibo = today.toLocaleTimeString('es-CO', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
       printWindow.document.write(`
         <html>
           <head>
@@ -217,8 +242,8 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
                 Sistema de Gestión Agrícola<br>
                 RECIBO DE VENTA
               </div>
-              <div class="line"><span>Fecha:</span><span>${new Date(saleData.fecha).toLocaleDateString()}</span></div>
-              <div class="line"><span>Hora:</span><span>${new Date().toLocaleTimeString()}</span></div>
+              <div class="line"><span>Fecha:</span><span>${fechaRecibo}</span></div>
+              <div class="line"><span>Hora:</span><span>${horaRecibo}</span></div>
               <div class="line"><span>Cultivo:</span><span>${saleData.cultivo}</span></div>
               <div class="line"><span>Zona:</span><span>${saleData.zona}</span></div>
               <div class="line"><span>Cantidad:</span><span>${saleData.cantidad} ${saleData.unidadMedida}</span></div>
@@ -242,6 +267,18 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
 
   const handleDownloadPDF = () => {
     if (!saleData) return;
+
+    const today = new Date();
+    const fechaRecibo = today.toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const horaRecibo = today.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
 
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -271,9 +308,9 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
 
     // Details
     doc.setFontSize(8);
-    doc.text(`Fecha: ${new Date(saleData.fecha).toLocaleDateString()}`, 5, y);
+    doc.text(`Fecha: ${fechaRecibo}`, 5, y);
     y += 4;
-    doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 5, y);
+    doc.text(`Hora: ${horaRecibo}`, 5, y);
     y += 4;
     doc.text(`Cultivo: ${saleData.cultivo}`, 5, y);
     y += 4;
@@ -305,14 +342,14 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
     doc.save(`recibo-venta-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  // If this is a transient crop that has been completely sold, show completion message
-  if (hasNoAvailableHarvests) {
+  // If this is a transient crop that has been completely sold, show completion message with print options
+  if (hasNoAvailableHarvests && saleCompleted && saleData) {
     return (
       <Modal isOpen={isOpen} onOpenChange={onClose} size="2xl">
         <ModalContent className="bg-white p-6">
           <ModalHeader>
             <div className="space-y-2">
-              <h2 className="text-xl font-semibold">Registrar Venta</h2>
+              <h2 className="text-xl font-semibold">Venta Completada - Cultivo Finalizado</h2>
               {cultivo && (
                 <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
                   <div className="grid grid-cols-2 gap-4">
@@ -325,11 +362,27 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
           </ModalHeader>
           <ModalBody>
             <div className="text-center py-8">
-              <div className="text-primary-600 text-lg font-semibold mb-2">✅ Cultivo Completado</div>
-              <p className="text-gray-700">Ya registraste el cultivo, ya fue vendido y cosechado.</p>
+              <div className="text-green-600 text-2xl font-semibold mb-4">✅ Venta y Cultivo Completados</div>
+              <p className="text-gray-700 mb-6">Se vendió toda la cantidad disponible. El cultivo transitorio ha sido completado.</p>
+              <div className="bg-gray-50 p-4 rounded-lg text-left max-w-md mx-auto">
+                <h3 className="font-semibold mb-2">Detalles de la Venta Final:</h3>
+                <p><strong>Cultivo:</strong> {saleData?.cultivo}</p>
+                <p><strong>Zona:</strong> {saleData?.zona}</p>
+                <p><strong>Fecha:</strong> {new Date().toLocaleDateString('es-CO')}</p>
+                <p><strong>Cantidad:</strong> {saleData?.cantidad} {saleData?.unidadMedida}</p>
+                <p><strong>Precio {saleData?.unidadMedida === 'kg' ? 'Kilo' : 'Libra'}:</strong> ${saleData?.precioUnitario}</p>
+                <p><strong>Total:</strong> ${saleData?.total?.toFixed(2)}</p>
+                <p><strong>Cosechas Seleccionadas:</strong> {saleData?.cosechasSeleccionadas}</p>
+              </div>
             </div>
           </ModalBody>
           <ModalFooter>
+            <CustomButton onClick={handlePrintReceipt} variant="solid">
+              Imprimir Recibo
+            </CustomButton>
+            <CustomButton onClick={handleDownloadPDF} variant="solid">
+              Descargar PDF
+            </CustomButton>
             <CustomButton onClick={onClose} variant="bordered">
               Cerrar
             </CustomButton>
@@ -365,7 +418,7 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
                   <h3 className="font-semibold mb-2">Detalles de la Venta:</h3>
                   <p><strong>Cultivo:</strong> {saleData?.cultivo}</p>
                   <p><strong>Zona:</strong> {saleData?.zona}</p>
-                  <p><strong>Fecha:</strong> {new Date(saleData?.fecha).toLocaleDateString()}</p>
+                  <p><strong>Fecha:</strong> {new Date().toLocaleDateString('es-CO')}</p>
                   <p><strong>Cantidad:</strong> {saleData?.cantidad} {saleData?.unidadMedida}</p>
                   <p><strong>Precio {saleData?.unidadMedida === 'kg' ? 'Kilo' : 'Libra'}:</strong> ${saleData?.precioUnitario}</p>
                   <p><strong>Total:</strong> ${saleData?.total?.toFixed(2)}</p>

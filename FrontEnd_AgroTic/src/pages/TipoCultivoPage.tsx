@@ -7,6 +7,7 @@ import {
   updateTipoCultivo,
   deleteTipoCultivo,
 } from "../services/tipoCultivo";
+import Swal from 'sweetalert2';
 
 const TipoCultivoPage = () => {
   const [tipoCultivoData, setTipoCultivoData] = useState<TipoCultivoData>({
@@ -59,12 +60,36 @@ const TipoCultivoPage = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("¿Seguro que deseas eliminar este tipo de cultivo?")) {
+    const result = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: '¿Seguro que deseas eliminar este tipo de cultivo?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
       try {
         await deleteTipoCultivo(id);
         fetchCultivos();
+        await Swal.fire({
+          title: 'Eliminado',
+          text: 'Tipo de cultivo eliminado exitosamente.',
+          icon: 'success',
+          timer: 5000,
+          showConfirmButton: false
+        });
       } catch (error: any) {
-        alert(error.message || "Error al eliminar el tipo de cultivo");
+        await Swal.fire({
+          title: 'Error',
+          text: error.message || 'Error al eliminar el tipo de cultivo.',
+          icon: 'error',
+          timer: 5000,
+          showConfirmButton: false
+        });
       }
     }
   };

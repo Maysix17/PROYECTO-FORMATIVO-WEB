@@ -216,8 +216,8 @@ const CultivosPage: React.FC = () => {
                         <td>${cultivo.ficha}</td>
                         <td>${cultivo.lote}</td>
                         <td>${cultivo.tipoCultivo?.nombre} ${cultivo.nombrecultivo}</td>
-                        <td>${cultivo.fechasiembra ? new Date(cultivo.fechasiembra).toLocaleDateString() : "Sin fecha"}</td>
-                        <td>${cultivo.fechacosecha ? new Date(cultivo.fechacosecha).toLocaleDateString() : "Sin cosecha"}</td>
+                        <td>${cultivo.fechasiembra ? (() => { const fecha = new Date(cultivo.fechasiembra); fecha.setHours(fecha.getHours() + 5); return fecha.toLocaleDateString('es-CO'); })() : "Sin fecha"}</td>
+                        <td>${cultivo.fechacosecha ? (() => { const fecha = new Date(cultivo.fechacosecha); fecha.setHours(fecha.getHours() + 5); return fecha.toLocaleDateString('es-CO'); })() : "Sin cosecha"}</td>
                       </tr>
                     `).join("")}
                   </tbody>
@@ -314,12 +314,20 @@ const CultivosPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-600">
                         {cultivo.fechasiembra
-                          ? new Date(cultivo.fechasiembra).toLocaleDateString()
+                          ? (() => {
+                              const fecha = new Date(cultivo.fechasiembra);
+                              fecha.setHours(fecha.getHours() + 5); // Ajustar zona horaria UTC-5
+                              return fecha.toLocaleDateString('es-CO');
+                            })()
                           : <span className="text-gray-400 italic">Sin fecha</span>}
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-600">
                         {cultivo.fechacosecha
-                          ? new Date(cultivo.fechacosecha).toLocaleDateString()
+                          ? (() => {
+                              const fecha = new Date(cultivo.fechacosecha);
+                              fecha.setHours(fecha.getHours() + 5); // Ajustar zona horaria UTC-5
+                              return fecha.toLocaleDateString('es-CO');
+                            })()
                           : <span className="text-gray-400 italic">Sin cosecha</span>}
                       </td>
                       <td className="px-6 py-3">
@@ -413,12 +421,12 @@ const CultivosPage: React.FC = () => {
           ) : (
             <div className="p-4 space-y-3 overflow-y-auto h-full">
               {cultivos.map((cultivo, index) => {
-                const fields: CardField[] = [
-                  { label: "Lote", value: cultivo.lote },
-                  { label: "Nombre del Cultivo", value: `${cultivo.tipoCultivo?.nombre} ${cultivo.nombrecultivo}` },
-                  { label: "Fecha de Siembra", value: cultivo.fechasiembra ? new Date(cultivo.fechasiembra).toLocaleDateString() : "Sin fecha" },
-                  { label: "Fecha de Cosecha", value: cultivo.fechacosecha ? new Date(cultivo.fechacosecha).toLocaleDateString() : "Sin cosecha" },
-                ];
+            const fields: CardField[] = [
+              { label: "Lote", value: cultivo.lote },
+              { label: "Nombre del Cultivo", value: `${cultivo.tipoCultivo?.nombre} ${cultivo.nombrecultivo}` },
+              { label: "Fecha de Siembra", value: cultivo.fechasiembra ? (() => { const fecha = new Date(cultivo.fechasiembra); fecha.setHours(fecha.getHours() + 5); return fecha.toLocaleDateString('es-CO'); })() : "Sin fecha" },
+              { label: "Fecha de Cosecha", value: cultivo.fechacosecha ? (() => { const fecha = new Date(cultivo.fechacosecha); fecha.setHours(fecha.getHours() + 5); return fecha.toLocaleDateString('es-CO'); })() : "Sin cosecha" },
+            ];
 
                 const actions: CardAction[] = [
                   ...(!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') ? [{

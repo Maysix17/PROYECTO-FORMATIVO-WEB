@@ -6,6 +6,7 @@ import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import type { EstadoFenologico } from '../../types/cultivos.types';
 import { getEstadosFenologicos, createEstadoFenologico, updateEstadoFenologico, deleteEstadoFenologico } from '../../services/estadosFenologicosService';
 import { usePermission } from '../../contexts/PermissionContext';
+import Swal from 'sweetalert2';
 
 interface EstadosFenologicosModalProps {
   isOpen: boolean;
@@ -66,13 +67,18 @@ const EstadosFenologicosModal: React.FC<EstadosFenologicosModalProps> = ({ isOpe
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('¿Está seguro de que desea eliminar este estado fenológico?')) {
-      try {
-        await deleteEstadoFenologico(id);
-        await loadEstados();
-      } catch (error) {
-        console.error('Error deleting estado fenológico:', error);
-      }
+    try {
+      await deleteEstadoFenologico(id);
+      await loadEstados();
+    } catch (error) {
+      console.error('Error deleting estado fenológico:', error);
+      await Swal.fire({
+        title: 'Error',
+        text: 'No se pudo eliminar el estado fenológico.',
+        icon: 'error',
+        timer: 3000,
+        showConfirmButton: false
+      });
     }
   };
 

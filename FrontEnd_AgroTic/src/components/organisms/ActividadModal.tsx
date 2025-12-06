@@ -8,6 +8,7 @@ import zoneSearchService from '../../services/zoneSearchService';
 import categoriaService from '../../services/categoriaService';
 import apiClient from '../../lib/axios/axios';
 import InputSearch from '../atoms/buscador';
+import Swal from 'sweetalert2';
 
 interface Usuario {
   id: string;
@@ -265,15 +266,22 @@ const ActividadModal: React.FC<ActividadModalProps> = ({ isOpen, onClose, select
     setSelectedLote(null);
   };
 
-  const handleUseSurplus = (id: string) => {
+  const handleUseSurplus = async (id: string) => {
     const product = selectedProducts[id].product;
     const surplus = product.stock_parcial || 0;
     // Show confirmation dialog
-    const confirmed = window.confirm(
-      `¿Desea usar el parcial de ${surplus} unidades de ${product.nombre}? ` +
-      `(Stock disponible: ${product.cantidadDisponible})`
-    );
-    if (confirmed) {
+    const result = await Swal.fire({
+      title: '¿Desea usar el parcial?',
+      text: `¿Desea usar el parcial de ${surplus} unidades de ${product.nombre}? (Stock disponible: ${product.cantidadDisponible})`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, usar parcial',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
       setSelectedProducts({
         ...selectedProducts,
         [id]: {
@@ -355,7 +363,12 @@ const ActividadModal: React.FC<ActividadModalProps> = ({ isOpen, onClose, select
         const stockType = result.type === 'parcial' ? 'parcial' : 'disponible';
         return `${result.product}: solicitado ${result.requested}, ${stockType} ${result.available}`;
       });
-      alert(`No hay suficiente stock para:\n${messages.join('\n')}`);
+      await Swal.fire({
+        title: 'Stock insuficiente',
+        text: `No hay suficiente stock para:\n${messages.join('\n')}`,
+        icon: 'error',
+        confirmButtonText: 'Entendido'
+      });
       return;
     }
 
