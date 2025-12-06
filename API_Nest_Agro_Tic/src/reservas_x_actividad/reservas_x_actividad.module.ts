@@ -10,6 +10,7 @@ import { MovimientosInventario } from '../movimientos_inventario/entities/movimi
 import { TipoMovimiento } from '../tipos_movimiento/entities/tipos_movimiento.entity';
 import { UsuariosXActividadesModule } from '../usuarios_x_actividades/usuarios_x_actividades.module';
 import { MovimientosInventarioModule } from '../movimientos_inventario/movimientos_inventario.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { MovimientosInventarioModule } from '../movimientos_inventario/movimient
     ]),
     UsuariosXActividadesModule,
     MovimientosInventarioModule,
+    AuthModule
   ],
   controllers: [ReservasXActividadController],
   providers: [ReservasXActividadService],

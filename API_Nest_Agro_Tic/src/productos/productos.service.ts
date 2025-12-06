@@ -68,6 +68,27 @@ export class ProductosService {
       }
     }
 
+    // Check if product has active reservations that would prevent certain updates
+    if (updateDto.nombre || updateDto.descripcion || updateDto.sku) {
+      const lotes = await this.productoRepo.manager.find(LotesInventario, {
+        where: { fkProductoId: id },
+        relations: ['reservas', 'reservas.estado'],
+      });
+
+      const hasActiveReservations = lotes.some(lote =>
+        lote.reservas?.some(reserva =>
+          reserva.estado?.nombre !== 'Confirmada' && reserva.estado?.nombre !== 'Cancelada'
+        )
+      );
+
+      if (hasActiveReservations) {
+        throw new ConflictException(
+          `No se puede actualizar el producto "${entity.nombre}" porque tiene reservas activas en actividades. ` +
+          `Complete o cancele las actividades relacionadas antes de modificar los datos básicos del producto.`
+        );
+      }
+    }
+
     Object.assign(entity, updateDto);
     const savedEntity = await this.productoRepo.save(entity);
 
@@ -95,6 +116,34 @@ export class ProductosService {
 
   async remove(id: string): Promise<void> {
     const entity = await this.findOne(id);
+
+    // Check if product has inventory lots
+    const lotesCount = await this.productoRepo.manager.count(LotesInventario, {
+      where: { fkProductoId: id },
+    });
+
+    if (lotesCount > 0) {
+      throw new ConflictException(
+        `No se puede eliminar el producto "${entity.nombre}" porque tiene ${lotesCount} lote(s) de inventario asociado(s). ` +
+        `Elimine primero todos los lotes de inventario relacionados antes de eliminar el producto.`
+      );
+    }
+
+    // Check if product is being used in activities (through reservations)
+    const { ReservasXActividad } = await import('../reservas_x_actividad/entities/reservas_x_actividad.entity');
+    const reservasCount = await this.productoRepo.manager
+      .createQueryBuilder(ReservasXActividad, 'reserva')
+      .innerJoin('reserva.lote', 'lote')
+      .where('lote.fkProductoId = :productId', { productId: id })
+      .getCount();
+
+    if (reservasCount > 0) {
+      throw new ConflictException(
+        `No se puede eliminar el producto "${entity.nombre}" porque está siendo utilizado en ${reservasCount} reserva(s) de actividades. ` +
+        `Complete o cancele las actividades relacionadas antes de eliminar el producto.`
+      );
+    }
+
     await this.productoRepo.remove(entity);
   }
 

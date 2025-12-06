@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { LotesInventario } from './entities/lotes_inventario.entity';
@@ -71,6 +71,28 @@ export class LotesInventarioService {
 
     const entity = await this.findOne(id);
     console.log('DEBUG: found entity:', entity);
+
+    // Check if lote has active reservations that prevent certain updates
+    if (updateDto.stock !== undefined || updateDto.fechaVencimiento !== undefined) {
+      const hasActiveReservations = entity.reservas?.some(reserva =>
+        reserva.estado?.nombre !== 'Confirmada' && reserva.estado?.nombre !== 'Cancelada'
+      );
+
+      if (hasActiveReservations) {
+        if (updateDto.stock !== undefined) {
+          throw new ConflictException(
+            `No se puede modificar el stock del lote porque tiene reservas activas en actividades. ` +
+            `Complete o cancele las actividades relacionadas antes de modificar el stock.`
+          );
+        }
+        if (updateDto.fechaVencimiento !== undefined) {
+          throw new ConflictException(
+            `No se puede modificar la fecha de vencimiento del lote porque tiene reservas activas en actividades. ` +
+            `Complete o cancele las actividades relacionadas antes de modificar la fecha de vencimiento.`
+          );
+        }
+      }
+    }
 
     // Store original values for movement calculation
     const originalStock = entity.stock;
@@ -164,6 +186,30 @@ export class LotesInventarioService {
 
   async remove(id: string): Promise<void> {
     const entity = await this.findOne(id);
+
+    // Check if lote has active reservations
+    const hasActiveReservations = entity.reservas?.some(reserva =>
+      reserva.estado?.nombre !== 'Confirmada' && reserva.estado?.nombre !== 'Cancelada'
+    );
+
+    if (hasActiveReservations) {
+      throw new ConflictException(
+        `No se puede eliminar el lote de inventario porque tiene reservas activas en actividades. ` +
+        `Complete o cancele las actividades relacionadas antes de eliminar el lote.`
+      );
+    }
+
+    // Check if lote has available stock that hasn't been returned
+    const cantidadDisponible = Number(entity.cantidadDisponible || 0);
+    const cantidadParcial = Number(entity.cantidadParcial || 0);
+    const stockDisponible = cantidadDisponible + cantidadParcial;
+
+    if (stockDisponible > 0) {
+      throw new ConflictException(
+        `No se puede eliminar el lote porque aún tiene ${stockDisponible} unidades disponibles. ` +
+        `Asegúrese de que todo el inventario haya sido utilizado o devuelto antes de eliminar el lote.`
+      );
+    }
 
     // Delete related movimientos_inventario first
     await this.movimientosInventarioRepo.delete({ fkLoteId: id });

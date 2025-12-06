@@ -4,6 +4,7 @@ import CustomButton from '../atoms/Boton';
 import { getReservationsByActivity, confirmUsage } from '../../services/actividadesService';
 import apiClient from '../../lib/axios/axios';
 import FinalizeActivityModal from './FinalizeActivityModal';
+import EditActividadModal from './EditActividadModal';
 import { usePermission } from '../../contexts/PermissionContext';
 import Swal from 'sweetalert2';
 
@@ -50,28 +51,27 @@ interface ActivityDetailModalProps {
    isOpen: boolean;
    onClose: () => void;
    activity: Activity | null;
-   onDelete: (id: string) => void;
   }
 
 const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
     isOpen,
     onClose,
     activity,
-    onDelete,
    }) => {
-   const { user } = usePermission();
+   const { user, hasPermission } = usePermission();
    const [categoria, setCategoria] = useState('');
     const [ubicacion, setUbicacion] = useState('');
     const [descripcion, setDescripcion] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [reservations, setReservations] = useState<Reservation[]>([]);
-     const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+      const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+      const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
      if (activity) {
-       console.log('ActivityDetailModal activity:', activity);
        setCategoria(activity.categoriaActividad.nombre);
-       const tipoCultivoName = activity.cultivoVariedadZona?.cultivoXVariedad?.variedad?.tipoCultivo?.nombre || 'Tipo Cultivo';
+       const tipoCultivoObj = activity.cultivoVariedadZona?.cultivoXVariedad?.variedad?.tipoCultivo;
+       const tipoCultivoName = (tipoCultivoObj && tipoCultivoObj.nombre) ? tipoCultivoObj.nombre : 'Tipo Cultivo';
        const variedadName = activity.cultivoVariedadZona?.cultivoXVariedad?.variedad?.nombre || 'Variedad';
        const zoneName = activity.cultivoVariedadZona?.zona?.nombre || 'Zona';
        setUbicacion(`${tipoCultivoName} - ${variedadName} - ${zoneName}`);
@@ -93,12 +93,6 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
    }, [activity]);
 
 
-  const handleDelete = () => {
-     if (activity && confirm('¿Estás seguro de eliminar esta actividad?')) {
-       onDelete(activity.id);
-       onClose();
-     }
-   };
 
    const handleFinalizeActivity = async (data: {
      actividadId: string;
@@ -358,8 +352,9 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
 
             {/* Botones de acción */}
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-              <CustomButton variant="ghost" onClick={() => setIsEditing(!isEditing)} label={isEditing ? 'Cancelar' : 'Actualizar'} />
-              <CustomButton color="danger" onClick={handleDelete} label="Eliminar" />
+              {hasPermission('Actividades', 'actividades', 'actualizar') && (
+                <CustomButton variant="ghost" onClick={() => setIsEditModalOpen(true)} label="Actualizar" />
+              )}
               {activity?.dniResponsable === user?.dni && (
                 <CustomButton color="success" onClick={() => setIsFinalizeModalOpen(true)} label="Finalizar Actividad" />
               )}
@@ -375,6 +370,17 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
         onClose={() => setIsFinalizeModalOpen(false)}
         activity={activity as any}
         onSave={handleFinalizeActivity}
+      />
+
+      {/* Edit Activity Modal */}
+      <EditActividadModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        activity={activity as any}
+        onActivityUpdated={() => {
+          // Refresh the activity data and close the detail modal
+          window.location.reload();
+        }}
       />
     </>
   );

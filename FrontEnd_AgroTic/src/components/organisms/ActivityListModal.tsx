@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody } from '@heroui/react';
 import CustomButton from '../atoms/Boton';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface Activity {
   id: string;
@@ -17,12 +18,15 @@ interface ActivityListModalProps {
 }
 
 const ActivityListModal: React.FC<ActivityListModalProps> = ({ isOpen, onClose, activities, onSelectActivity, onRegisterNew }) => {
+  const { hasPermission } = usePermission();
   return (
     <Modal isOpen={isOpen} onOpenChange={onClose} size="xl">
       <ModalContent>
         <ModalHeader>
           <h2 className="text-xl font-semibold">Actividades del día</h2>
-          <CustomButton onClick={onRegisterNew} className="ml-20" label="Registrar Nueva" />
+          {hasPermission('Actividades', 'actividades', 'crear') && (
+            <CustomButton onClick={onRegisterNew} className="ml-20" label="Registrar Nueva" />
+          )}
         </ModalHeader>
         <ModalBody>
           <div className="space-y-3">

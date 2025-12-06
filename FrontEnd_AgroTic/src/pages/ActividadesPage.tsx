@@ -9,6 +9,7 @@ import Swal from 'sweetalert2';
 import ActividadModal from '../components/organisms/ActividadModal';
 import ActivityListModal from '../components/organisms/ActivityListModal';
 import ActivityDetailModal from '../components/organisms/ActivityDetailModal';
+import { usePermission } from '../contexts/PermissionContext';
 import {
    getActividadesByDateRange,
    getActividadesCountByDate,
@@ -30,15 +31,16 @@ const localizer = dateFnsLocalizer({
 });
 
 const ActividadesPage: React.FC = () => {
-   const [selectedDate, setSelectedDate] = useState(new Date());
-   const [isModalOpen, setIsModalOpen] = useState(false);
-   const [modalDate, setModalDate] = useState(new Date());
-   const [isListModalOpen, setIsListModalOpen] = useState(false);
-   const [activities, setActivities] = useState<any[]>([]);
-   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-   const [selectedActivity, setSelectedActivity] = useState<any>(null);
-   const [events, setEvents] = useState<any[]>([]);
-   const [activityCounts, setActivityCounts] = useState<{[key: string]: number}>({});
+    const { hasPermission } = usePermission();
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalDate, setModalDate] = useState(new Date());
+    const [isListModalOpen, setIsListModalOpen] = useState(false);
+    const [activities, setActivities] = useState<any[]>([]);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [selectedActivity, setSelectedActivity] = useState<any>(null);
+    const [events, setEvents] = useState<any[]>([]);
+    const [activityCounts, setActivityCounts] = useState<{[key: string]: number}>({});
 
    // Function to update activity count for a specific date
    const updateActivityCount = async (dateStr: string) => {
@@ -157,13 +159,33 @@ const ActividadesPage: React.FC = () => {
                         setModalDate(value);
                         setIsListModalOpen(true);
                       } else {
-                        setModalDate(value);
-                        setIsModalOpen(true);
+                        // Check create permission before opening create modal
+                        if (hasPermission('Actividades', 'actividades', 'crear')) {
+                          setModalDate(value);
+                          setIsModalOpen(true);
+                        } else {
+                          Swal.fire({
+                            title: 'Permiso Denegado',
+                            text: 'No tienes permisos para crear actividades.',
+                            icon: 'warning',
+                            confirmButtonText: 'Aceptar'
+                          });
+                        }
                       }
                     } catch (error) {
                       console.error('Error checking activities:', error);
-                      setModalDate(value);
-                      setIsModalOpen(true);
+                      // Check create permission before opening create modal
+                      if (hasPermission('Actividades', 'actividades', 'crear')) {
+                        setModalDate(value);
+                        setIsModalOpen(true);
+                      } else {
+                        Swal.fire({
+                          title: 'Permiso Denegado',
+                          text: 'No tienes permisos para crear actividades.',
+                          icon: 'warning',
+                          confirmButtonText: 'Aceptar'
+                        });
+                      }
                     }
                   }}
                 >
@@ -192,15 +214,33 @@ const ActividadesPage: React.FC = () => {
                 setIsListModalOpen(true);
                 console.log('After setIsListModalOpen, page height:', pageRef.current?.clientHeight, 'calendar height:', calendarRef.current?.clientHeight);
               } else {
-                // Open create modal
-                setModalDate(slotInfo.start);
-                setIsModalOpen(true);
+                // Check create permission before opening create modal
+                if (hasPermission('Actividades', 'actividades', 'crear')) {
+                  setModalDate(slotInfo.start);
+                  setIsModalOpen(true);
+                } else {
+                  Swal.fire({
+                    title: 'Permiso Denegado',
+                    text: 'No tienes permisos para crear actividades.',
+                    icon: 'warning',
+                    confirmButtonText: 'Aceptar'
+                  });
+                }
               }
             } catch (error) {
               console.error('Error checking activities:', error);
-              // Fallback to create modal
-              setModalDate(slotInfo.start);
-              setIsModalOpen(true);
+              // Check create permission before opening create modal
+              if (hasPermission('Actividades', 'actividades', 'crear')) {
+                setModalDate(slotInfo.start);
+                setIsModalOpen(true);
+              } else {
+                Swal.fire({
+                  title: 'Permiso Denegado',
+                  text: 'No tienes permisos para crear actividades.',
+                  icon: 'warning',
+                  confirmButtonText: 'Aceptar'
+                });
+              }
             }
           }}
           style={{ flex: 1 }}
@@ -309,35 +349,10 @@ const ActividadesPage: React.FC = () => {
 
 
          <ActivityDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        activity={selectedActivity}
-        onDelete={async (id) => {
-          try {
-            await deleteActividad(id);
-            Swal.fire({
-              title: 'Eliminación exitosa',
-              text: 'La actividad ha sido eliminada.',
-              icon: 'success',
-              confirmButtonText: 'Aceptar'
-            });
-            setIsDetailModalOpen(false);
-            // Update activity count for the deleted activity's date
-            if (selectedActivity) {
-              const activityDateStr = format(new Date(selectedActivity.fechaAsignacion), 'yyyy-MM-dd');
-              await updateActivityCount(activityDateStr);
-            }
-          } catch (error) {
-            console.error('Error deleting:', error);
-            Swal.fire({
-              title: 'Error',
-              text: 'Error al eliminar',
-              icon: 'error',
-              confirmButtonText: 'Aceptar'
-            });
-          }
-        }}
-      />
+         isOpen={isDetailModalOpen}
+         onClose={() => setIsDetailModalOpen(false)}
+         activity={selectedActivity}
+       />
         
       
 

@@ -34,11 +34,18 @@ export class CategoriaActividadController {
     return this.categoriaActividadService.create(createCategoriaActividadDto);
   }
 
-  @Permisos({
-    recurso: 'cultivos',
-    acciones: ['leer'],
-    moduloNombre: 'Cultivos',
-  })
+  @Permisos(
+    {
+      recurso: 'cultivos',
+      acciones: ['leer'],
+      moduloNombre: 'Cultivos',
+    },
+    {
+      recurso: 'actividades',
+      acciones: ['leer'],
+      moduloNombre: 'Actividades',
+    }
+  )
   @Get()
   findAll() {
     return this.categoriaActividadService.findAll();

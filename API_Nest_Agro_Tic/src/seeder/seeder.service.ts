@@ -63,6 +63,14 @@ const PERMISOS_BASE = [
   },
   { moduloNombre: 'Cultivos', recurso: 'cultivos', acciones: ACCIONES_CRUD },
 
+  // Módulo de Actividades
+  {
+    moduloNombre: 'Actividades',
+    recurso: 'acceso_actividades',
+    acciones: ACCION_VER,
+  },
+  { moduloNombre: 'Actividades', recurso: 'actividades', acciones: ACCIONES_CRUD },
+
   // Módulo de Inventario
   {
     moduloNombre: 'Inventario',
@@ -436,7 +444,7 @@ export class SeederService {
       const permisosAcceso = allPermisos.filter(
         (p) =>
           p.accion === 'ver' &&
-          ['acceso_inicio', 'acceso_zonas', 'acceso_cultivos'].includes(
+          ['acceso_inicio', 'acceso_zonas', 'acceso_cultivos', 'acceso_actividades'].includes(
             p.recurso.nombre,
           ),
       );
