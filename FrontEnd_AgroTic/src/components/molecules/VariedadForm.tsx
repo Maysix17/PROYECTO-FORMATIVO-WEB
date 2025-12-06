@@ -8,6 +8,7 @@ import {
   updateVariedad,
 } from "../../services/variedad";
 import { getTipoCultivos } from "../../services/tipoCultivo";
+import { usePermission } from "../../contexts/PermissionContext";
 
 interface VariedadFormProps {
   editData?: VariedadData | null;
@@ -21,6 +22,7 @@ const VariedadForm: React.FC<VariedadFormProps> = ({ editData, onSuccess }) => {
   });
   const [tiposCultivo, setTiposCultivo] = useState<TipoCultivoData[]>([]);
   const [message, setMessage] = useState<string>("");
+  const { hasPermission, isInitializing } = usePermission();
 
   useEffect(() => {
     fetchTiposCultivo();
@@ -94,11 +96,13 @@ const VariedadForm: React.FC<VariedadFormProps> = ({ editData, onSuccess }) => {
 
       {message && <p className="text-center text-primary-600">{message}</p>}
 
-      <CustomButton
-        type="submit"
-        text={editData ? "Actualizar" : "Registrar"}
-        className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 w-full"
-      />
+      {!isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') && (
+        <CustomButton
+          type="submit"
+          text={editData ? "Actualizar" : "Registrar"}
+          className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 w-full"
+        />
+      )}
     </form>
   );
 };

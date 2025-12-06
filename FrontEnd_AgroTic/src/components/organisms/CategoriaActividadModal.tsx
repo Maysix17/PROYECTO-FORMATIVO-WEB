@@ -9,6 +9,7 @@ import {
 import Table from '../atoms/Table';
 import CustomButton from '../atoms/Boton';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface CategoriaActividadModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
   const [categorias, setCategorias] = useState<CategoriaActividadData[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
   const [message, setMessage] = useState<string>('');
+  const { hasPermission, isInitializing } = usePermission();
 
   useEffect(() => {
     if (isOpen) {
@@ -72,22 +74,26 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
                     <td className="px-4 py-2 border-b">{categoria.nombre}</td>
                     <td className="px-4 py-2 border-b">
                       <div className="flex gap-1">
-                        <CustomButton
-                          icon={<PencilIcon className="w-4 h-4" />}
-                          tooltip="Editar"
-                          onClick={() => handleEdit(categoria)}
-                          color="secondary"
-                          variant="light"
-                          size="sm"
-                        />
-                        <CustomButton
-                          icon={<TrashIcon className="w-4 h-4" />}
-                          tooltip="Eliminar"
-                          onClick={() => handleDelete(categoria.id!)}
-                          color="danger"
-                          variant="light"
-                          size="sm"
-                        />
+                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar') && (
+                          <CustomButton
+                            icon={<PencilIcon className="w-4 h-4" />}
+                            tooltip="Editar"
+                            onClick={() => handleEdit(categoria)}
+                            color="secondary"
+                            variant="light"
+                            size="sm"
+                          />
+                        )}
+                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar') && (
+                          <CustomButton
+                            icon={<TrashIcon className="w-4 h-4" />}
+                            tooltip="Eliminar"
+                            onClick={() => handleDelete(categoria.id!)}
+                            color="danger"
+                            variant="light"
+                            size="sm"
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

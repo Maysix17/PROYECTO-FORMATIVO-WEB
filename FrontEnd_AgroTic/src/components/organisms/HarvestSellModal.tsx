@@ -3,6 +3,7 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@herou
 import CustomButton from '../atoms/Boton';
 import type { Cultivo } from '../../types/cultivos.types';
 import { getCosechasByCultivo } from '../../services/cosechasService';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface HarvestSellModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ const HarvestSellModal: React.FC<HarvestSellModalProps> = ({
 }) => {
   const [cosechasDisponibles, setCosechasDisponibles] = useState<CosechaDisponible[]>([]);
   const [loading, setLoading] = useState(false);
+  const { hasPermission, isInitializing } = usePermission();
 
   useEffect(() => {
     if (isOpen && cultivo) {
@@ -113,7 +115,9 @@ const HarvestSellModal: React.FC<HarvestSellModalProps> = ({
             {/* Cosechar */}
             <CustomButton
               label="🌾 Registrar Nueva Cosecha"
-              onClick={() => { onHarvest(); onClose(); }}
+              onClick={() => {
+                onHarvest(); onClose();
+              }}
               disabled={isFinalizado || (!isPerenne && hasCosecha)}
               size="md"
               variant="bordered"
@@ -132,7 +136,9 @@ const HarvestSellModal: React.FC<HarvestSellModalProps> = ({
             {/* Vender */}
             <CustomButton
               label="💰 Registrar Venta"
-              onClick={() => { onSell(); onClose(); }}
+              onClick={() => {
+                onSell(); onClose();
+              }}
               disabled={(isPerenne && isFinalizado) || (!isPerenne && !hasCosecha) || (isPerenne && cosechasDisponibles.filter(c => !c.cerrado && c.cantidadDisponible > 0).length === 0) || (!isPerenne && hasCosecha && cosechasDisponibles.every(c => c.cerrado))}
               size="md"
               variant="bordered"
@@ -165,15 +171,18 @@ const HarvestSellModal: React.FC<HarvestSellModalProps> = ({
               <CustomButton
                 label="🔒 Cerrar Venta de Cosecha Actual"
                 onClick={() => {
-                  const confirmMessage = isPerenne
-                    ? '¿Estás seguro de cerrar la venta de cosecha actual?\n\nEsto deshabilitará las ventas de todas las cosechas actuales hasta que registres una nueva cosecha.'
-                    : '¿Estás seguro de cerrar la venta de cosecha actual?\n\nEsto finalizará el cultivo transitorio y deshabilitará futuras ventas.';
-                  const confirmClose = window.confirm(confirmMessage);
-                  if (confirmClose) {
-                    onCloseHarvest();
-                    onClose();
+                  if (!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar')) {
+                    const confirmMessage = isPerenne
+                      ? '¿Estás seguro de cerrar la venta de cosecha actual?\n\nEsto deshabilitará las ventas de todas las cosechas actuales hasta que registres una nueva cosecha.'
+                      : '¿Estás seguro de cerrar la venta de cosecha actual?\n\nEsto finalizará el cultivo transitorio y deshabilitará futuras ventas.';
+                    const confirmClose = window.confirm(confirmMessage);
+                    if (confirmClose) {
+                      onCloseHarvest();
+                      onClose();
+                    }
                   }
                 }}
+                disabled={!isInitializing && !hasPermission('Cultivos', 'cultivos', 'actualizar')}
                 size="md"
                 variant="solid"
                 color="warning"
@@ -194,14 +203,17 @@ const HarvestSellModal: React.FC<HarvestSellModalProps> = ({
               <CustomButton
                 label="🏁 Finalizar Cultivo"
                 onClick={() => {
-                  const confirmFinalize = window.confirm(
-                    '¿Estás seguro de finalizar este cultivo?\n\nEsta acción marcará el cultivo como finalizado y no se podrán registrar más actividades ni cosechas.'
-                  );
-                  if (confirmFinalize) {
-                    onFinalize();
-                    onClose();
+                  if (!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar')) {
+                    const confirmFinalize = window.confirm(
+                      '¿Estás seguro de finalizar este cultivo?\n\nEsta acción marcará el cultivo como finalizado y no se podrán registrar más actividades ni cosechas.'
+                    );
+                    if (confirmFinalize) {
+                      onFinalize();
+                      onClose();
+                    }
                   }
                 }}
+                disabled={!isInitializing && !hasPermission('Cultivos', 'cultivos', 'eliminar')}
                 size="md"
                 variant="solid"
                 color="danger"

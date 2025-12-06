@@ -8,6 +8,7 @@ import type { Cultivo } from '../../types/cultivos.types';
 import { getCosechasAbiertasByCultivo } from '../../services/cosechasService';
 import type { Cosecha } from '../../types/cosechas.types';
 import jsPDF from 'jspdf';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface VentaModalProps {
   isOpen: boolean;
@@ -17,22 +18,23 @@ interface VentaModalProps {
 }
 
 const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuccess }) => {
-   const [formData, setFormData] = useState<CreateVentaDto>({
-     cantidad: 0,
-     fecha: new Date().toISOString().split('T')[0], // Fecha automática del día actual
-     fkCosechaId: '', // This needs to be set properly
-     unidadMedida: 'kg',
-     precioUnitario: 0,
-   });
+    const [formData, setFormData] = useState<CreateVentaDto>({
+      cantidad: 0,
+      fecha: new Date().toISOString().split('T')[0], // Fecha automática del día actual
+      fkCosechaId: '', // This needs to be set properly
+      unidadMedida: 'kg',
+      precioUnitario: 0,
+    });
 
-   // Ensure fecha is always a string
-   const fechaValue = formData.fecha || '';
-   const [loading, setLoading] = useState(false);
-   const [cosechasDisponibles, setCosechasDisponibles] = useState<Cosecha[]>([]);
-   const [selectedHarvests, setSelectedHarvests] = useState<Array<{id: string, cantidad: number}>>([]);
-   const [totalAvailable, setTotalAvailable] = useState<number>(0);
-   const [saleCompleted, setSaleCompleted] = useState(false);
-   const [saleData, setSaleData] = useState<any>(null);
+    // Ensure fecha is always a string
+    const fechaValue = formData.fecha || '';
+    const [loading, setLoading] = useState(false);
+    const [cosechasDisponibles, setCosechasDisponibles] = useState<Cosecha[]>([]);
+    const [selectedHarvests, setSelectedHarvests] = useState<Array<{id: string, cantidad: number}>>([]);
+    const [totalAvailable, setTotalAvailable] = useState<number>(0);
+    const [saleCompleted, setSaleCompleted] = useState(false);
+    const [saleData, setSaleData] = useState<any>(null);
+    const { hasPermission, isInitializing } = usePermission();
 
    const isPerenne = cultivo?.tipoCultivo?.esPerenne || false;
 
@@ -498,9 +500,11 @@ const VentaModal: React.FC<VentaModalProps> = ({ isOpen, onClose, cultivo, onSuc
             <CustomButton type="button" onClick={onClose} variant="bordered">
               Cancelar
             </CustomButton>
-            <CustomButton type="submit" disabled={loading}>
-              {loading ? 'Registrando...' : 'Registrar'}
-            </CustomButton>
+            {!isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') && (
+              <CustomButton type="submit" disabled={loading}>
+                {loading ? 'Registrando...' : 'Registrar'}
+              </CustomButton>
+            )}
           </ModalFooter>
         </form>
         )}

@@ -9,6 +9,7 @@ import {
 import Table from '../atoms/Table';
 import CustomButton from '../atoms/Boton';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface VariedadModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const VariedadModal: React.FC<VariedadModalProps> = ({ isOpen, onClose }) => {
   const [variedades, setVariedades] = useState<VariedadData[]>([]);
   const [editData, setEditData] = useState<VariedadData | null>(null);
   const [message, setMessage] = useState<string>('');
+  const { hasPermission, isInitializing } = usePermission();
 
   useEffect(() => {
     if (isOpen) {
@@ -71,22 +73,26 @@ const VariedadModal: React.FC<VariedadModalProps> = ({ isOpen, onClose }) => {
                   <td className="px-4 py-2 border-b">{variedad.tipoCultivo?.nombre || 'N/A'}</td>
                   <td className="px-4 py-2 border-b">
                     <div className="flex gap-1">
-                      <CustomButton
-                        icon={<PencilIcon className="w-4 h-4" />}
-                        tooltip="Editar"
-                        onClick={() => handleEdit(variedad)}
-                        color="secondary"
-                        variant="light"
-                        size="sm"
-                      />
-                      <CustomButton
-                        icon={<TrashIcon className="w-4 h-4" />}
-                        tooltip="Eliminar"
-                        onClick={() => handleDelete(variedad.id!)}
-                        color="danger"
-                        variant="light"
-                        size="sm"
-                      />
+                      {!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar') && (
+                        <CustomButton
+                          icon={<PencilIcon className="w-4 h-4" />}
+                          tooltip="Editar"
+                          onClick={() => handleEdit(variedad)}
+                          color="secondary"
+                          variant="light"
+                          size="sm"
+                        />
+                      )}
+                      {!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar') && (
+                        <CustomButton
+                          icon={<TrashIcon className="w-4 h-4" />}
+                          tooltip="Eliminar"
+                          onClick={() => handleDelete(variedad.id!)}
+                          color="danger"
+                          variant="light"
+                          size="sm"
+                        />
+                      )}
                     </div>
                   </td>
                 </tr>

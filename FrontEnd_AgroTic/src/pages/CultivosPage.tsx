@@ -26,6 +26,7 @@ import {
   TruckIcon,
   EyeIcon
 } from "@heroicons/react/24/outline";
+import { usePermission } from "../contexts/PermissionContext";
 
 const CultivosPage: React.FC = () => {
   const [cultivos, setCultivos] = useState<Cultivo[]>([]);
@@ -46,6 +47,7 @@ const CultivosPage: React.FC = () => {
   const [selectedCultivo, setSelectedCultivo] = useState<Cultivo | null>(null);
   const [selectedCultivoForDetails, setSelectedCultivoForDetails] = useState<Cultivo | null>(null);
   const [selectedCosechaId, setSelectedCosechaId] = useState<string>("");
+  const { hasPermission, isInitializing } = usePermission();
 
   // Load filters from localStorage on mount
   useEffect(() => {
@@ -322,38 +324,46 @@ const CultivosPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-3">
                         <div className="flex items-center gap-1">
-                          <CustomButton
-                            icon={<DocumentTextIcon className="w-4 h-4" />}
-                            tooltip="Ver actividades"
-                            onClick={() => handleOpenActivityHistoryModal(cultivo)}
-                            color="secondary"
-                            variant="light"
-                            size="sm"
-                          />
-                          <CustomButton
-                            icon={<CurrencyDollarIcon className="w-4 h-4" />}
-                            tooltip="Análisis financiero"
-                            onClick={() => handleOpenFinancialAnalysisModal(cultivo)}
-                            color="secondary"
-                            variant="light"
-                            size="sm"
-                          />
-                          <CustomButton
-                            icon={<TruckIcon className="w-4 h-4" />}
-                            tooltip="Cosecha/Venta"
-                            onClick={() => handleOpenHarvestSellModal(cultivo)}
-                            color="primary"
-                            variant="light"
-                            size="sm"
-                          />
-                          <CustomButton
-                            icon={<EyeIcon className="w-4 h-4" />}
-                            tooltip="Ver detalles"
-                            onClick={() => handleOpenCultivoDetailsModal(cultivo)}
-                            color="secondary"
-                            variant="light"
-                            size="sm"
-                          />
+                          {!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') && (
+                            <CustomButton
+                              icon={<DocumentTextIcon className="w-4 h-4" />}
+                              tooltip="Ver actividades"
+                              onClick={() => handleOpenActivityHistoryModal(cultivo)}
+                              color="secondary"
+                              variant="light"
+                              size="sm"
+                            />
+                          )}
+                          {!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') && (
+                            <CustomButton
+                              icon={<CurrencyDollarIcon className="w-4 h-4" />}
+                              tooltip="Análisis financiero"
+                              onClick={() => handleOpenFinancialAnalysisModal(cultivo)}
+                              color="secondary"
+                              variant="light"
+                              size="sm"
+                            />
+                          )}
+                          {!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') && (
+                            <CustomButton
+                              icon={<TruckIcon className="w-4 h-4" />}
+                              tooltip="Cosecha/Venta"
+                              onClick={() => handleOpenHarvestSellModal(cultivo)}
+                              color="primary"
+                              variant="light"
+                              size="sm"
+                            />
+                          )}
+                          {!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') && (
+                            <CustomButton
+                              icon={<EyeIcon className="w-4 h-4" />}
+                              tooltip="Ver detalles"
+                              onClick={() => handleOpenCultivoDetailsModal(cultivo)}
+                              color="secondary"
+                              variant="light"
+                              size="sm"
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -411,34 +421,34 @@ const CultivosPage: React.FC = () => {
                 ];
 
                 const actions: CardAction[] = [
-                  {
+                  ...(!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') ? [{
                     icon: <DocumentTextIcon className="w-4 h-4" />,
                     tooltip: "Ver actividades",
                     onClick: () => handleOpenActivityHistoryModal(cultivo),
-                    color: "secondary",
-                    variant: "light",
-                  },
-                  {
+                    color: "secondary" as const,
+                    variant: "light" as const,
+                  }] : []),
+                  ...(!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') ? [{
                     icon: <CurrencyDollarIcon className="w-4 h-4" />,
                     tooltip: "Análisis financiero",
                     onClick: () => handleOpenFinancialAnalysisModal(cultivo),
-                    color: "secondary",
-                    variant: "light",
-                  },
-                  {
+                    color: "secondary" as const,
+                    variant: "light" as const,
+                  }] : []),
+                  ...(!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') ? [{
                     icon: <TruckIcon className="w-4 h-4" />,
                     tooltip: "Cosecha/Venta",
                     onClick: () => handleOpenHarvestSellModal(cultivo),
-                    color: "primary",
-                    variant: "light",
-                  },
-                  {
+                    color: "primary" as const,
+                    variant: "light" as const,
+                  }] : []),
+                  ...(!isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') ? [{
                     icon: <EyeIcon className="w-4 h-4" />,
                     tooltip: "Ver detalles",
                     onClick: () => handleOpenCultivoDetailsModal(cultivo),
-                    color: "secondary",
-                    variant: "light",
-                  },
+                    color: "secondary" as const,
+                    variant: "light" as const,
+                  }] : []),
                 ];
 
                 return (

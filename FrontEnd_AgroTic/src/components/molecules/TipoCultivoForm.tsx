@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import CustomButton from '../atoms/Boton';
 import type { TipoCultivoData } from '../../types/tipoCultivo.types';
 import { registerTipoCultivo, updateTipoCultivo, getTipoCultivos } from '../../services/tipoCultivo';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface TipoCultivoFormProps {
   editId?: string | null;
@@ -14,6 +15,7 @@ const TipoCultivoForm: React.FC<TipoCultivoFormProps> = ({ editId, onSuccess }) 
     esPerenne: false,
   });
   const [message, setMessage] = useState<string>('');
+  const { hasPermission, isInitializing } = usePermission();
 
   useEffect(() => {
     if (editId) {
@@ -106,11 +108,13 @@ const TipoCultivoForm: React.FC<TipoCultivoFormProps> = ({ editId, onSuccess }) 
 
       {message && <p className="text-center text-primary-600">{message}</p>}
 
-      <CustomButton
-        type="submit"
-        text={editId ? 'Actualizar Tipo de Cultivo' : 'Registrar Tipo de Cultivo'}
-        className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 w-full"
-      />
+      {!isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') && (
+        <CustomButton
+          type="submit"
+          text={editId ? 'Actualizar Tipo de Cultivo' : 'Registrar Tipo de Cultivo'}
+          className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 w-full"
+        />
+      )}
     </form>
   );
 };

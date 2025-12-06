@@ -4,6 +4,7 @@ import CustomButton from '../atoms/Boton';
 import TextInput from '../atoms/TextInput';
 import type { CreateCosechaDto } from '../../types/cosechas.types';
 import { createCosecha } from '../../services/cosechasService';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface CosechaModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ const CosechaModal: React.FC<CosechaModalProps> = ({ isOpen, onClose, cvzId, onS
     cantidad_plantas_cosechadas: undefined,
   });
   const [loading, setLoading] = useState(false);
+  const { hasPermission, isInitializing } = usePermission();
 
   useEffect(() => {
     if (isOpen) {
@@ -126,9 +128,11 @@ const CosechaModal: React.FC<CosechaModalProps> = ({ isOpen, onClose, cvzId, onS
             <CustomButton type="button" onClick={onClose} variant="bordered">
               Cancelar
             </CustomButton>
-            <CustomButton type="submit" disabled={loading}>
-              {loading ? 'Registrando...' : 'Registrar'}
-            </CustomButton>
+            {!isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') && (
+              <CustomButton type="submit" disabled={loading}>
+                {loading ? 'Registrando...' : 'Registrar'}
+              </CustomButton>
+            )}
           </ModalFooter>
         </form>
       </ModalContent>

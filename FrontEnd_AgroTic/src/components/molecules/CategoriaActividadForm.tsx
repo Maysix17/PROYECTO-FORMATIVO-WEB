@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CustomButton from '../atoms/Boton';
 import { getCategoriaActividades, createCategoriaActividad, updateCategoriaActividad } from '../../services/categoriaActividadService';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface CategoriaActividadFormProps {
   editId?: string | null;
@@ -12,6 +13,7 @@ const CategoriaActividadForm: React.FC<CategoriaActividadFormProps> = ({ editId,
     nombre: '',
   });
   const [message, setMessage] = useState<string>('');
+  const { hasPermission, isInitializing } = usePermission();
 
   useEffect(() => {
     if (editId) {
@@ -70,11 +72,13 @@ const CategoriaActividadForm: React.FC<CategoriaActividadFormProps> = ({ editId,
 
       {message && <p className="text-center text-primary-600">{message}</p>}
 
-      <CustomButton
-        type="submit"
-        text={editId ? 'Actualizar Categoría' : 'Registrar Categoría'}
-        className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 w-full"
-      />
+      {!isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') && (
+        <CustomButton
+          type="submit"
+          text={editId ? 'Actualizar Categoría' : 'Registrar Categoría'}
+          className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 w-full"
+        />
+      )}
     </form>
   );
 };

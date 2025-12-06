@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Patch,
   Query,
+  Get,
   UseGuards, // Es buena práctica proteger endpoints sensibles
   Req,
   Res,
@@ -165,5 +166,12 @@ export class AuthController {
   ): Promise<{ message: string }> {
     // ✅ CAMBIO: Se pasa el DTO completo al servicio.
     return this.authService.resetPassword(token, resetPasswordDto);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Get('permissions')
+  async getPermissions(@Req() req: Request): Promise<any[]> {
+    const userId = (req as any).userId;
+    return this.authService.getUserPermissions(userId);
   }
 }

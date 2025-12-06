@@ -5,6 +5,7 @@ import CustomButton from "../atoms/Boton";
 import { ChevronDownIcon, ChevronUpIcon, FunnelIcon, MagnifyingGlassIcon, ArrowPathIcon, PlusIcon, EllipsisVerticalIcon, CogIcon } from "@heroicons/react/24/outline";
 import { Popover, PopoverTrigger, PopoverContent, Tooltip, Chip, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 import type { SearchCultivoDto } from "../../types/cultivos.types";
+import { usePermission } from "../../contexts/PermissionContext";
 
 interface FiltersPanelProps {
   filters: SearchCultivoDto;
@@ -35,6 +36,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
   onManageCategoriaActividad,
 }) => {
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const { hasPermission, isInitializing } = usePermission();
 
   // Check if any advanced filters are active (not used in new design)
   // const hasAdvancedFilters = Boolean(
@@ -86,7 +88,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
 
           {/* Toolbar compacto */}
           <div className="flex items-center gap-3">
-            {onExport && (
+            {onExport && !isInitializing && hasPermission('Cultivos', 'cultivos', 'leer') && (
               <CustomButton
                 color="success"
                 variant="solid"
@@ -97,7 +99,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
               />
             )}
 
-            {onCreateCultivo && (
+            {onCreateCultivo && !isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') && (
               <Tooltip content="Crear cultivo">
                 <CustomButton
                   color="success"
@@ -121,34 +123,40 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
                 />
               </DropdownTrigger>
               <DropdownMenu aria-label="Acciones adicionales">
-                <DropdownItem
-                  key="tipo-cultivo"
-                  startContent={<CogIcon className="w-4 h-4" />}
-                  onClick={onManageTipoCultivo}
-                >
-                  Gestionar Tipo de Cultivo
-                </DropdownItem>
-                <DropdownItem
-                  key="variedad"
-                  startContent={<CogIcon className="w-4 h-4" />}
-                  onClick={onManageVariedad}
-                >
-                  Gestionar Variedad
-                </DropdownItem>
-                <DropdownItem
-                  key="estados"
-                  startContent={<CogIcon className="w-4 h-4" />}
-                  onClick={onManageEstados}
-                >
-                  Gestión Estados Fenológicos
-                </DropdownItem>
-                <DropdownItem
-                  key="categoria-actividad"
-                  startContent={<CogIcon className="w-4 h-4" />}
-                  onClick={onManageCategoriaActividad}
-                >
-                  Gestionar Categorías de Actividad
-                </DropdownItem>
+                {[
+                  {
+                    key: "tipo-cultivo",
+                    label: "Gestionar Tipo de Cultivo",
+                    onClick: onManageTipoCultivo,
+                    show: !isInitializing && hasPermission('Cultivos', 'cultivos', 'leer')
+                  },
+                  {
+                    key: "variedad",
+                    label: "Gestionar Variedad",
+                    onClick: onManageVariedad,
+                    show: !isInitializing && hasPermission('Cultivos', 'cultivos', 'leer')
+                  },
+                  {
+                    key: "estados",
+                    label: "Gestión Estados Fenológicos",
+                    onClick: onManageEstados,
+                    show: !isInitializing && hasPermission('Cultivos', 'cultivos', 'leer')
+                  },
+                  {
+                    key: "categoria-actividad",
+                    label: "Gestionar Categorías de Actividad",
+                    onClick: onManageCategoriaActividad,
+                    show: !isInitializing && hasPermission('Cultivos', 'cultivos', 'leer')
+                  }
+                ].filter(item => item.show).map(item => (
+                  <DropdownItem
+                    key={item.key}
+                    startContent={<CogIcon className="w-4 h-4" />}
+                    onClick={item.onClick}
+                  >
+                    {item.label}
+                  </DropdownItem>
+                ))}
               </DropdownMenu>
             </Dropdown>
           </div>

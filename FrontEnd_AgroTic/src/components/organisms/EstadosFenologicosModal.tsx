@@ -5,6 +5,7 @@ import Table from '../atoms/Table';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import type { EstadoFenologico } from '../../types/cultivos.types';
 import { getEstadosFenologicos, createEstadoFenologico, updateEstadoFenologico, deleteEstadoFenologico } from '../../services/estadosFenologicosService';
+import { usePermission } from '../../contexts/PermissionContext';
 
 interface EstadosFenologicosModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const EstadosFenologicosModal: React.FC<EstadosFenologicosModalProps> = ({ isOpe
     descripcion: '',
     orden: 1,
   });
+  const { hasPermission, isInitializing } = usePermission();
 
   useEffect(() => {
     if (isOpen) {
@@ -91,54 +93,56 @@ const EstadosFenologicosModal: React.FC<EstadosFenologicosModalProps> = ({ isOpe
         </ModalHeader>
         <ModalBody className="space-y-6 overflow-y-auto max-h-96">
         {/* Formulario */}
-        <form onSubmit={handleSubmit} className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">
-            {editingEstado ? 'Editar Estado Fenológico' : 'Crear Estado Fenológico'}
-          </h3>
+        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') && (
+          <form onSubmit={handleSubmit} className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4">
+              {editingEstado ? 'Editar Estado Fenológico' : 'Crear Estado Fenológico'}
+            </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Nombre"
-              value={formData.nombre}
-              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              required
-            />
-
-            <Input
-              label="Orden"
-              type="number"
-              value={formData.orden.toString()}
-              onChange={(e) => setFormData({ ...formData, orden: parseInt(e.target.value) || 1 })}
-              required
-            />
-          </div>
-
-          <div className="mt-4">
-            <Textarea
-              label="Descripción"
-              value={formData.descripcion}
-              onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              rows={3}
-            />
-          </div>
-
-          <div className="flex gap-2 mt-4">
-            <CustomButton
-              label={editingEstado ? 'Actualizar' : 'Crear'}
-              type="submit"
-              size="sm"
-            />
-            {editingEstado && (
-              <CustomButton
-                label="Cancelar"
-                onClick={resetForm}
-                size="sm"
-                color="danger"
-                variant="bordered"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Nombre"
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                required
               />
-            )}
-          </div>
-        </form>
+
+              <Input
+                label="Orden"
+                type="number"
+                value={formData.orden.toString()}
+                onChange={(e) => setFormData({ ...formData, orden: parseInt(e.target.value) || 1 })}
+                required
+              />
+            </div>
+
+            <div className="mt-4">
+              <Textarea
+                label="Descripción"
+                value={formData.descripcion}
+                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <CustomButton
+                label={editingEstado ? 'Actualizar' : 'Crear'}
+                type="submit"
+                size="sm"
+              />
+              {editingEstado && (
+                <CustomButton
+                  label="Cancelar"
+                  onClick={resetForm}
+                  size="sm"
+                  color="danger"
+                  variant="bordered"
+                />
+              )}
+            </div>
+          </form>
+        )}
 
         {/* Tabla */}
         <div className="bg-white rounded-lg shadow-md">
@@ -160,22 +164,26 @@ const EstadosFenologicosModal: React.FC<EstadosFenologicosModalProps> = ({ isOpe
                     <td className="px-4 py-2">{estado.orden}</td>
                     <td className="px-4 py-2">
                       <div className="flex gap-1">
-                        <CustomButton
-                          icon={<PencilIcon className="w-4 h-4" />}
-                          tooltip="Editar"
-                          onClick={() => handleEdit(estado)}
-                          color="secondary"
-                          variant="light"
-                          size="sm"
-                        />
-                        <CustomButton
-                          icon={<TrashIcon className="w-4 h-4" />}
-                          tooltip="Eliminar"
-                          onClick={() => handleDelete(estado.id)}
-                          color="danger"
-                          variant="light"
-                          size="sm"
-                        />
+                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar') && (
+                          <CustomButton
+                            icon={<PencilIcon className="w-4 h-4" />}
+                            tooltip="Editar"
+                            onClick={() => handleEdit(estado)}
+                            color="secondary"
+                            variant="light"
+                            size="sm"
+                          />
+                        )}
+                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar') && (
+                          <CustomButton
+                            icon={<TrashIcon className="w-4 h-4" />}
+                            tooltip="Eliminar"
+                            onClick={() => handleDelete(estado.id)}
+                            color="danger"
+                            variant="light"
+                            size="sm"
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>
