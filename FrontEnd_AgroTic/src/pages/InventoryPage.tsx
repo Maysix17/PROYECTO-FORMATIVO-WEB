@@ -10,6 +10,7 @@ import type { LoteInventario } from '../services/inventoryService';
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { Modal, ModalContent } from '@heroui/react';
 import { usePermission } from '../contexts/PermissionContext';
+import Swal from 'sweetalert2';
 
 const InventoryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -50,14 +51,18 @@ const InventoryPage: React.FC = () => {
    }, [filters, allItems, currentPage]);
 
   const fetchAllInventory = async () => {
-    console.log('Fetching all inventory');
+    console.log('DEBUG: Fetching all inventory after update');
     setLoading(true);
     try {
       // Fetch all items by setting a high limit
       const response = await inventoryService.getAll(1, 10000);
-      console.log('All inventory response:', response);
+      console.log('DEBUG: All inventory response:', response);
+      console.log('DEBUG: First item bodega:', response.items[0]?.bodega);
+      console.log('DEBUG: Updated item bodega:', response.items.find(item => item.id === '7cf16a61-2334-44aa-94c4-df3c491b1ef5')?.bodega);
+      console.log('DEBUG: Setting allItems with', response.items.length, 'items');
       setAllItems(response.items);
       setResults(response.items.slice(0, limit));
+      console.log('DEBUG: Updated results with first', limit, 'items');
     } catch (err: unknown) {
       console.error('Error fetching inventory:', err);
     } finally {
@@ -85,8 +90,26 @@ const InventoryPage: React.FC = () => {
     try {
       await inventoryService.delete(id);
       fetchAllInventory();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting item:', error);
+      if (error.response?.status === 409) {
+        // Show conflict error message
+        const errorMessage = error.response?.data?.message || 'No se puede eliminar el elemento porque tiene restricciones.';
+        Swal.fire({
+          icon: 'warning',
+          title: 'No se puede eliminar',
+          text: errorMessage,
+          confirmButtonText: 'Entendido',
+        });
+      } else {
+        // Show generic error
+        Swal.fire({
+          icon: 'error',
+          title: 'Error al eliminar',
+          text: 'Ocurrió un error al eliminar el elemento.',
+          confirmButtonText: 'Aceptar',
+        });
+      }
     }
   };
 
@@ -245,6 +268,7 @@ const InventoryPage: React.FC = () => {
           setEditItem(null);
         }}
         onProductCreated={() => {
+          console.log('DEBUG: onProductCreated called - refreshing inventory data');
           fetchAllInventory();
           setCurrentPage(1);
         }}

@@ -63,7 +63,24 @@ export class CategoriaActividadService {
   }
 
   async remove(id: string): Promise<void> {
-    const categoria = await this.findOne(id);
+    const categoria = await this.categoriaRepository.findOne({
+      where: { id },
+      relations: ['actividades']
+    });
+
+    if (!categoria) {
+      throw new NotFoundException(
+        `CategoriaActividad con ID ${id} no encontrada`,
+      );
+    }
+
+    // Check if there are related actividades
+    if (categoria.actividades && categoria.actividades.length > 0) {
+      throw new Error(
+        `No se puede eliminar la categoría "${categoria.nombre}" porque tiene ${categoria.actividades.length} actividad(es) asociada(s). Elimine o reasigne las actividades primero.`,
+      );
+    }
+
     await this.categoriaRepository.remove(categoria);
   }
 }

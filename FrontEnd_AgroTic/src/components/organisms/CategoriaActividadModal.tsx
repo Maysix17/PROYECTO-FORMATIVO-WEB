@@ -47,13 +47,23 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
     try {
       await deleteCategoriaActividad(id);
       fetchCategorias();
-    } catch (err) {
+      await Swal.fire({
+        title: 'Éxito',
+        text: 'Categoría de actividad eliminada correctamente.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (err: any) {
+      console.error('Error deleting categoria:', err);
+      const errorMessage = err.response?.data?.message ||
+                          err.message ||
+                          'Error al eliminar la categoría de actividad.';
       await Swal.fire({
         title: 'Error',
-        text: 'Error al eliminar la categoría de actividad.',
+        text: errorMessage,
         icon: 'error',
-        timer: 3000,
-        showConfirmButton: false
+        showConfirmButton: true
       });
     }
   };
@@ -67,7 +77,11 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
           <h2 className="text-xl font-semibold">Gestionar Categorías de Actividad</h2>
         </ModalHeader>
         <ModalBody className="max-h-[70vh] overflow-y-auto">
-          <CategoriaActividadForm editId={editId} onSuccess={() => { fetchCategorias(); setEditId(null); }} />
+          <CategoriaActividadForm
+            editId={editId}
+            onSuccess={() => { fetchCategorias(); setEditId(null); }}
+            onCancel={() => setEditId(null)}
+          />
           {message && <p className="text-center text-green-600 mt-4">{message}</p>}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Lista de Categorías de Actividad</h3>
@@ -78,7 +92,7 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
                     <td className="px-4 py-2 border-b">{categoria.nombre}</td>
                     <td className="px-4 py-2 border-b">
                       <div className="flex gap-1">
-                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar') || hasPermission('Actividades', 'actividades', 'crear') && (
+                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar') && (
                           <CustomButton
                             icon={<PencilIcon className="w-4 h-4" />}
                             tooltip="Editar"
@@ -88,7 +102,7 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
                             size="sm"
                           />
                         )}
-                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar') || hasPermission('Actividades', 'actividades', 'crear')&& (
+                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar') && (
                           <CustomButton
                             icon={<TrashIcon className="w-4 h-4" />}
                             tooltip="Eliminar"

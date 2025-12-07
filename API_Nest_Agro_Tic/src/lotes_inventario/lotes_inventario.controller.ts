@@ -113,6 +113,8 @@ export class LotesInventarioController {
     @Param('id') id: string,
     @Body() updateLotesInventarioDto: UpdateLotesInventarioDto,
   ) {
+    console.log('Controller: update called with ID:', id);
+    console.log('Controller: updateDto:', updateLotesInventarioDto);
     // Load user from database using userId from guard
     const usuario = await this.usuarioRepository.findOne({
       where: { id: req.userId },

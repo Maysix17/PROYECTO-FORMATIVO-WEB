@@ -61,7 +61,11 @@ const CategoriaModal: React.FC<CategoriaModalProps> = ({ isOpen, onClose }) => {
           <h2 className="text-xl font-semibold">Gestionar Categorías</h2>
         </ModalHeader>
         <ModalBody className="max-h-[70vh] overflow-y-auto">
-          <CategoriaForm editId={editId} onSuccess={() => { fetchCategorias(); setEditId(null); }} />
+          <CategoriaForm
+            editId={editId}
+            onSuccess={() => { fetchCategorias(); setEditId(null); }}
+            onCancel={() => setEditId(null)}
+          />
           {message && <p className="text-center text-green-600 mt-4">{message}</p>}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Lista de Categorías</h3>

@@ -53,7 +53,7 @@ export class LotesInventarioService {
   async findOne(id: string): Promise<LotesInventario> {
     const entity = await this.lotesInventarioRepo.findOne({
       where: { id },
-      relations: ['producto', 'bodega', 'reservas'],
+      relations: ['producto', 'bodega', 'reservas', 'reservas.estado'],
     });
     if (!entity)
       throw new NotFoundException(`LotesInventario con ID ${id} no encontrado`);
@@ -71,6 +71,8 @@ export class LotesInventarioService {
 
     const entity = await this.findOne(id);
     console.log('DEBUG: found entity:', entity);
+    console.log('DEBUG: entity.fkBodegaId:', entity.fkBodegaId);
+    console.log('DEBUG: updateDto.fkBodegaId:', updateDto.fkBodegaId);
 
     // Check if lote has active reservations that prevent certain updates
     if (updateDto.stock !== undefined || updateDto.fechaVencimiento !== undefined) {
@@ -139,7 +141,13 @@ export class LotesInventarioService {
     }
 
     // Handle lote inventory updates
-    if (updateDto.fkBodegaId) entity.fkBodegaId = updateDto.fkBodegaId;
+    if (updateDto.fkBodegaId !== undefined && updateDto.fkBodegaId !== entity.fkBodegaId) {
+      console.log('DEBUG: Updating fkBodegaId from', entity.fkBodegaId, 'to', updateDto.fkBodegaId);
+      entity.fkBodegaId = updateDto.fkBodegaId; // Update the entity instance
+      console.log('DEBUG: entity.fkBodegaId set to', entity.fkBodegaId);
+    } else {
+      console.log('DEBUG: Not updating fkBodegaId, current:', entity.fkBodegaId, 'new:', updateDto.fkBodegaId);
+    }
     if (updateDto.stock) {
       entity.stock = updateDto.stock;
       // Recalculate cantidadDisponible
@@ -154,8 +162,21 @@ export class LotesInventarioService {
         ? new Date(updateDto.fechaVencimiento)
         : undefined;
 
-    const savedEntity = await this.lotesInventarioRepo.save(entity);
-    console.log('DEBUG: lote updated:', savedEntity);
+    let savedEntity: LotesInventario;
+    try {
+      savedEntity = await this.lotesInventarioRepo.save(entity);
+      console.log('DEBUG: lote saved successfully:', savedEntity);
+      console.log('DEBUG: savedEntity.fkBodegaId:', savedEntity.fkBodegaId);
+    } catch (error) {
+      console.error('DEBUG: Error saving lote:', error);
+      throw error;
+    }
+
+    // Reload with relations to ensure updated data is returned
+    const reloadedEntity = await this.findOne(savedEntity.id);
+    console.log('DEBUG: reloaded entity with relations:', reloadedEntity);
+    console.log('DEBUG: reloadedEntity.fkBodegaId:', reloadedEntity.fkBodegaId);
+    console.log('DEBUG: reloadedEntity.bodega:', reloadedEntity.bodega);
 
     // Create movement record for AJUSTE if any data was modified
     if (hasAnyUpdates) {
@@ -181,16 +202,22 @@ export class LotesInventarioService {
       }
     }
 
-    return savedEntity;
+    return reloadedEntity;
   }
 
   async remove(id: string): Promise<void> {
     const entity = await this.findOne(id);
+    console.log('DEBUG: remove - entity:', entity);
+    console.log('DEBUG: remove - cantidadDisponible:', entity.cantidadDisponible);
+    console.log('DEBUG: remove - cantidadParcial:', entity.cantidadParcial);
+    console.log('DEBUG: remove - stock:', entity.stock);
 
     // Check if lote has active reservations
     const hasActiveReservations = entity.reservas?.some(reserva =>
       reserva.estado?.nombre !== 'Confirmada' && reserva.estado?.nombre !== 'Cancelada'
     );
+    console.log('DEBUG: remove - hasActiveReservations:', hasActiveReservations);
+    console.log('DEBUG: remove - reservas:', entity.reservas);
 
     if (hasActiveReservations) {
       throw new ConflictException(
@@ -203,8 +230,10 @@ export class LotesInventarioService {
     const cantidadDisponible = Number(entity.cantidadDisponible || 0);
     const cantidadParcial = Number(entity.cantidadParcial || 0);
     const stockDisponible = cantidadDisponible + cantidadParcial;
+    console.log('DEBUG: remove - stockDisponible:', stockDisponible);
 
-    if (stockDisponible > 0) {
+    // Allow deletion if stock is 0, even if there are partial returns
+    if (entity.stock > 0 && stockDisponible > 0) {
       throw new ConflictException(
         `No se puede eliminar el lote porque aún tiene ${stockDisponible} unidades disponibles. ` +
         `Asegúrese de que todo el inventario haya sido utilizado o devuelto antes de eliminar el lote.`

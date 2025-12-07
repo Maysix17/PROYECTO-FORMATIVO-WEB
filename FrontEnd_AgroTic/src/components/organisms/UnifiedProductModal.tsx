@@ -55,6 +55,10 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
     }
   }, [isOpen, editItem]);
 
+  useEffect(() => {
+    console.log('DEBUG: formData updated:', formData);
+  }, [formData]);
+
   const resetForm = () => {
     setFormData({
       nombre: '',
@@ -75,15 +79,31 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
 
   const populateFormWithEditData = () => {
     if (editItem) {
+      console.log('DEBUG: populateFormWithEditData - editItem:', editItem);
+      console.log('DEBUG: editItem.producto:', editItem.producto);
+      console.log('DEBUG: editItem.bodega:', editItem.bodega);
       setFormData({
-        nombre: editItem.producto.nombre || '',
-        descripcion: editItem.producto.descripcion || '',
-        sku: editItem.producto.sku || '',
-        precioCompra: editItem.producto.precioCompra || '',
-        capacidadPresentacion: editItem.producto.capacidadPresentacion || '',
-        fkCategoriaId: editItem.producto.categoria?.id || '',
-        fkUnidadMedidaId: editItem.producto.unidadMedida?.id || '',
-        vidaUtilPromedioPorUsos: editItem.producto.vidaUtilPromedioPorUsos?.toString() || '',
+        nombre: editItem.producto?.nombre || '',
+        descripcion: editItem.producto?.descripcion || '',
+        sku: editItem.producto?.sku || '',
+        precioCompra: editItem.producto?.precioCompra || '',
+        capacidadPresentacion: editItem.producto?.capacidadPresentacion || '',
+        fkCategoriaId: editItem.producto?.categoria?.id || '',
+        fkUnidadMedidaId: editItem.producto?.unidadMedida?.id || '',
+        vidaUtilPromedioPorUsos: editItem.producto?.vidaUtilPromedioPorUsos?.toString() || '',
+        fkBodegaId: editItem.bodega?.id || '',
+        stock: editItem.stock?.toString() || '',
+        fechaVencimiento: editItem.fechaVencimiento ? new Date(editItem.fechaVencimiento).toISOString().split('T')[0] : '',
+      });
+      console.log('DEBUG: populated formData:', {
+        nombre: editItem.producto?.nombre || '',
+        descripcion: editItem.producto?.descripcion || '',
+        sku: editItem.producto?.sku || '',
+        precioCompra: editItem.producto?.precioCompra || '',
+        capacidadPresentacion: editItem.producto?.capacidadPresentacion || '',
+        fkCategoriaId: editItem.producto?.categoria?.id || '',
+        fkUnidadMedidaId: editItem.producto?.unidadMedida?.id || '',
+        vidaUtilPromedioPorUsos: editItem.producto?.vidaUtilPromedioPorUsos?.toString() || '',
         fkBodegaId: editItem.bodega?.id || '',
         stock: editItem.stock?.toString() || '',
         fechaVencimiento: editItem.fechaVencimiento ? new Date(editItem.fechaVencimiento).toISOString().split('T')[0] : '',
@@ -122,7 +142,12 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    console.log('DEBUG: handleInputChange - name:', name, 'value:', value);
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      console.log('DEBUG: setting new formData:', newData);
+      return newData;
+    });
   };
 
   const handleFileSelect = (file: File) => {
@@ -134,7 +159,9 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
     setIsLoading(true);
     setErrors({});
 
-    console.log('DEBUG: handleSubmit called, editItem:', editItem);
+    console.log('DEBUG: handleSubmit called');
+    console.log('DEBUG: editItem:', editItem);
+    console.log('DEBUG: formData:', formData);
 
     try {
       const data = {
@@ -186,11 +213,12 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
           fechaVencimiento: data.fechaVencimiento || null,
         };
         console.log('DEBUG: Update data to send:', updateData);
+        console.log('DEBUG: fkBodegaId being sent:', data.fkBodegaId);
         const response = await inventoryService.updateLote(editItem.id, updateData);
         console.log('DEBUG: Update response:', response);
 
-        // Force page reload to refresh data
-        window.location.reload();
+        // Refresh data without full page reload
+        onProductCreated();
       } else {
         // Create new item
         console.log('DEBUG: Creating new item');

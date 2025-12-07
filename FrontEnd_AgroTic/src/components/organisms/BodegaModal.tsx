@@ -34,6 +34,8 @@ const BodegaModal: React.FC<BodegaModalProps> = ({ isOpen, onClose }) => {
       setBodegas(data);
     } catch (err) {
       console.error('Error fetching bodegas:', err);
+      // Optionally show error message to user
+      setMessage('Error al cargar la lista de bodegas');
     }
   };
 
@@ -61,7 +63,11 @@ const BodegaModal: React.FC<BodegaModalProps> = ({ isOpen, onClose }) => {
           <h2 className="text-xl font-semibold">Gestionar Bodegas</h2>
         </ModalHeader>
         <ModalBody>
-          <BodegaForm editId={editId} onSuccess={() => { fetchBodegas(); setEditId(null); }} />
+          <BodegaForm
+            editId={editId}
+            onSuccess={() => { fetchBodegas(); setEditId(null); }}
+            onCancel={() => setEditId(null)}
+          />
           {message && <p className="text-center text-green-600 mt-4">{message}</p>}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Lista de Bodegas</h3>

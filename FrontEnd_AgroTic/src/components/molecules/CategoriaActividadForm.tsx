@@ -6,9 +6,10 @@ import { usePermission } from '../../contexts/PermissionContext';
 interface CategoriaActividadFormProps {
   editId?: string | null;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-const CategoriaActividadForm: React.FC<CategoriaActividadFormProps> = ({ editId, onSuccess }) => {
+const CategoriaActividadForm: React.FC<CategoriaActividadFormProps> = ({ editId, onSuccess, onCancel }) => {
   const [categoriaData, setCategoriaData] = useState<{ nombre: string }>({
     nombre: '',
   });
@@ -54,6 +55,12 @@ const CategoriaActividadForm: React.FC<CategoriaActividadFormProps> = ({ editId,
     }
   };
 
+  const handleCancel = () => {
+    setCategoriaData({ nombre: '' });
+    onCancel?.();
+    setMessage('');
+  };
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div>
@@ -72,13 +79,24 @@ const CategoriaActividadForm: React.FC<CategoriaActividadFormProps> = ({ editId,
 
       {message && <p className="text-center text-primary-600">{message}</p>}
 
-      {!isInitializing && (hasPermission('Cultivos', 'cultivos', 'crear') || hasPermission('Actividades', 'actividades', 'crear')) && (
-        <CustomButton
-          type="submit"
-          text={editId ? 'Actualizar Categoría' : 'Registrar Categoría'}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 w-full"
-        />
-      )}
+      <div className="flex gap-2">
+        {!isInitializing && (hasPermission('Cultivos', 'cultivos', 'crear') || hasPermission('Actividades', 'actividades', 'crear')) && (
+          <CustomButton
+            type="submit"
+            text={editId ? 'Actualizar Categoría' : 'Registrar Categoría'}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 flex-1"
+          />
+        )}
+        {editId && (
+          <CustomButton
+            type="button"
+            text="Cancelar"
+            onClick={handleCancel}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-8 py-3"
+            variant="solid"
+          />
+        )}
+      </div>
     </form>
   );
 };

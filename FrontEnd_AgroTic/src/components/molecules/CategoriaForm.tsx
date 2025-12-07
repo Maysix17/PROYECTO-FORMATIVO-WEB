@@ -7,9 +7,10 @@ import { usePermission } from '../../contexts/PermissionContext';
 interface CategoriaFormProps {
   editId?: string | null;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-const CategoriaForm: React.FC<CategoriaFormProps> = ({ editId, onSuccess }) => {
+const CategoriaForm: React.FC<CategoriaFormProps> = ({ editId, onSuccess, onCancel }) => {
   const { hasPermission } = usePermission();
   const [categoriaData, setCategoriaData] = useState<CategoriaData>({
     nombre: '',
@@ -57,6 +58,12 @@ const CategoriaForm: React.FC<CategoriaFormProps> = ({ editId, onSuccess }) => {
     } catch (error: any) {
       setMessage(error.message || 'Error en la operación');
     }
+  };
+
+  const handleCancel = () => {
+    setCategoriaData({ nombre: '', descripcion: '', esDivisible: false });
+    onCancel?.();
+    setMessage('');
   };
 
   return (
@@ -108,13 +115,24 @@ const CategoriaForm: React.FC<CategoriaFormProps> = ({ editId, onSuccess }) => {
 
       {message && <p className="text-center text-primary-600">{message}</p>}
 
-      {(editId ? hasPermission('Inventario', 'inventario', 'actualizar') : hasPermission('Inventario', 'inventario', 'crear')) && (
-        <CustomButton
-          type="submit"
-          text={editId ? 'Actualizar Categoría' : 'Registrar Categoría'}
-          className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 w-full"
-        />
-      )}
+      <div className="flex gap-2">
+        {(editId ? hasPermission('Inventario', 'inventario', 'actualizar') : hasPermission('Inventario', 'inventario', 'crear')) && (
+          <CustomButton
+            type="submit"
+            text={editId ? 'Actualizar Categoría' : 'Registrar Categoría'}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 flex-1"
+          />
+        )}
+        {editId && (
+          <CustomButton
+            type="button"
+            text="Cancelar"
+            onClick={handleCancel}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-8 py-3"
+            variant="solid"
+          />
+        )}
+      </div>
     </form>
   );
 };
