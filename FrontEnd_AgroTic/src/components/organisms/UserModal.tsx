@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Modal,
   ModalContent,
@@ -7,6 +7,7 @@ import CustomButton from "../atoms/Boton";
 import { usePermission } from "../../contexts/PermissionContext";
 import { useNavigate } from "react-router-dom";
 import { ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import EditProfileModal from "./EditProfileModal";
 
 interface UserModalProps {
   isOpen: boolean;
@@ -16,10 +17,10 @@ interface UserModalProps {
 const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose }) => {
   const { user, hasPermission, logout } = usePermission();
   const navigate = useNavigate();
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
 
   const handleEditProfile = () => {
-    // TODO: Navigate to edit profile page
-    console.log('Edit profile');
+    setIsEditProfileModalOpen(true);
   };
 
   const handleControlPanel = () => {
@@ -63,7 +64,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="bg-gray-50 p-3 rounded-lg col-span-1 md:col-span-2">
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">N. deeeecumento de identidad</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">N. Documento</div>
                   <div className="text-base font-bold text-gray-900 break-words">{user.dni}</div>
                 </div>
 
@@ -122,6 +123,11 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose }) => {
             </div>
         </div>
       </ModalContent>
+
+      <EditProfileModal
+        isOpen={isEditProfileModalOpen}
+        onClose={() => setIsEditProfileModalOpen(false)}
+      />
     </Modal>
   );
 };

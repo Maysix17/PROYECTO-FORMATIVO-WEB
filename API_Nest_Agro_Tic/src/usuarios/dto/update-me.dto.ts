@@ -20,6 +20,10 @@ export class UpdateMeDto {
 
   @IsNumber()
   @IsOptional()
+  dni?: number;
+
+  @IsNumber()
+  @IsOptional()
   telefono?: number;
 
   @IsEmail()

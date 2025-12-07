@@ -6,6 +6,7 @@ import type { User } from '../types/user'; // Deberás crear este tipo basado en
 export interface UpdateProfilePayload {
   nombres?: string;
   apellidos?: string;
+  dni?: number;
   telefono?: number;
   correo?: string;
 }

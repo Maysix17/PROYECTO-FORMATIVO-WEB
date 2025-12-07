@@ -259,6 +259,25 @@ export class UsuariosService {
     userId: string,
     updateProfileDto: UpdateMeDto,
   ): Promise<Omit<Usuario, 'passwordHash'>> {
+    // Check for conflicts with DNI and email if they are being updated
+    if (updateProfileDto.dni !== undefined) {
+      const existingUserWithDni = await this.usuarioRepository.findOne({
+        where: { dni: updateProfileDto.dni },
+      });
+      if (existingUserWithDni && existingUserWithDni.id !== userId) {
+        throw new ConflictException('El DNI ya está registrado por otro usuario.');
+      }
+    }
+
+    if (updateProfileDto.correo !== undefined) {
+      const existingUserWithEmail = await this.usuarioRepository.findOne({
+        where: { correo: updateProfileDto.correo },
+      });
+      if (existingUserWithEmail && existingUserWithEmail.id !== userId) {
+        throw new ConflictException('El correo ya está registrado por otro usuario.');
+      }
+    }
+
     const user = await this.usuarioRepository.preload({
       id: userId,
       ...updateProfileDto,
