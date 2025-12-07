@@ -134,6 +134,8 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
     setIsLoading(true);
     setErrors({});
 
+    console.log('DEBUG: handleSubmit called, editItem:', editItem);
+
     try {
       const data = {
         nombre: formData.nombre,
@@ -154,10 +156,23 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
       console.log('DEBUG: data to send:', data);
 
       if (editItem) {
-        // Update existing product
-        console.log('DEBUG: Updating product with ID:', editItem.producto.id);
-        // Note: For now, we're only updating the product. Lote updates would need separate handling
-        const productData = {
+        // Handle image upload first if a new file is selected
+        let imgUrl: string | undefined = undefined;
+        if (selectedFile && selectedFile instanceof File) {
+          console.log('DEBUG: Uploading new image');
+          const uploadResponse = await inventoryService.uploadProductImage(selectedFile);
+          imgUrl = uploadResponse.url;
+          console.log('DEBUG: Image uploaded, URL:', imgUrl);
+
+          // Update product with new image URL
+          console.log('DEBUG: Updating product image');
+          await inventoryService.updateProduct(editItem.producto.id, { imgUrl });
+          console.log('DEBUG: Product image updated');
+        }
+
+        // Update lote (which can update both product and lote data)
+        console.log('DEBUG: Updating lote with ID:', editItem.id);
+        const updateData = {
           nombre: data.nombre,
           descripcion: data.descripcion,
           sku: data.sku,
@@ -166,15 +181,16 @@ const UnifiedProductModal: React.FC<UnifiedProductModalProps> = ({
           fkCategoriaId: data.fkCategoriaId,
           fkUnidadMedidaId: data.fkUnidadMedidaId,
           vidaUtilPromedioPorUsos: data.vidaUtilPromedioPorUsos,
-          imgUrl: data.imgUrl,
+          fkBodegaId: data.fkBodegaId,
+          stock: data.stock,
+          fechaVencimiento: data.fechaVencimiento || null,
         };
-        await inventoryService.updateProduct(editItem.producto.id, productData);
-        Swal.fire({
-          icon: 'success',
-          title: 'Producto actualizado',
-          text: 'El producto ha sido actualizado exitosamente.',
-          confirmButtonText: 'Aceptar',
-        });
+        console.log('DEBUG: Update data to send:', updateData);
+        const response = await inventoryService.updateLote(editItem.id, updateData);
+        console.log('DEBUG: Update response:', response);
+
+        // Force page reload to refresh data
+        window.location.reload();
       } else {
         // Create new item
         console.log('DEBUG: Creating new item');

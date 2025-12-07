@@ -204,7 +204,7 @@ export const inventoryService = {
   },
 
   updateLote: async (id: string, data: any): Promise<any> => {
-    const response = await apiClient.put(`/inventario/${id}`, data);
+    const response = await apiClient.patch(`/inventario/${id}`, data);
     return response.data;
   },
 
@@ -263,15 +263,24 @@ export const inventoryService = {
     console.log('DEBUG: updateProduct data:', data);
 
     const formData = new FormData();
-    formData.append('nombre', data.nombre);
+    if (data.nombre) formData.append('nombre', data.nombre);
     if (data.descripcion) formData.append('descripcion', data.descripcion);
     if (data.sku) formData.append('sku', data.sku);
-    formData.append('precioCompra', data.precioCompra.toString());
-    formData.append('capacidadPresentacion', data.capacidadPresentacion.toString());
+    if (data.precioCompra) formData.append('precioCompra', data.precioCompra.toString());
+    if (data.capacidadPresentacion) formData.append('capacidadPresentacion', data.capacidadPresentacion.toString());
     if (data.fkCategoriaId) formData.append('fkCategoriaId', data.fkCategoriaId);
     if (data.fkUnidadMedidaId) formData.append('fkUnidadMedidaId', data.fkUnidadMedidaId);
     if (data.vidaUtilPromedioPorUsos) formData.append('vidaUtilPromedioPorUsos', data.vidaUtilPromedioPorUsos.toString());
-    if (data.imgUrl && data.imgUrl instanceof File) formData.append('imgUrl', data.imgUrl);
+    if (data.imgUrl) {
+      if (data.imgUrl instanceof File) {
+        formData.append('imgUrl', data.imgUrl);
+      } else if (typeof data.imgUrl === 'string') {
+        // For URL updates, send as JSON
+        const response = await apiClient.patch(`/productos/${id}`, { imgUrl: data.imgUrl });
+        console.log('DEBUG: updateProduct response:', response);
+        return response.data;
+      }
+    }
 
     const response = await apiClient.patch(`/productos/${id}`, formData, {
       headers: {

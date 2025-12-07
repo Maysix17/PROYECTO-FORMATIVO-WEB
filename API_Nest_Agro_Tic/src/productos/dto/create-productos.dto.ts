@@ -42,4 +42,8 @@ export class CreateProductosDto {
   @IsOptional()
   @Min(0)
   vidaUtilPromedioPorUsos?: number;
+
+  @IsString()
+  @IsOptional()
+  imgUrl?: string;
 }
