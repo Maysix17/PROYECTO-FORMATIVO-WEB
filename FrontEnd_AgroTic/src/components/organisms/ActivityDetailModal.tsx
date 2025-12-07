@@ -355,7 +355,9 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
               {hasPermission('Actividades', 'actividades', 'actualizar') && (
                 <CustomButton variant="ghost" onClick={() => setIsEditModalOpen(true)} label="Actualizar" />
               )}
-              {activity?.dniResponsable === user?.dni && (
+              { hasPermission('Actividades', 'actividades', 'actualizar') &&
+               activity?.dniResponsable === user?.dni && (
+                
                 <CustomButton color="success" onClick={() => setIsFinalizeModalOpen(true)} label="Finalizar Actividad" />
               )}
             </div>
