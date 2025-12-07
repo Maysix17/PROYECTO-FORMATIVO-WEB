@@ -47,9 +47,6 @@ const PERMISOS_BASE = [
   { moduloNombre: 'Inicio', recurso: 'acceso_inicio', acciones: ACCION_VER },
   { moduloNombre: 'Inicio', recurso: 'dashboard', acciones: ['leer'] },
 
-  { moduloNombre: 'Panel de Control', recurso: 'panel_de_control', acciones: ACCIONES_CRUD },
-
-
   // Módulo de zonas
   { moduloNombre: 'zonas', recurso: 'acceso_zonas', acciones: ACCION_VER },
   { moduloNombre: 'zonas', recurso: 'zonas', acciones: ACCIONES_CRUD },
@@ -74,6 +71,13 @@ const PERMISOS_BASE = [
   },
   { moduloNombre: 'Actividades', recurso: 'actividades', acciones: ACCIONES_CRUD },
 
+
+  // Módulo de Panel de Control
+  {
+    moduloNombre: 'Usuarios',
+    recurso: 'panel_de_control',
+    acciones: ['leer'],
+  },
 
   // Módulo de Inventario
   {
@@ -240,12 +244,7 @@ export class SeederService {
   private async seedPermisos() {
     this.logger.log('Sincronizando permisos base...', 'Seeder');
     try {
-      for (const permisoData of PERMISOS_BASE) {
-        // Usamos el servicio que ya tienes para evitar duplicados
-        await this.permisosService.sincronizarPermisos(permisoData);
-      }
-      this.logger.log('Permisos base sincronizados.', 'Seeder');
-
+      // First, remove old permissions that might conflict
       // Remove the "lotes" resource from the Cultivos module
       await this.removeLotesFromCultivos();
 
@@ -260,6 +259,19 @@ export class SeederService {
 
       // Remove the "usuarios" and "roles" resources from the Usuarios module
       await this.removeUsuariosAndRolesFromUsuarios();
+
+      // Remove the "panel_de_control" resource from the Panel de Control module
+      await this.removePanelDeControlFromPermisos();
+
+      // Remove the "Panel de Control" module entirely
+      await this.removePanelDeControlModule();
+
+      // Now create the new permissions
+      for (const permisoData of PERMISOS_BASE) {
+        // Usamos el servicio que ya tienes para evitar duplicados
+        await this.permisosService.sincronizarPermisos(permisoData);
+      }
+      this.logger.log('Permisos base sincronizados.', 'Seeder');
     } catch (error) {
       this.logger.error(
         'Error sincronizando permisos: ' + error.message,
@@ -408,6 +420,57 @@ export class SeederService {
     }
   }
 
+  private async removePanelDeControlFromPermisos() {
+    this.logger.log('Removiendo recurso "panel_de_control" del módulo Panel de Control...', 'Seeder');
+    try {
+      // Find all resources named "panel_de_control"
+      const recursosPanelDeControl = await this.recursoRepository.find({
+        where: { nombre: 'panel_de_control' },
+        relations: ['modulo'],
+      });
+
+      for (const recurso of recursosPanelDeControl) {
+        if (recurso.modulo && recurso.modulo.nombre === 'Panel de Control') {
+          // Remove the resource (permissions will be deleted by CASCADE)
+          await this.recursoRepository.remove(recurso);
+          this.logger.log('Recurso "panel_de_control" eliminado del módulo Panel de Control.', 'Seeder');
+        }
+      }
+
+      if (recursosPanelDeControl.length === 0) {
+        this.logger.log('No se encontraron recursos "panel_de_control". Omitiendo.', 'Seeder');
+      }
+    } catch (error) {
+      this.logger.error(
+        'Error removiendo recurso "panel_de_control" del módulo Panel de Control: ' + error.message,
+        'Seeder',
+      );
+    }
+  }
+
+  private async removePanelDeControlModule() {
+    this.logger.log('Removiendo el módulo "Panel de Control" completamente...', 'Seeder');
+    try {
+      // Find the module
+      const modulo = await this.moduloRepository.findOne({
+        where: { nombre: 'Panel de Control' },
+      });
+
+      if (modulo) {
+        // Remove the module (resources and permissions will be deleted by CASCADE)
+        await this.moduloRepository.remove(modulo);
+        this.logger.log('Módulo "Panel de Control" eliminado completamente.', 'Seeder');
+      } else {
+        this.logger.log('Módulo "Panel de Control" no encontrado. Omitiendo.', 'Seeder');
+      }
+    } catch (error) {
+      this.logger.error(
+        'Error removiendo el módulo "Panel de Control": ' + error.message,
+        'Seeder',
+      );
+    }
+  }
+
 
   private async seedRolAdmin(): Promise<Rol | null> {
     const nombreRol = 'ADMIN';
@@ -425,13 +488,9 @@ export class SeederService {
         );
       }
 
-      // Ensure admin has panel de control permission
-      const userManagementPermisos = todosLosPermisos.filter(p =>
-        p.recurso.nombre === 'panel_de_control'
-      );
-
+      // Admin gets all permissions including the new panel_de_control in Usuarios module
       this.logger.log(
-        `Admin tendrá ${userManagementPermisos.length} permisos de gestión de usuarios: ${userManagementPermisos.map(p => `${p.recurso.nombre}:${p.accion}`).join(', ')}`,
+        `Admin tendrá todos los permisos, incluyendo panel_de_control en módulo Usuarios.`,
         'Seeder',
       );
 
