@@ -174,4 +174,14 @@ export class AuthController {
     const userId = (req as any).userId;
     return this.authService.getUserPermissions(userId);
   }
+
+  @UseGuards(AuthenticationGuard)
+  @Get('ws-token')
+  async getWebSocketToken(@Req() req: Request): Promise<{ token: string }> {
+    const accessToken = req.cookies?.access_token;
+    if (!accessToken) {
+      throw new UnauthorizedException('No access token available');
+    }
+    return { token: accessToken };
+  }
 }

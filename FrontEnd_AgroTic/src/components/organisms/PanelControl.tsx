@@ -9,7 +9,16 @@ import userSearchService from '../../services/userSearchService';
 import { usePermission } from '../../contexts/PermissionContext';
 
 const PanelControl: React.FC = () => {
-  const { hasPermission } = usePermission();
+  const { hasPermission, permissions, lastUpdate } = usePermission();
+
+  // Debug logging for permission changes
+  React.useEffect(() => {
+    console.log('PanelControl: Permissions updated', {
+      permissionCount: permissions.length,
+      lastUpdate: new Date(lastUpdate),
+      permissions: permissions.slice(0, 3) // Log first 3 for debugging
+    });
+  }, [permissions, lastUpdate]);
   const [filters, setFilters] = useState<Record<string, any>>({});
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
