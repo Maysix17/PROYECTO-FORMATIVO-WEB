@@ -538,7 +538,7 @@ const Dashboard: React.FC = () => {
                       Zona: {currentActivities[0].actividad?.cultivoVariedadZona?.zona?.nombre || 'Sin zona'} | Asignado por: {currentActivities[0].actividad?.responsable?.nombres || 'N/A'} {currentActivities[0].actividad?.responsable?.apellidos || ''} / {currentActivities[0].actividad?.responsable?.rol?.nombre || 'Sin rol'}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Fecha de asignación: {new Date(currentActivities[0].fechaAsignacion + 'T00:00:00').toLocaleDateString()}
+                      Fecha de asignación: {new Date(currentActivities[0].fechaAsignacion.split('T')[0] + 'T00:00:00').toLocaleDateString()}
                     </p>
                     {assignedActivities.length > itemsPerPage && (
                       <p className="text-xs text-gray-500 mt-1">

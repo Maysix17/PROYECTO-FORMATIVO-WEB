@@ -246,7 +246,12 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
         const assignedUsers = getAssignedUsers(activity);
         actividadesData.push([
           activity.id,
-          activity.fechaAsignacion ? new Date(activity.fechaAsignacion + 'T00:00:00').toLocaleDateString('es-CO') : "N/A",
+          activity.fechaAsignacion ? (() => {
+            const datePart = activity.fechaAsignacion.split('T')[0];
+            const date = new Date(datePart);
+            const adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
+            return adjustedDate.toLocaleDateString('es-CO');
+          })() : "N/A",
           (activity as any).fechaFinalizacion ? new Date((activity as any).fechaFinalizacion).toLocaleDateString('es-CO') : "N/A",
           (activity as any).categoriaActividad?.nombre || 'Sin categoría',
           (activity as any).nombreResponsable || 'Sin responsable',
@@ -306,7 +311,12 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
             }
             inventarioData.push([
               activity.id,
-              activity.fechaAsignacion ? new Date(activity.fechaAsignacion + 'T00:00:00').toLocaleDateString('es-CO') : "N/A",
+              activity.fechaAsignacion ? (() => {
+                const datePart = activity.fechaAsignacion.split('T')[0];
+                const date = new Date(datePart);
+                const adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
+                return adjustedDate.toLocaleDateString('es-CO');
+              })() : "N/A",
               (activity as any).categoriaActividad?.nombre || 'Sin categoría',
               (activity as any).nombreResponsable || 'Sin responsable',
               reserva.lote?.producto?.nombre || 'Producto desconocido',
@@ -322,7 +332,12 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
         } else {
           inventarioData.push([
             activity.id,
-            activity.fechaAsignacion ? new Date(activity.fechaAsignacion + 'T00:00:00').toLocaleDateString('es-CO') : "N/A",
+            activity.fechaAsignacion ? (() => {
+              const datePart = activity.fechaAsignacion.split('T')[0];
+              const date = new Date(datePart);
+              const adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
+              return adjustedDate.toLocaleDateString('es-CO');
+            })() : "N/A",
             (activity as any).categoriaActividad?.nombre || 'Sin categoría',
             (activity as any).nombreResponsable || 'Sin responsable',
             'Sin inventario utilizado',
@@ -365,7 +380,12 @@ const CultivoDetailsModal: React.FC<CultivoDetailsModalProps> = ({
         const costoTotal = costoManoObra + costoInventario;
         costosData.push([
           activity.id,
-          activity.fechaAsignacion ? new Date(activity.fechaAsignacion + 'T00:00:00').toLocaleDateString('es-CO') : "N/A",
+          activity.fechaAsignacion ? (() => {
+            const datePart = activity.fechaAsignacion.split('T')[0];
+            const date = new Date(datePart);
+            const adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
+            return adjustedDate.toLocaleDateString('es-CO');
+          })() : "N/A",
           (activity as any).categoriaActividad?.nombre || 'Sin categoría',
           (activity as any).nombreResponsable || 'Sin responsable',
           costoManoObra.toFixed(2),

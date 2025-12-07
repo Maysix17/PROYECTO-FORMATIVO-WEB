@@ -101,6 +101,11 @@ export class CultivosVariedadXZonaController {
     recurso: 'zonas',
     acciones: ['actualizar'],
     moduloNombre: 'Zonas',
+
+  },
+{    recurso: 'actividades',
+    acciones: ['actualizar'],
+    moduloNombre: 'Actividades',
   })
   @Post(':id/cantidad-plantas')
   actualizarCantidadPlantas(
@@ -113,7 +118,12 @@ export class CultivosVariedadXZonaController {
   @Permisos({
     recurso: 'zonas',
     acciones: ['actualizar'],
-    moduloNombre: 'Zonas',
+    moduloNombre: 'Zonas',  
+  },
+  {
+    recurso: 'actividades',
+    acciones: ['actualizar'],
+    moduloNombre: 'Actividades',
   })
   @Put(':id/estado-fenologico')
   actualizarEstadoFenologico(

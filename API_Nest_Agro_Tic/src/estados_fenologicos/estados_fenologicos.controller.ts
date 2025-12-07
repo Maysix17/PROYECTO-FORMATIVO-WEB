@@ -60,6 +60,11 @@ export class EstadosFenologicosController {
     recurso: 'cultivos',
     acciones: ['actualizar'],
     moduloNombre: 'Cultivos',
+  },
+  {
+    recurso: 'actividades',
+    acciones: ['actualizar'],
+    moduloNombre: 'Actividades',
   })
   @Patch(':id')
   async update(

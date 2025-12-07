@@ -109,7 +109,8 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
       const endDate = dateRange[1];
       filtered = filtered.filter((activity: ExtendedActividad) => {
         const activityDate = new Date(activity.fechaAsignacion.split('T')[0]);
-        return activityDate >= startDate && activityDate <= endDate;
+        const adjustedActivityDate = new Date(activityDate.getTime() + (24 * 60 * 60 * 1000));
+        return adjustedActivityDate >= startDate && adjustedActivityDate <= endDate;
       });
     }
 
@@ -349,7 +350,9 @@ const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
 
   const formatDate = (dateString: string) => {
     const datePart = dateString.split('T')[0];
-    return new Date(datePart).toLocaleDateString();
+    const date = new Date(datePart);
+    const adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
+    return adjustedDate.toLocaleDateString();
   };
 
   const getResponsibleUser = (activity: ExtendedActividad) => {

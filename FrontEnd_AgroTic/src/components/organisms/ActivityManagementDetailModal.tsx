@@ -139,7 +139,12 @@ const ActivityManagementDetailModal: React.FC<ActivityManagementDetailModalProps
                 <div>
                   <label className="block text-sm font-medium">Fecha de Asignación</label>
                   <div className="text-sm text-gray-600">
-                    {new Date(activity.fechaAsignacion + 'T00:00:00').toLocaleDateString()}
+                    {(() => {
+                      const datePart = activity.fechaAsignacion.split('T')[0];
+                      const date = new Date(datePart);
+                      const adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
+                      return adjustedDate.toLocaleDateString();
+                    })()}
                   </div>
                 </div>
                 <div>

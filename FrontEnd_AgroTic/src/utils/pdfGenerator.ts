@@ -1278,9 +1278,12 @@ const generateCultivoTrazabilidad = async (
 
     const actividadesData = finalizedActivities.map((act) => [
       act.fechaAsignacion
-        ? new Date(act.fechaAsignacion + "T00:00:00").toLocaleDateString(
-            "es-CO"
-          )
+        ? (() => {
+            const datePart = act.fechaAsignacion.split('T')[0];
+            const date = new Date(datePart);
+            const adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
+            return adjustedDate.toLocaleDateString("es-CO");
+          })()
         : "N/A",
       (act as any).fechaFinalizacion
         ? new Date((act as any).fechaFinalizacion).toLocaleDateString("es-CO")
@@ -1332,9 +1335,12 @@ const generateCultivoTrazabilidad = async (
       (act) =>
         (act as any).reservas?.map((reserva: any) => [
           act.fechaAsignacion
-            ? new Date(act.fechaAsignacion + "T00:00:00").toLocaleDateString(
-                "es-CO"
-              )
+            ? (() => {
+                const datePart = act.fechaAsignacion.split('T')[0];
+                const date = new Date(datePart);
+                const adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000));
+                return adjustedDate.toLocaleDateString("es-CO");
+              })()
             : "N/A",
           (act as any).categoriaActividad?.nombre || "Sin categoría",
           (act as any).nombreResponsable || "Sin responsable",
@@ -1390,7 +1396,7 @@ const generateCultivoTrazabilidad = async (
 
     const costosData = finalizedActivities.map((act) => [
       act.fechaAsignacion
-        ? new Date(act.fechaAsignacion + "T00:00:00").toLocaleDateString(
+        ? new Date(act.fechaAsignacion.split('T')[0] + "T00:00:00").toLocaleDateString(
             "es-CO"
           )
         : "N/A",
