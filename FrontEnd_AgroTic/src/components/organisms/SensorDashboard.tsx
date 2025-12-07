@@ -57,6 +57,13 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
   // Use permission hook
   const { hasPermission } = usePermission();
 
+  // Debug permissions
+  useEffect(() => {
+    console.log('SensorDashboard: Checking permissions for IoT');
+    console.log('hasPermission IoT iot leer:', hasPermission('IoT', 'iot', 'leer'));
+    console.log('hasPermission IoT iot crear:', hasPermission('IoT', 'iot', 'crear'));
+  }, [hasPermission]);
+
   const toggleSensor = (key: string) => {
     setSelectedSensors(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
@@ -745,7 +752,7 @@ const SensorDashboard: React.FC<SensorDashboardProps> = ({ filters }) => {
                 />
               )}
 
-              {hasPermission('IoT', 'iot', 'crear') && (
+              {(hasPermission('zonas', 'zonas', 'crear') || hasPermission('IoT', 'iot', 'crear')) && (
                 <CustomButton
                   variant="light"
                   size="sm"

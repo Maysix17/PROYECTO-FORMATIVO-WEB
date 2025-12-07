@@ -71,7 +71,10 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   };
 
   const hasPermission = (modulo: string, recurso: string, accion: string): boolean => {
-    return permissions.some(p => p.modulo === modulo && p.recurso === recurso && p.accion === accion);
+    const result = permissions.some(p => p.modulo === modulo && p.recurso === recurso && p.accion === accion);
+    console.log(`hasPermission check: modulo=${modulo}, recurso=${recurso}, accion=${accion} => ${result}`);
+    console.log('All permissions:', permissions);
+    return result;
   };
 
   const login = async (payload: LoginPayload): Promise<void> => {

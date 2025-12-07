@@ -120,10 +120,10 @@ export class UsuariosService {
       .leftJoinAndSelect('u.ficha', 'f')
       .leftJoinAndSelect('u.rol', 'r')
       .where(
-        'u.nombres ILIKE :query OR u.apellidos ILIKE :query OR CAST(u.dni AS TEXT) ILIKE :query',
+        'u.usu_nombres ILIKE :query OR u.usu_apellidos ILIKE :query OR CAST(u.usu_dni AS TEXT) ILIKE :query',
         { query: `%${query}%` },
       )
-      .select(['u.id', 'u.nombres', 'u.apellidos', 'u.dni', 'u.telefono', 'u.correo', 'f.id', 'f.numero', 'r.id', 'r.nombre'])
+      .select(['u.id', 'u.usu_nombres as nombres', 'u.usu_apellidos as apellidos', 'u.usu_dni as dni', 'u.usu_telefono as telefono', 'u.usu_correo as correo', 'f.id', 'f.numero', 'r.id', 'r.nombre'])
       .skip(skip)
       .take(limit);
 
@@ -305,7 +305,7 @@ export class UsuariosService {
     return [
       {
         id: user.id,
-        numero_documento: user.dni,
+        dni: user.dni,
         nombres: user.nombres,
         apellidos: user.apellidos,
         correo_electronico: user.correo,

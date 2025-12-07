@@ -115,7 +115,7 @@ const MqttManagementModal: React.FC<{
           <ModalHeader>
             <div className="flex items-center justify-between w-full">
               <h2 className="text-lg font-semibold">Gestión de Configuraciones de Bróker</h2>
-              {hasPermission('IoT', 'iot', 'crear') && (
+              {(hasPermission('zonas', 'zonas', 'crear') || hasPermission('IoT', 'iot', 'crear')) && (
                 <CustomButton
                   type="button"
                   text="Nueva Configuración"
@@ -221,7 +221,7 @@ const MqttManagementModal: React.FC<{
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {hasPermission('IoT', 'iot', 'actualizar') && (
+                          {(hasPermission('zonas', 'zonas', 'actualizar') || hasPermission('IoT', 'iot', 'actualizar')) && (
                             <CustomButton
                               type="button"
                               onClick={() => handleEditConfig(config)}
@@ -229,7 +229,7 @@ const MqttManagementModal: React.FC<{
                               icon={<PencilIcon className="w-3 h-3" />}
                             />
                           )}
-                          {hasPermission('IoT', 'iot', 'eliminar') && (
+                          {(hasPermission('zonas', 'zonas', 'eliminar') || hasPermission('IoT', 'iot', 'eliminar')) && (
                             <CustomButton
                               type="button"
                               onClick={() => handleDeleteConfig(config.id)}

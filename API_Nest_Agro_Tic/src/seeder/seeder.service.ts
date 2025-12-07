@@ -266,6 +266,9 @@ export class SeederService {
       // Remove the "Panel de Control" module entirely
       await this.removePanelDeControlModule();
 
+      // Remove the "iot_exportar" resource from the IoT module
+      await this.removeIotExportarFromIoT();
+
       // Now create the new permissions
       for (const permisoData of PERMISOS_BASE) {
         // Usamos el servicio que ya tienes para evitar duplicados
@@ -466,6 +469,34 @@ export class SeederService {
     } catch (error) {
       this.logger.error(
         'Error removiendo el módulo "Panel de Control": ' + error.message,
+        'Seeder',
+      );
+    }
+  }
+
+  private async removeIotExportarFromIoT() {
+    this.logger.log('Removiendo recurso "iot_exportar" del módulo IoT...', 'Seeder');
+    try {
+      // Find all resources named "iot_exportar"
+      const recursosIotExportar = await this.recursoRepository.find({
+        where: { nombre: 'iot_exportar' },
+        relations: ['modulo'],
+      });
+
+      for (const recurso of recursosIotExportar) {
+        if (recurso.modulo && recurso.modulo.nombre === 'IoT') {
+          // Remove the resource (permissions will be deleted by CASCADE)
+          await this.recursoRepository.remove(recurso);
+          this.logger.log('Recurso "iot_exportar" eliminado del módulo IoT.', 'Seeder');
+        }
+      }
+
+      if (recursosIotExportar.length === 0) {
+        this.logger.log('No se encontraron recursos "iot_exportar". Omitiendo.', 'Seeder');
+      }
+    } catch (error) {
+      this.logger.error(
+        'Error removiendo recurso "iot_exportar" del módulo IoT: ' + error.message,
         'Seeder',
       );
     }
