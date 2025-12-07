@@ -72,7 +72,7 @@ const CategoriaActividadForm: React.FC<CategoriaActividadFormProps> = ({ editId,
 
       {message && <p className="text-center text-primary-600">{message}</p>}
 
-      {!isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') && (
+      {!isInitializing && hasPermission('Cultivos', 'cultivos', 'crear') || hasPermission('Actividades', 'actividades', 'crear') &&  (
         <CustomButton
           type="submit"
           text={editId ? 'Actualizar Categoría' : 'Registrar Categoría'}

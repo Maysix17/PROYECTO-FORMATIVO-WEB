@@ -78,7 +78,7 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
                     <td className="px-4 py-2 border-b">{categoria.nombre}</td>
                     <td className="px-4 py-2 border-b">
                       <div className="flex gap-1">
-                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar') && (
+                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'actualizar') || hasPermission('Actividades', 'actividades', 'crear') && (
                           <CustomButton
                             icon={<PencilIcon className="w-4 h-4" />}
                             tooltip="Editar"
@@ -88,7 +88,7 @@ const CategoriaActividadModal: React.FC<CategoriaActividadModalProps> = ({ isOpe
                             size="sm"
                           />
                         )}
-                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar') && (
+                        {!isInitializing && hasPermission('Cultivos', 'cultivos', 'eliminar') || hasPermission('Actividades', 'actividades', 'crear')&& (
                           <CustomButton
                             icon={<TrashIcon className="w-4 h-4" />}
                             tooltip="Eliminar"
