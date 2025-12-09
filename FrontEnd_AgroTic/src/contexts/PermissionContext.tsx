@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { logoutUser, loginUser, refreshToken } from '../services/authService';
+import { logoutUser, loginUser, refreshToken, getAccessTokenExpiration, isTokenExpiringSoon } from '../services/authService';
 import type { Permission, LoginPayload } from '../types/Auth';
 import type { User } from '../types/user';
 import { setupAxiosInterceptors } from '../lib/axios/axios';
@@ -38,6 +38,8 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const initRef = useRef<boolean>(false);
+  const refreshTimerRef = useRef<number | null>(null);
+  const lastRefreshAttemptRef = useRef<number>(0);
 
   // Helper functions for cookie management
   const savePermissionsToCookie = (permissions: Permission[]) => {
@@ -48,22 +50,33 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     });
   };
 
-  // const loadPermissionsFromCookie = (): Permission[] => {
-  //   const cookieData = Cookies.get('user_permissions');
-  //   if (cookieData) {
-  //     try {
-  //       return JSON.parse(cookieData);
-  //     } catch (error) {
-  //       console.error('Error parsing permissions from cookie:', error);
-  //       return [];
-  //     }
-  //   }
-  //   return [];
-  // };
+  const clearClientCookies = () => {
+    Cookies.remove('user_permissions');
+  };
 
-  // const clearPermissionsCookie = () => {
-  //   Cookies.remove('user_permissions');
-  // };
+  // Check if we have a valid session by checking for any auth-related cookies
+  const hasValidSession = (): boolean => {
+    // Check for any authentication indicators
+    const hasPermissions = Cookies.get('user_permissions') !== undefined;
+    // You might want to add more checks here for other auth indicators
+    return hasPermissions;
+  };
+
+  const clearAuthState = () => {
+    console.log('PermissionContext: Clearing authentication state');
+    setUser(null);
+    updatePermissions([]);
+    clearClientCookies();
+    setIsAuthenticated(false);
+    setIsRefreshing(false);
+    setIsInitializing(false);
+    
+    // Clear proactive refresh timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  };
 
   const updatePermissions = (newPermissions: Permission[]) => {
     setPermissions(newPermissions);
@@ -92,6 +105,9 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
 
       console.log('Login successful:', profile);
       setIsAuthenticated(true);
+      
+      // Start proactive token refresh
+      scheduleProactiveRefresh();
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -115,6 +131,9 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       updatePermissions(mappedPermissions);
       savePermissionsToCookie(mappedPermissions); // Save to cookies
       setIsAuthenticated(true);
+      
+      // Restart proactive refresh after successful refresh
+      scheduleProactiveRefresh();
     } catch (error) {
       console.error('PermissionContext: Refresh failed:', error);
       throw error;
@@ -123,27 +142,46 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     }
   }, []);
 
-  // Note: HTTP-only cookies (access_token, refresh_token) are cleared by the backend
-  // Only clear client-accessible cookies
-  const clearClientCookies = () => {
-    Cookies.remove('user_permissions');
-  };
+  // Proactive token refresh mechanism
+  const scheduleProactiveRefresh = useCallback(() => {
+    // Don't refresh too frequently (minimum 30 seconds between attempts)
+    const now = Date.now();
+    if (now - lastRefreshAttemptRef.current < 30000) {
+      console.log('PermissionContext: Skipping proactive refresh, too soon since last attempt');
+      return;
+    }
+    lastRefreshAttemptRef.current = now;
+
+    // Clear existing timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+    }
+
+    // Check if token is expiring soon (within 5 minutes)
+    if (isTokenExpiringSoon(5)) {
+      console.log('PermissionContext: Token expiring soon, refreshing proactively');
+      // Refresh immediately if token is expiring soon
+      refresh().catch(error => {
+        console.error('PermissionContext: Proactive refresh failed:', error);
+      });
+    } else {
+      // Schedule next check in 1 minute
+      const nextCheckTime = 60 * 1000; // 1 minute
+      refreshTimerRef.current = window.setTimeout(() => {
+        scheduleProactiveRefresh();
+      }, nextCheckTime);
+    }
+  }, [refresh]);
 
   const logout = async (): Promise<void> => {
     try {
       await logoutUser(); // This clears localStorage and sessionStorage, backend clears HTTP-only cookies
-      setUser(null);
-      updatePermissions([]);
-      clearClientCookies(); // Clear client-accessible cookies
-      setIsAuthenticated(false);
+      clearAuthState();
       navigate('/login'); // Redirect to login
     } catch (error) {
       console.error('Logout failed:', error);
       // Even on error, clear client-side data
-      setUser(null);
-      updatePermissions([]);
-      clearClientCookies();
-      setIsAuthenticated(false);
+      clearAuthState();
       navigate('/login');
     }
   };
@@ -159,27 +197,23 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     const init = async () => {
       console.log('PermissionContext: Starting app initialization');
       setIsInitializing(true);
-      console.log('PermissionContext: Checking for existing cookies...');
+      console.log('PermissionContext: Checking for existing session...');
 
-      // Check if we have user_permissions cookie that indicates a potential session
-      const hasPermissions = Cookies.get('user_permissions') !== undefined;
+      // Check if we have a valid session
+      const hasSession = hasValidSession();
 
       console.log('PermissionContext: All cookies:', document.cookie);
-      console.log('PermissionContext: user_permissions cookie present:', hasPermissions);
+      console.log('PermissionContext: Valid session present:', hasSession);
 
-      if (!hasPermissions) {
-        console.log('PermissionContext: No permissions cookie found, user is not authenticated');
-        setUser(null);
-        updatePermissions([]);
-        clearClientCookies();
-        setIsAuthenticated(false);
+      if (!hasSession) {
+        console.log('PermissionContext: No valid session found, user is not authenticated');
+        clearAuthState();
         setupAxiosInterceptors(refresh, navigate, logout);
-        setIsInitializing(false);
         return;
       }
 
       try {
-        console.log('PermissionContext: Tokens found, attempting to get profile...');
+        console.log('PermissionContext: Session found, attempting to get profile...');
         const profile = await getProfile();
         console.log('PermissionContext: Profile loaded successfully', profile);
         setUser(profile);
@@ -192,10 +226,21 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
         savePermissionsToCookie(mappedPermissions);
         setIsAuthenticated(true);
         console.log('PermissionContext: User authenticated successfully');
-      } catch (error) {
-        console.log('PermissionContext: Profile fetch failed, trying refresh token...', error);
+        
+        // Start proactive token refresh for existing session
+        scheduleProactiveRefresh();
+      } catch (error: any) {
+        console.log('PermissionContext: Profile fetch failed:', error);
 
-        // Try to refresh token if profile fetch failed
+        // If the error is 401, it means tokens are invalid/expired
+        if (error.response?.status === 401) {
+          console.log('PermissionContext: Got 401 error, session is invalid');
+          clearAuthState();
+          navigate('/login');
+          return;
+        }
+
+        // For other errors, try to refresh token as a fallback
         try {
           console.log('PermissionContext: Attempting token refresh...');
           await refreshToken();
@@ -213,14 +258,21 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
           savePermissionsToCookie(mappedPermissions);
           setIsAuthenticated(true);
           console.log('PermissionContext: User authenticated after refresh');
-        } catch (refreshError) {
-          console.log('PermissionContext: Token refresh also failed, user not authenticated:', refreshError);
-          setUser(null);
-          updatePermissions([]);
-          clearClientCookies();
-          setIsAuthenticated(false);
-          setIsInitializing(false);
-          console.log('PermissionContext: User set as not authenticated after refresh failure');
+          
+          // Start proactive token refresh after successful recovery
+          scheduleProactiveRefresh();
+        } catch (refreshError: any) {
+          console.log('PermissionContext: Token refresh failed:', refreshError);
+          
+          // If refresh also fails with 401, clear the session
+          if (refreshError.response?.status === 401) {
+            console.log('PermissionContext: Refresh failed with 401, clearing session');
+            clearAuthState();
+            navigate('/login');
+          } else {
+            console.log('PermissionContext: Unexpected refresh error, treating as no session');
+            clearAuthState();
+          }
         }
       }
 

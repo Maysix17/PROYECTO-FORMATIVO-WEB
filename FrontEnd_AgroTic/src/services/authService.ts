@@ -36,13 +36,29 @@ export const registerUser = async (
 
 export const logoutUser = async (): Promise<void> => {
   try {
-    await apiClient.post("/auth/logout");
-    // Clear local storage and session storage
+    // Only attempt logout if we think we have valid tokens
+    // Don't throw error if logout fails due to 401 (token already expired)
+    try {
+      await apiClient.post("/auth/logout");
+    } catch (logoutError: any) {
+      // If logout fails with 401, it means tokens are already invalid/expired
+      // This is expected behavior, don't treat it as an error
+      if (logoutError.response?.status === 401) {
+        console.log("Logout: Token already invalid/expired, proceeding with cleanup");
+      } else {
+        console.warn("Logout: Unexpected error:", logoutError);
+        // For other errors, we still proceed with cleanup
+      }
+    }
+    
+    // Always clear local storage and session storage regardless of API call result
     localStorage.clear();
     sessionStorage.clear();
   } catch (error) {
     console.error("Error during logout:", error);
-    throw error;
+    // Don't throw error for logout failures, just clean up locally
+    localStorage.clear();
+    sessionStorage.clear();
   }
 };
 
@@ -73,6 +89,46 @@ export const refreshToken = async (): Promise<void> => {
     console.error("AuthService: Refresh error response:", (error as any)?.response);
     throw error;
   }
+};
+
+export const getAccessTokenExpiration = (): Date | null => {
+  try {
+    // Get the access token from cookies
+    const accessTokenCookie = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('access_token='));
+    
+    if (!accessTokenCookie) {
+      return null;
+    }
+
+    const token = accessTokenCookie.split('=')[1];
+    if (!token) {
+      return null;
+    }
+
+    // Decode JWT token to get expiration
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expirationTime = payload.exp * 1000; // Convert to milliseconds
+    
+    return new Date(expirationTime);
+  } catch (error) {
+    console.error("Error getting token expiration:", error);
+    return null;
+  }
+};
+
+export const isTokenExpiringSoon = (bufferMinutes: number = 5): boolean => {
+  const expiration = getAccessTokenExpiration();
+  if (!expiration) {
+    return true; // Assume expiring if we can't determine
+  }
+
+  const now = new Date();
+  const bufferTime = bufferMinutes * 60 * 1000; // Convert minutes to milliseconds
+  const thresholdTime = new Date(expiration.getTime() - bufferTime);
+
+  return now >= thresholdTime;
 };
 
 export const registerAdminUser = async (formData: any): Promise<any> => {
