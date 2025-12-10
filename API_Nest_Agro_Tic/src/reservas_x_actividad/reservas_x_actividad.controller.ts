@@ -40,6 +40,11 @@ export class ReservasXActividadController {
     recurso: 'actividades',
     acciones: ['leer'],
     moduloNombre: 'Actividades',
+  },
+{
+    recurso: 'cultivos',
+    acciones: ['leer'],
+    moduloNombre: 'Cultivos',
   })
   @Get()
   findAll() {
@@ -50,6 +55,11 @@ export class ReservasXActividadController {
     recurso: 'actividades',
     acciones: ['leer'],
     moduloNombre: 'Actividades',
+  },
+{
+    recurso: 'cultivos',
+    acciones: ['leer'],
+    moduloNombre: 'Cultivos',
   })
   @Get(':id')
   findOne(@Param('id') id: string) {

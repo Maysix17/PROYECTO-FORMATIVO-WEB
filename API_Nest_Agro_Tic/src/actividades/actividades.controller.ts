@@ -323,6 +323,11 @@ export class ActividadesController {
     recurso: 'actividades',
     acciones: ['leer'],
     moduloNombre: 'Actividades',
+  },
+{
+    recurso: 'cultivos',
+    acciones: ['leer'],
+    moduloNombre: 'Cultivos',
   })
   @Get(':id/reservas')
   getReservationsByActivity(@Param('id') actividadId: string) {

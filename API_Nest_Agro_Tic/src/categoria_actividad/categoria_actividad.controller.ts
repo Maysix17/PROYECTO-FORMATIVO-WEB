@@ -86,6 +86,11 @@ export class CategoriaActividadController {
     recurso: 'cultivos',
     acciones: ['actualizar'],
     moduloNombre: 'Cultivos',
+  },
+{
+    recurso: 'actividades',
+    acciones: ['eliminar'],
+    moduloNombre: 'Actividades',
   })
   @Patch(':id')
   update(
@@ -102,6 +107,11 @@ export class CategoriaActividadController {
     recurso: 'cultivos',
     acciones: ['eliminar'],
     moduloNombre: 'Cultivos',
+  },
+{
+    recurso: 'actividades',
+    acciones: ['eliminar'],
+    moduloNombre: 'Actividades',
   })
   @Delete(':id')
   remove(@Param('id') id: string) {
